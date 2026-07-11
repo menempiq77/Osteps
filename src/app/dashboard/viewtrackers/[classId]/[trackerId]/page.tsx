@@ -16,7 +16,12 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { fetchTrackerTopics, addTopicMark } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
 import { useQuery } from "@tanstack/react-query";
-import { BellOutlined } from "@ant-design/icons";
+import {
+  BellOutlined,
+  CheckCircleOutlined,
+  LockOutlined,
+  TrophyOutlined,
+} from "@ant-design/icons";
 import {
   checkCertificateRequest,
   fetchTrackers,
@@ -30,10 +35,30 @@ interface Topic {
   tracker_id: number;
   title: string;
   type: string;
+  marks?: number;
+  quiz_id?: number;
+  topic_mark?: {
+    id: number;
+    student_id: number;
+    marks: number;
+  }[];
+  quiz?: {
+    id: number;
+    name: string;
+    total_marks?: number;
+    submissions?: {
+      id: number;
+      student_id: number;
+      type: string;
+      status: string;
+      obtained_marks?: number;
+    }[];
+  };
   status_progress: {
     id: number;
     topic_id: number;
     status_id: number;
+    student_id?: number;
     is_completed: number;
     status: {
       id: number;
@@ -46,6 +71,7 @@ interface TrackerData {
   id: number;
   name: string;
   type: string;
+  claim_certificate?: number;
   topics: Topic[];
 }
 
@@ -143,7 +169,7 @@ export default function ViewTrackerTopicPage() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents(classId);
+      const studentsData = await fetchStudents(Number(classId));
       setStudents(studentsData);
     } catch (err) {
       console.error("Failed to load students", err);
@@ -156,9 +182,10 @@ export default function ViewTrackerTopicPage() {
     data: trackerData,
     isLoading,
     refetch: refetchTracker,
-  } = useQuery({
+  } = useQuery<TrackerData>({
     queryKey: ["tracker-topics", trackerId],
-    queryFn: () => fetchTrackerTopics(Number(trackerId)),
+    queryFn: async () =>
+      (await fetchTrackerTopics(Number(trackerId))) as TrackerData,
     refetchOnWindowFocus: false,
   });
 
@@ -285,6 +312,31 @@ export default function ViewTrackerTopicPage() {
     }
   };
 
+  const selectedLearningTopics = topics.filter(
+    (topic) => topic.type !== "quiz"
+  );
+  const selectedCompletedLearningTopics = selectedStudentId
+    ? selectedLearningTopics.filter((topic) =>
+        topic.topic_mark?.some(
+          (mark) => Number(mark.student_id) === Number(selectedStudentId)
+        )
+      ).length
+    : 0;
+  const selectedLearningComplete =
+    selectedLearningTopics.length > 0 &&
+    selectedCompletedLearningTopics === selectedLearningTopics.length;
+  const selectedQuizTopics = topics.filter((topic) => topic.type === "quiz");
+  const selectedFinalTestCompleted = selectedStudentId
+    ? selectedQuizTopics.some((topic) =>
+        topic.quiz?.submissions?.some(
+          (submission) =>
+            Number(submission.student_id) === Number(selectedStudentId) &&
+            submission.type === "tracker" &&
+            submission.status === "completed"
+        )
+      )
+    : false;
+
   if (loading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -377,6 +429,60 @@ export default function ViewTrackerTopicPage() {
             />
           </div>
         </div>
+
+        {selectedStudentId ? (
+          <div
+            className={`mx-4 mt-4 flex items-start gap-3 rounded-xl border p-4 ${
+              selectedFinalTestCompleted
+                ? "border-emerald-200 bg-emerald-50"
+                : selectedLearningComplete
+                  ? selectedQuizTopics.length
+                    ? "border-violet-200 bg-violet-50"
+                    : "border-amber-200 bg-amber-50"
+                  : "border-slate-200 bg-slate-50"
+            }`}
+          >
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                selectedFinalTestCompleted
+                  ? "bg-emerald-600 text-white"
+                  : selectedLearningComplete
+                    ? selectedQuizTopics.length
+                      ? "bg-violet-600 text-white"
+                      : "bg-amber-400 text-amber-950"
+                    : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              {selectedFinalTestCompleted ? (
+                <TrophyOutlined />
+              ) : selectedLearningComplete ? (
+                <CheckCircleOutlined />
+              ) : (
+                <LockOutlined />
+              )}
+            </span>
+            <div>
+              <p className="font-bold text-slate-800">
+                {selectedFinalTestCompleted
+                  ? "Final test completed"
+                  : selectedLearningComplete
+                    ? selectedQuizTopics.length
+                      ? "Student is ready for the final test"
+                      : "Add a final test to this tracker"
+                    : `${selectedCompletedLearningTopics}/${selectedLearningTopics.length} learning topics completed`}
+              </p>
+              <p className="mt-0.5 text-sm text-slate-600">
+                {selectedFinalTestCompleted
+                  ? "Issue the certificate when the student's request appears on the certificate bell."
+                  : selectedLearningComplete
+                    ? selectedQuizTopics.length
+                      ? "The test is now unlocked in the student's tracker."
+                      : "Assign a quiz topic so the student can complete the required teacher test."
+                    : "The final test stays locked until every learning topic is done."}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto">
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -528,8 +634,9 @@ export default function ViewTrackerTopicPage() {
                               {topic.type !== "quiz" && (
                                 <Button
                                   title={
-                                    !selectedStudentId &&
-                                    "Please select a student first"
+                                    !selectedStudentId
+                                      ? "Please select a student first"
+                                      : undefined
                                   }
                                   className="!text-primary"
                                   onClick={() => handleEnterMarks(topic)}

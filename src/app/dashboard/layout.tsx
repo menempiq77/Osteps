@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Home, LogOut, Settings as SettingsIcon } from "l
 import { RootState } from "@/store/store";
 import SubjectSwitcher from "@/components/ui/SubjectSwitcher";
 import SchoolNotificationBell from "@/components/dashboard/SchoolNotificationBell";
+import StudentCoinWallet from "@/components/dashboard/StudentCoinWallet";
 import { SubjectContextProvider } from "@/contexts/SubjectContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -486,6 +487,9 @@ export default function DashboardLayout({
 
           <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
             {showSubjectSwitcher ? <SubjectSwitcher /> : null}
+            {normalizedRole === "STUDENT" && currentUser?.student ? (
+              <StudentCoinWallet studentId={currentUser.student} />
+            ) : null}
             {renderThemeSwitcher()}
             {renderNavigationButtons()}
             {renderAccountActions()}

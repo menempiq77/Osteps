@@ -11,6 +11,7 @@ import {
   fetchMyClaimedCertificates,
   fetchTrackers,
 } from "@/services/trackersApi";
+import { fetchTrackerStudentTopics } from "@/services/api";
 import { FilePdfOutlined, TrophyOutlined, CalendarOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +38,12 @@ type Tracker = {
   };
 };
 
+type ClaimedCertificate = {
+  id: number;
+  tracker_id: number;
+  certificate_path: string;
+};
+
 export default function TrackerList() {
   const { classId } = useParams();
   const router = useRouter();
@@ -48,14 +55,16 @@ export default function TrackerList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const requestCertificateMutation = useMutation({
-    mutationFn: claimCertificate,
+    mutationFn: (trackerId: string) => claimCertificate(Number(trackerId)),
 
     onMutate: (trackerId: string) => {
       setActiveTrackerId(trackerId);
     },
 
     onSuccess: () => {
-      messageApi.success("Request Certificate submitted successfully!");
+      messageApi.success(
+        "Certificate requested. Your teacher can now review and issue it."
+      );
       queryClient.invalidateQueries({
         queryKey: ["claimed-certificates"],
       });
@@ -75,7 +84,7 @@ export default function TrackerList() {
   const {
     data: claimedCertificates = [],
     isLoading: certificatesLoading,
-  } = useQuery({
+  } = useQuery<ClaimedCertificate[]>({
     queryKey: ["claimed-certificates"],
     queryFn: fetchMyClaimedCertificates,
   });
@@ -144,6 +153,49 @@ export default function TrackerList() {
     enabled: trackers.length > 0,
   });
 
+  const { data: finalTestMap = {} } = useQuery({
+    queryKey: [
+      "tracker-final-test-status",
+      currentUser?.student,
+      trackers.map((tracker) => tracker.tracker_id),
+    ],
+    queryFn: async () => {
+      const studentId = Number(currentUser?.student);
+      const results = await Promise.all(
+        trackers.map(async (tracker) => {
+          const response = await fetchTrackerStudentTopics(
+            studentId,
+            Number(tracker.tracker_id)
+          );
+          const trackerData = Array.isArray(response)
+            ? response[0]
+            : response;
+          const quizTopics = (trackerData?.topics ?? []).filter(
+            (topic: any) => topic?.type === "quiz"
+          );
+          const completed = quizTopics.some((topic: any) =>
+            topic?.quiz?.submissions?.some(
+              (submission: any) =>
+                Number(submission?.student_id) === studentId &&
+                submission?.type === "tracker" &&
+                submission?.status === "completed"
+            )
+          );
+          return [
+            tracker.tracker_id,
+            {
+              hasFinalTest: quizTopics.length > 0,
+              completed,
+            },
+          ];
+        })
+      );
+
+      return Object.fromEntries(results);
+    },
+    enabled: trackers.length > 0 && Boolean(currentUser?.student),
+  });
+
   const handleDownloadCertificate = (certificatePath: string) => {
     const url = `${IMG_BASE_URL}/storage/${certificatePath}`;
     window.open(url, "_blank");
@@ -194,7 +246,15 @@ export default function TrackerList() {
       <div className="premium-card relative overflow-auto rounded-xl p-1">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 p-3">
           {trackers?.length > 0 ? (
-            trackers?.map((tracker) => (
+            trackers?.map((tracker) => {
+              const finalTest = finalTestMap?.[tracker.tracker_id];
+              const canRequestCertificate =
+                tracker.tracker.claim_certificate !== 0 &&
+                eligibilityMap?.[tracker.tracker_id]?.eligible &&
+                finalTest?.hasFinalTest &&
+                finalTest?.completed;
+
+              return (
               <div
                 key={tracker.id}
                 className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-lg hover:border-green-300 transition-all duration-300 overflow-hidden group"
@@ -264,9 +324,13 @@ export default function TrackerList() {
                       ) : (
                         <Tooltip
                           title={
-                            !eligibilityMap?.[tracker.tracker_id]?.eligible
-                              ? "Complete tracker requirements to become eligible"
-                              : "Request Certificate"
+                            !finalTest?.hasFinalTest
+                              ? "Your teacher needs to add the final test"
+                              : !finalTest?.completed
+                                ? "Complete the final test first"
+                                : !eligibilityMap?.[tracker.tracker_id]?.eligible
+                                  ? "Complete every tracker topic first"
+                                  : "Request your certificate"
                           }
                         >
                           <Button
@@ -274,8 +338,7 @@ export default function TrackerList() {
                             icon={<TrophyOutlined className="text-base" />}
                             size="small"
                             className={`!font-semibold ${
-                              tracker.tracker.claim_certificate === 0 ||
-                              !eligibilityMap?.[tracker.tracker_id]?.eligible
+                              !canRequestCertificate
                                 ? "!opacity-50 !cursor-not-allowed"
                                 : "!bg-green-600 !border-green-600 hover:!bg-green-700"
                             } !text-white`}
@@ -289,11 +352,10 @@ export default function TrackerList() {
                               )
                             }
                             disabled={
-                              tracker.tracker.claim_certificate === 0 ||
-                              !eligibilityMap?.[tracker.tracker_id]?.eligible
+                              !canRequestCertificate
                             }
                           >
-                            Request
+                            Claim certificate
                           </Button>
                         </Tooltip>
                       )}
@@ -304,7 +366,8 @@ export default function TrackerList() {
                 {/* Bottom Accent Border */}
                 <div className="h-0.5 bg-gradient-to-r from-green-400 via-green-500 to-transparent"></div>
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="col-span-full text-center py-8">
               <p className="text-gray-500 text-sm">No trackers found.</p>
