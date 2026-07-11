@@ -71,6 +71,7 @@ interface TrackerData {
   id: number;
   name: string;
   type: string;
+  claim_certificate?: number;
   topics: Topic[];
 }
 
@@ -168,7 +169,7 @@ export default function ViewTrackerTopicPage() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await fetchStudents(classId);
+      const studentsData = await fetchStudents(Number(classId));
       setStudents(studentsData);
     } catch (err) {
       console.error("Failed to load students", err);
@@ -181,9 +182,10 @@ export default function ViewTrackerTopicPage() {
     data: trackerData,
     isLoading,
     refetch: refetchTracker,
-  } = useQuery({
+  } = useQuery<TrackerData>({
     queryKey: ["tracker-topics", trackerId],
-    queryFn: () => fetchTrackerTopics(Number(trackerId)),
+    queryFn: async () =>
+      (await fetchTrackerTopics(Number(trackerId))) as TrackerData,
     refetchOnWindowFocus: false,
   });
 
@@ -632,8 +634,9 @@ export default function ViewTrackerTopicPage() {
                               {topic.type !== "quiz" && (
                                 <Button
                                   title={
-                                    !selectedStudentId &&
-                                    "Please select a student first"
+                                    !selectedStudentId
+                                      ? "Please select a student first"
+                                      : undefined
                                   }
                                   className="!text-primary"
                                   onClick={() => handleEnterMarks(topic)}

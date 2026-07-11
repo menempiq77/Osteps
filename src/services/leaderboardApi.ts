@@ -5,6 +5,8 @@ interface LeaderboardEntry {
   student_id: number;
   student_name: string;
   total_marks: number | null;
+  tracker_points?: number | string | null;
+  mind_points?: number | string | null;
   class_name?: string;
 }
 
@@ -160,7 +162,7 @@ export const fetchLeaderBoardData = async (
     primaryError = error instanceof Error ? error : new Error(String(error));
   }
 
-  if ((primary?.data ?? []).length > 0) {
+  if (primary && primary.data.length > 0) {
     return primary;
   }
 

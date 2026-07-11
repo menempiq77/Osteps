@@ -183,8 +183,11 @@ export default function TrackerTopicsPage() {
     try {
       const showLoading = opts?.showLoading ?? true;
       if (showLoading) setLoading(true);
+      if (!Number.isFinite(currentStudentId) || currentStudentId <= 0) {
+        return;
+      }
       const response = await fetchTrackerStudentTopics(
-        currentUser?.student,
+        currentStudentId,
         Number(trackerId)
       );
 

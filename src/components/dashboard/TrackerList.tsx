@@ -38,6 +38,12 @@ type Tracker = {
   };
 };
 
+type ClaimedCertificate = {
+  id: number;
+  tracker_id: number;
+  certificate_path: string;
+};
+
 export default function TrackerList() {
   const { classId } = useParams();
   const router = useRouter();
@@ -49,7 +55,7 @@ export default function TrackerList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const requestCertificateMutation = useMutation({
-    mutationFn: claimCertificate,
+    mutationFn: (trackerId: string) => claimCertificate(Number(trackerId)),
 
     onMutate: (trackerId: string) => {
       setActiveTrackerId(trackerId);
@@ -78,7 +84,7 @@ export default function TrackerList() {
   const {
     data: claimedCertificates = [],
     isLoading: certificatesLoading,
-  } = useQuery({
+  } = useQuery<ClaimedCertificate[]>({
     queryKey: ["claimed-certificates"],
     queryFn: fetchMyClaimedCertificates,
   });
