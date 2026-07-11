@@ -56,6 +56,9 @@ export default function StudentCoinWallet({
       void queryClient.invalidateQueries({
         queryKey: ["student-report-reward-balances"],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ["student-my-report-reward-balances"],
+      });
     };
 
     window.addEventListener(STUDENT_COINS_UPDATED_EVENT, handleCoinsUpdated);
