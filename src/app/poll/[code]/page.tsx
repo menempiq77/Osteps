@@ -54,6 +54,7 @@ export default function PublicPollPage() {
   const [submitted, setSubmitted] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const [syncMode, setSyncMode] = useState<SyncMode>("self");
   const [presenterIndex, setPresenterIndex] = useState(0);
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -116,6 +117,7 @@ export default function PublicPollPage() {
     const q = poll.questions[currentQIndex];
     if (!q) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
       await publicApi.post(`/live-polls/${poll.id}/questions/${q.id}/respond`, {
         answer: answer.trim(),
@@ -126,7 +128,14 @@ export default function PublicPollPage() {
       if (syncMode === "self" && currentQIndex < poll.questions.length - 1) {
         setTimeout(() => setCurrentQIndex((i) => i + 1), 600);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      const backend = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setSubmitError(
+        typeof backend === "string" && backend.trim()
+          ? backend
+          : "Couldn't submit your answer. Please check your connection and try again."
+      );
+    }
     setSubmitting(false);
   };
 
@@ -390,6 +399,9 @@ export default function PublicPollPage() {
                   >
                     {submitting ? "Submitting..." : "Submit Answer"}
                   </button>
+                  {submitError && (
+                    <p className="mt-3 text-center text-sm font-medium text-red-600">{submitError}</p>
+                  )}
                 </div>
               )}
 

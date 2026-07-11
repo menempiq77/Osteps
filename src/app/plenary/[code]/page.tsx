@@ -19,6 +19,7 @@ export default function PlenaryPage() {
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [comments, setComments] = useState<PlenaryComment[]>([]);
 
   const fetchComments = useCallback(async () => {
@@ -40,16 +41,18 @@ export default function PlenaryPage() {
   const handleSubmit = async () => {
     if (!name.trim() || !comment.trim()) return;
     setSubmitting(true);
+    setSubmitError("");
     try {
-      await fetch(`${API_BASE}/api/plenary/${code}`, {
+      const res = await fetch(`${API_BASE}/api/plenary/${code}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), comment: comment.trim() }),
       });
+      if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
       setSubmitted(true);
       fetchComments();
     } catch {
-      // ignore
+      setSubmitError("Couldn't share your response. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -94,6 +97,9 @@ export default function PlenaryPage() {
             >
               {submitting ? "Sending..." : "Share My Learning"}
             </button>
+            {submitError && (
+              <p className="mt-3 text-sm font-medium text-red-600">{submitError}</p>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center shadow-sm">
