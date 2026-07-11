@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat } from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
+import { resolveWithinDir, safePathSegment } from "@/lib/server/safePath";
 
 const TEXTBOOK_DIR = path.join(DATA_DIR, "textbooks");
 
@@ -9,8 +10,12 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { gradeSlug: string } },
 ) {
-  const { gradeSlug } = params;
-  const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
+  const gradeSlug = safePathSegment(params.gradeSlug);
+  const gradeDir = resolveWithinDir(TEXTBOOK_DIR, gradeSlug);
+
+  if (!gradeDir) {
+    return NextResponse.json({ files: [] });
+  }
 
   try {
     const entries = await readdir(gradeDir);
@@ -36,8 +41,12 @@ export async function HEAD(
   _req: NextRequest,
   { params }: { params: { gradeSlug: string } },
 ) {
-  const { gradeSlug } = params;
-  const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
+  const gradeSlug = safePathSegment(params.gradeSlug);
+  const gradeDir = resolveWithinDir(TEXTBOOK_DIR, gradeSlug);
+
+  if (!gradeDir) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   try {
     const entries = await readdir(gradeDir);
