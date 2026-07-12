@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Coins } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchSchoolSelfLeaderBoardData } from "@/services/leaderboardApi";
+import { resolveCoinBalance } from "@/lib/leaderboard";
+import { fetchStudentWalletBalance } from "@/services/studentWalletApi";
 
 export const STUDENT_COINS_UPDATED_EVENT = "osteps:student-coins-updated";
 
@@ -19,12 +21,17 @@ export default function StudentCoinWallet({
   const { data: balance = 0, refetch } = useQuery({
     queryKey: ["student-coin-wallet", normalizedStudentId],
     queryFn: async () => {
-      const response = await fetchSchoolSelfLeaderBoardData();
-      const row = (response?.data ?? []).find(
-        (entry) => String(entry?.student_id ?? "") === normalizedStudentId
-      );
-      const coins = Number(row?.tracker_points ?? 0);
-      return Number.isFinite(coins) ? coins : 0;
+      try {
+        const wallet = await fetchStudentWalletBalance();
+        const coins = Number(wallet?.coin_balance ?? 0);
+        return Number.isFinite(coins) ? coins : 0;
+      } catch {
+        const response = await fetchSchoolSelfLeaderBoardData();
+        const row = (response?.data ?? []).find(
+          (entry) => String(entry?.student_id ?? "") === normalizedStudentId
+        );
+        return resolveCoinBalance(row);
+      }
     },
     enabled: Boolean(normalizedStudentId),
     staleTime: 60 * 1000,
@@ -42,6 +49,15 @@ export default function StudentCoinWallet({
       void refetch();
       void queryClient.invalidateQueries({
         queryKey: ["leaderboard-school-self"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["student-card-reward-balances"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["student-report-reward-balances"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["student-my-report-reward-balances"],
       });
     };
 

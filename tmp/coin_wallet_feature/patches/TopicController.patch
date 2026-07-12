@@ -1,0 +1,73 @@
+--- a/app/Http/Controllers/Api/TopicController.php
++++ b/app/Http/Controllers/Api/TopicController.php
+@@ -18,0 +19,2 @@
++use Illuminate\Support\Facades\DB;
++use App\Services\StudentCoinWalletService;
+@@ -616,2 +618,2 @@
+-                'topic_id' => 'required',
+-                'student_id' => 'required',
++                'topic_id' => 'required|integer|exists:topics,id',
++                'student_id' => 'required|integer|exists:students,id',
+@@ -621,0 +624,11 @@
++            $isStudent = strtoupper(trim((string) $user->role)) === 'STUDENT';
++
++            if ($isStudent) {
++                $ownStudentId = (int) Student::where('user_id', $user->id)->value('id');
++                if ($ownStudentId !== (int) $request->student_id) {
++                    return response()->json([
++                        'msg' => 'Forbidden',
++                        'status_code' => 403,
++                    ], 403);
++                }
++            }
+@@ -641 +654 @@
+-                if ($user->role === 'STUDENT') {
++                if ($isStudent) {
+@@ -649 +662 @@
+-            $isTeacher = $user->role !== 'STUDENT';
++            $isTeacher = !$isStudent;
+@@ -670,8 +683,27 @@
+-            $marks = StudentTopicMark::updateOrCreate(
+-                [
+-                    'topic_id' => $request->topic_id,
+-                    'student_id' => $request->student_id
+-                ],
+-                [
+-                    'marks' => $marksValue,
+-                    'teacher_locked' => $isTeacher ? true : false
++            $coinBalance = null;
++            $marks = DB::transaction(function () use (
++                $request,
++                $marksValue,
++                $isTeacher,
++                $isStudent,
++                &$coinBalance
++            ) {
++                $marks = StudentTopicMark::updateOrCreate(
++                    [
++                        'topic_id' => $request->topic_id,
++                        'student_id' => $request->student_id
++                    ],
++                    [
++                        'marks' => $marksValue,
++                        'teacher_locked' => $isTeacher
++                    ]
++                );
++
++                if ($isStudent && $marks->wasRecentlyCreated) {
++                    $wallet = app(StudentCoinWalletService::class)->awardTopicCompletion(
++                        (int) $request->student_id,
++                        (int) $request->topic_id,
++                        (int) $marksValue
++                    );
++                    $coinBalance = (int) $wallet->balance;
++                }
+@@ -679,2 +711,2 @@
+-                ]
+-            );
++                return $marks;
++            });
+@@ -690 +722,2 @@
+-                'data' => $marks
++                'data' => $marks,
++                'coin_balance' => $coinBalance,

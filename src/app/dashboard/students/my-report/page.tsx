@@ -21,9 +21,14 @@ import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
+import { fetchSchoolSelfLeaderBoardData } from "@/services/leaderboardApi";
 import { fetchWholeAssessmentsReport } from "@/services/reportApi";
 import { fetchMyClaimedCertificates } from "@/services/trackersApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import {
+  resolveCoinBalance,
+  type LeaderboardRawEntry,
+} from "@/lib/leaderboard";
 
 type AnyObj = Record<string, unknown>;
 
@@ -169,6 +174,16 @@ export default function StudentMyReportPage() {
     queryFn: () =>
       fetchStudentProfileData(studentId, scopedSubjectId),
     enabled: Boolean(studentId),
+  });
+
+  const { data: rewardRows = [] } = useQuery({
+    queryKey: ["student-my-report-reward-balances", studentId],
+    queryFn: async () => {
+      const response = await fetchSchoolSelfLeaderBoardData();
+      return (response?.data ?? []) as LeaderboardRawEntry[];
+    },
+    enabled: Boolean(studentId),
+    staleTime: 60 * 1000,
   });
 
   const { data: grades = [] } = useQuery({
@@ -432,6 +447,28 @@ export default function StudentMyReportPage() {
     return { trackers, overall: pct(totalEarned, totalMax) };
   }, [s, studentId]);
 
+  const rewards = useMemo(() => {
+    const row = rewardRows.find(
+      (entry) => String(entry?.student_id ?? "") === studentId
+    );
+    const trackerPoints = tracker.trackers.reduce(
+      (total, current) => total + current.earned,
+      0
+    );
+    return {
+      coins: resolveCoinBalance(
+        row ?? (s as LeaderboardRawEntry),
+        trackerPoints
+      ),
+      points: num(
+        row?.total_marks ??
+          s?.total_marks ??
+          s?.leaderboard_points ??
+          trackerPoints
+      ),
+    };
+  }, [rewardRows, s, studentId, tracker]);
+
   const achievements = useMemo(
     () =>
       asArray(claimedCertificates)
@@ -610,7 +647,19 @@ export default function StudentMyReportPage() {
       {/* KPI tiles — current-class only (attendance/behaviour/tracker come
           from the profile, which reflects the current class). */}
       {!isPreviousView ? (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatTile
+          label="Coins"
+          value={rewards.coins.toLocaleString()}
+          hint="Spendable pocket balance"
+          tone="amber"
+        />
+        <StatTile
+          label="Leaderboard points"
+          value={rewards.points.toLocaleString()}
+          hint="Permanent score"
+          tone="blue"
+        />
         <StatTile
           label="Attendance"
           value={attendance.total ? `${attendance.percent}%` : "N/A"}

@@ -32,10 +32,15 @@ import {
 import { RootState } from "@/store/store";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
+import { fetchSchoolSelfLeaderBoardData } from "@/services/leaderboardApi";
 import { fetchStudentNarrativeReports } from "@/services/studentNarrativeReportApi";
 import TeacherReportEditor from "@/components/reports/TeacherReportEditor";
 import SupportWellbeingEditor from "@/components/reports/SupportWellbeingEditor";
 import BehaviourHistoryEditor from "@/components/reports/BehaviourHistoryEditor";
+import {
+  resolveCoinBalance,
+  type LeaderboardRawEntry,
+} from "@/lib/leaderboard";
 
 type AnyObj = Record<string, unknown>;
 
@@ -197,6 +202,16 @@ export default function StudentReportPage() {
     queryKey: ["student-report-profile", studentId, subjectId ?? 0],
     queryFn: () => fetchStudentProfileData(studentId, subjectId ?? 0),
     enabled: Boolean(studentId),
+  });
+
+  const { data: rewardRows = [] } = useQuery({
+    queryKey: ["student-report-reward-balances"],
+    queryFn: async () => {
+      const response = await fetchSchoolSelfLeaderBoardData();
+      return (response?.data ?? []) as LeaderboardRawEntry[];
+    },
+    enabled: Boolean(studentId),
+    staleTime: 60 * 1000,
   });
 
   const normalizedRole = String(currentUser?.role ?? "")
@@ -516,6 +531,28 @@ export default function StudentReportPage() {
     return { trackers, overall: pct(totalEarned, totalMax) };
   }, [s, studentId]);
 
+  const rewards = useMemo(() => {
+    const row = rewardRows.find(
+      (entry) => String(entry?.student_id ?? "") === studentId
+    );
+    const trackerPoints = tracker.trackers.reduce(
+      (total, current) => total + current.earned,
+      0
+    );
+    return {
+      coins: resolveCoinBalance(
+        row ?? (s as LeaderboardRawEntry),
+        trackerPoints
+      ),
+      points: num(
+        row?.total_marks ??
+          s?.total_marks ??
+          s?.leaderboard_points ??
+          trackerPoints
+      ),
+    };
+  }, [rewardRows, s, studentId, tracker]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[360px] items-center justify-center">
@@ -646,7 +683,19 @@ export default function StudentReportPage() {
       </header>
 
       {/* KPI tiles */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatTile
+          label="Coins"
+          value={rewards.coins.toLocaleString()}
+          hint="Spendable pocket balance"
+          tone="amber"
+        />
+        <StatTile
+          label="Leaderboard points"
+          value={rewards.points.toLocaleString()}
+          hint="Permanent score"
+          tone="blue"
+        />
         <StatTile
           label="Attendance"
           value={attendance.total ? `${attendance.percent}%` : "N/A"}

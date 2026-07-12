@@ -7,6 +7,9 @@ interface LeaderboardEntry {
   total_marks: number | null;
   tracker_points?: number | string | null;
   mind_points?: number | string | null;
+  coin_balance?: number | string | null;
+  coins?: number | string | null;
+  wallet_balance?: number | string | null;
   class_name?: string;
 }
 

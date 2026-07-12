@@ -1427,7 +1427,9 @@ const LeaderBoard = () => {
               <Text strong style={{ fontSize: idx === 1 ? 14 : 12.5, maxWidth: 90, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }} title={student.name}>
                 {student.name}
               </Text>
-              <Text style={{ fontSize: 12, color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>{student.points} pts</Text>
+              <Text style={{ fontSize: 12, color: "#0f766e", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                {student.points} pts
+              </Text>
               <div style={{ width: 80, height: podiumHeight, background: rankColor, opacity: 0.82, borderRadius: "8px 8px 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff" }}>
                 {icon}
               </div>

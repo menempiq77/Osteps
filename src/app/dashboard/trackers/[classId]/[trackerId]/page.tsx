@@ -356,40 +356,40 @@ export default function TrackerTopicsPage() {
     );
 
   return (
-    <div className="mx-auto max-w-7xl p-3 md:p-6">
+    <div className="mx-auto max-w-7xl p-3 text-slate-900 md:p-6">
       {contextHolder}
       <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <Button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:!border-green-500 hover:!text-green-500"
+          className="flex !h-11 items-center gap-2 !rounded-xl !border-slate-300 !px-4 !text-sm !font-bold !text-slate-700 hover:!border-emerald-600 hover:!text-emerald-700"
         >
           <ArrowLeft size={18} />
           Back to Trackers
         </Button>
-        <div className="text-sm text-gray-600">
-          <span className="mr-2 font-medium text-gray-700">Deadline:</span>
+        <div className="text-sm font-medium text-slate-700">
+          <span className="mr-2 font-bold text-slate-900">Deadline:</span>
           <DeadlineCountdown deadline={deadline} showDate />
         </div>
       </div>
 
-      <section className="relative mb-5 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-600 p-5 text-white shadow-xl md:p-7">
+      <section className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-700 p-6 text-white shadow-xl md:p-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-200">
-              <Sparkles className="h-4 w-4 text-amber-300" />
+            <div className="mb-2 flex items-center gap-2 text-sm font-extrabold uppercase tracking-[0.12em] text-emerald-50">
+              <Sparkles className="h-5 w-5 text-amber-300" />
               Learning adventure
             </div>
-            <h1 className="text-2xl font-black md:text-3xl">
+            <h1 className="text-3xl font-black leading-tight text-white md:text-4xl">
               {trackerData?.name || "Tracker Progress"}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-emerald-100">
+            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-white/90">
               Finish each topic, tap Done once, and collect its coins. Every
               coin also counts toward your leaderboard score.
             </p>
-            <div className="mt-5 max-w-2xl">
-              <div className="mb-1.5 flex items-center justify-between text-xs font-bold text-emerald-100">
+            <div className="mt-6 max-w-2xl">
+              <div className="mb-2 flex items-center justify-between text-sm font-extrabold text-white">
                 <span>Your journey</span>
                 <span>{journeyPercent}%</span>
               </div>
@@ -403,28 +403,28 @@ export default function TrackerTopicsPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:min-w-[390px]">
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-200">
+            <div className="rounded-2xl border border-white/70 bg-white/95 p-4 text-slate-900 shadow-lg backdrop-blur">
+              <span className="text-xs font-extrabold uppercase tracking-wide text-slate-600">
                 Topics done
               </span>
-              <p className="mt-1 text-2xl font-black">
+              <p className="mt-1 text-3xl font-black text-emerald-800">
                 {completedLearningTopics}/{learningTopics.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-amber-200/25 bg-amber-300/15 p-3 backdrop-blur">
-              <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-200">
-                <Coins className="h-3.5 w-3.5" />
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-slate-900 shadow-lg backdrop-blur">
+              <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-amber-900">
+                <Coins className="h-4 w-4" />
                 This tracker
               </span>
-              <p className="mt-1 text-2xl font-black text-amber-100">
+              <p className="mt-1 text-3xl font-black text-amber-800">
                 {(progressPoints?.earned_points ?? 0).toLocaleString()}
               </p>
             </div>
-            <div className="col-span-2 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur sm:col-span-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-200">
+            <div className="col-span-2 rounded-2xl border border-white/70 bg-white/95 p-4 text-slate-900 shadow-lg backdrop-blur sm:col-span-1">
+              <span className="text-xs font-extrabold uppercase tracking-wide text-slate-600">
                 Available
               </span>
-              <p className="mt-1 text-2xl font-black">
+              <p className="mt-1 text-3xl font-black text-teal-800">
                 {(progressPoints?.total_points ?? 0).toLocaleString()}
               </p>
             </div>
@@ -499,31 +499,31 @@ export default function TrackerTopicsPage() {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50">
+            <thead className="border-b border-slate-300 bg-slate-100">
               <tr>
-                <th className="p-4 text-left text-xs font-black uppercase tracking-wider text-slate-500">
+                <th className="p-4 text-left text-sm font-extrabold uppercase tracking-wide text-slate-700">
                   Topics
                 </th>
                 {statusTypes.map((statusName) => (
                   <th
                     key={statusName}
-                    className="p-4 text-center text-xs font-black uppercase tracking-wider text-slate-500"
+                    className="p-4 text-center text-sm font-extrabold uppercase tracking-wide text-slate-700"
                   >
                     {normalizeProgressOption(statusName)}
                   </th>
                 ))}
-                <th className="p-4 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+                <th className="p-4 text-center text-sm font-extrabold uppercase tracking-wide text-slate-700">
                   Reward
                 </th>
-                <th className="p-4 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+                <th className="p-4 text-center text-sm font-extrabold uppercase tracking-wide text-slate-700">
                   Action
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {topics.slice(0, visibleTopics).map((topic, index) => {
                 const topicDone = isTopicDone(topic);
                 const quizCompleted = isQuizCompleted(topic);
@@ -538,23 +538,23 @@ export default function TrackerTopicsPage() {
                     key={topic.id ?? `${topic.title}-${index}`}
                     className={`relative transition ${
                       topicDone || quizCompleted
-                        ? "bg-emerald-50/50"
+                        ? "bg-emerald-50"
                         : topic.type === "quiz"
                           ? quizLocked
-                            ? "bg-slate-50/70"
-                            : "bg-violet-50/60 hover:bg-violet-50"
-                          : "hover:bg-amber-50/40"
+                            ? "bg-slate-50"
+                            : "bg-violet-50 hover:bg-violet-100/70"
+                          : "bg-white hover:bg-amber-50"
                     }`}
                   >
-                    <td className="min-w-[280px] p-4">
-                      <div className="flex items-center gap-3">
+                    <td className="min-w-[320px] p-5">
+                      <div className="flex items-center gap-4">
                         <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-black ${
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-black shadow-sm ${
                             topicDone || quizCompleted
                               ? "bg-emerald-600 text-white"
                               : topic.type === "quiz"
-                                ? "bg-violet-100 text-violet-700"
-                                : "bg-slate-100 text-slate-600"
+                                ? "bg-violet-100 text-violet-800"
+                                : "border border-slate-200 bg-slate-100 text-slate-700"
                           }`}
                         >
                           {topicDone || quizCompleted ? (
@@ -564,10 +564,10 @@ export default function TrackerTopicsPage() {
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-slate-900">
+                          <p className="text-base font-extrabold leading-6 text-slate-950">
                             {topic.title || topic.quiz?.name}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-1 text-sm font-medium text-slate-600">
                             {topic.type === "quiz"
                               ? "Teacher's final test"
                               : topicDone
@@ -587,14 +587,14 @@ export default function TrackerTopicsPage() {
                           className="p-4 text-center"
                         >
                           {topic.type === "quiz" ? (
-                            <span className="text-slate-300">—</span>
+                            <span className="text-lg font-bold text-slate-400">—</span>
                           ) : statusProgress?.is_completed === 1 ? (
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                              <CheckCircle2 className="h-4 w-4" />
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200">
+                              <CheckCircle2 className="h-5 w-5" />
                             </span>
                           ) : (
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-200 bg-white">
-                              <span className="h-2 w-2 rounded-full bg-slate-300" />
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-300 bg-white">
+                              <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
                             </span>
                           )}
                         </td>
@@ -602,10 +602,10 @@ export default function TrackerTopicsPage() {
                     })}
                     <td className="p-4 text-center">
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-black ${
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-base font-black shadow-sm ${
                           topicDone
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-800"
+                            ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+                            : "border-amber-300 bg-amber-100 text-amber-900"
                         }`}
                       >
                         <Coins className="h-4 w-4" />
@@ -631,18 +631,17 @@ export default function TrackerTopicsPage() {
                           <Button
                             disabled
                             icon={<CheckCircle2 className="h-4 w-4" />}
-                            className="!h-10 !rounded-xl !border-emerald-200 !bg-emerald-50 !px-5 !font-black !text-emerald-700 disabled:!opacity-100"
+                            className="!h-11 !min-w-[110px] !rounded-xl !border-emerald-300 !bg-white !px-5 !text-sm !font-black !text-emerald-800 !shadow-sm disabled:!opacity-100"
                           >
                             Done
                           </Button>
                         ) : (
                           <Button
-                            type="primary"
                             loading={completingTopicId === topic.id}
                             disabled={!isStudent || completingTopicId !== null}
                             icon={<Coins className="h-4 w-4" />}
                             onClick={() => handleDone(topic)}
-                            className="!h-10 !rounded-xl !border-amber-400 !bg-gradient-to-r !from-amber-400 !to-yellow-500 !px-5 !font-black !text-amber-950 !shadow-[0_8px_20px_rgba(245,158,11,0.25)] hover:!from-amber-300 hover:!to-yellow-400"
+                            className="!h-11 !min-w-[110px] !rounded-xl !border-amber-500 !bg-amber-400 !px-5 !text-sm !font-black !text-slate-950 !shadow-[0_8px_20px_rgba(245,158,11,0.28)] hover:!border-amber-600 hover:!bg-amber-300 hover:!text-slate-950 disabled:!border-slate-300 disabled:!bg-slate-200 disabled:!text-slate-500"
                           >
                             Done
                           </Button>
@@ -712,11 +711,11 @@ export default function TrackerTopicsPage() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-slate-300 bg-slate-100 p-4 text-sm font-medium text-slate-700 sm:flex-row sm:items-center sm:justify-between">
           <div>
             Showing {Math.min(visibleTopics, topics.length)} of {topics.length}{" "}
             topics
-            <span className="ml-2 font-semibold text-slate-600">
+            <span className="ml-2 font-extrabold text-slate-900">
               Done is final and cannot be undone.
             </span>
           </div>
