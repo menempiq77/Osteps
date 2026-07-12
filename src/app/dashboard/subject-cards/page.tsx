@@ -15,6 +15,7 @@ import {
   EditOutlined,
   InboxOutlined,
   NotificationOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   RollbackOutlined,
   QuestionCircleOutlined,
@@ -113,6 +114,7 @@ const LINK_COLORS: Record<string, LinkColor> = {
   "Markbook":      { bg: "#eefbf1", iconColor: "#31a65c", border: "#a8e4b8" },
   "Reports":       { bg: "#eef4ff", iconColor: "#3b5bdb", border: "#c2d2ff" },
   "Tools":         { bg: "#f3f0ff", iconColor: "#6d5bd0", border: "#d8cffd" },
+  "Games":         { bg: "#fff7ed", iconColor: "#ea580c", border: "#fed7aa" },
 };
 const DEFAULT_LINK: LinkColor = { bg: "#effaf3", iconColor: "#38C16C", border: "#b9e2cd" };
 const lc = (name: string): LinkColor => LINK_COLORS[name] ?? DEFAULT_LINK;
@@ -1051,6 +1053,7 @@ export default function SubjectCardsPage() {
             <QuickLinkCard name="Calendar"           href="/dashboard/time_table?view=calendar" desc="Open the calendar view by subject, class, or teacher."            Icon={CalendarOutlined} />
             <QuickLinkCard name="Announcements"     href="/dashboard/announcements"      desc="Send announcements to HODs, teachers, and students."                Icon={NotificationOutlined} />
             <QuickLinkCard name="Tools"         href="/dashboard/tools"                 desc="Extra tools that support all subjects."                             Icon={ToolOutlined} />
+            <QuickLinkCard name="Games"         href="/dashboard/games"                 desc="Manage student reward games and coin access."                       Icon={PlayCircleOutlined} />
             <QuickLinkCard name="Leaderboard"   href={leaderboardHref}                  desc="See school-wide student rankings across all subjects."              Icon={TrophyOutlined} />
           </div>
         </section>
