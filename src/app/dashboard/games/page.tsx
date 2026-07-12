@@ -53,7 +53,7 @@ export default function GamesPage() {
                     Islamic Studies edition
                   </span>
                   <span className="rounded-full border border-cyan-200/30 bg-cyan-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100 backdrop-blur">
-                    First room playable
+                    Two levels playable
                   </span>
                 </div>
                 <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
@@ -66,9 +66,9 @@ export default function GamesPage() {
                   Stories of the Prophets
                 </p>
                 <p className="mt-4 max-w-lg text-sm font-medium leading-6 text-slate-200">
-                  Explore the Gallery of the Ark, uncover hidden clues, and
-                  restore the first scroll through movement, discovery, and a
-                  timeline puzzle.
+                  Restore the Gallery of the Ark, then enter the Hall of Signs
+                  for visual discovery, lesson matching, and a magical
+                  combination lock.
                 </p>
               </div>
             </div>
@@ -77,9 +77,9 @@ export default function GamesPage() {
               <div>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    [Gamepad2, "Explore", "Move around"],
-                    [Sparkles, "Discover", "Find clues"],
-                    [Coins, "10 coins", "Per student run"],
+                    [Gamepad2, "2 rooms", "Different challenges"],
+                    [Sparkles, "Discover", "Clues and signs"],
+                    [Coins, "10 coins", "Whole adventure"],
                   ].map(([Icon, title, detail]) => {
                     const CardIcon = Icon as typeof Gamepad2;
                     return (
@@ -100,7 +100,7 @@ export default function GamesPage() {
                 <div className="mt-6 space-y-3 text-sm text-slate-300">
                   {[
                     "Keyboard and touch controls",
-                    "Sound and animated reward feedback",
+                    "Timeline, matching, and symbol-lock puzzles",
                     "Safe resume after refresh",
                     "No prophet is visually depicted",
                   ].map((feature) => (
