@@ -41,6 +41,7 @@ const SHARED_PREFIXES = [
   "/dashboard/timetable-generator",
   "/dashboard/announcements",
   "/dashboard/tools",
+  "/dashboard/games",
   "/dashboard/school-admin/settings",
   "/dashboard/students/settings",
   "/dashboard/teachers/settings",
