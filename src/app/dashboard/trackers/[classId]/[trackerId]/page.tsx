@@ -385,8 +385,8 @@ export default function TrackerTopicsPage() {
               {trackerData?.name || "Tracker Progress"}
             </h1>
             <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-white/90">
-              Finish each topic, tap Done once, and collect its coins. Every
-              coin also counts toward your leaderboard score.
+              Finish each topic, tap Done once, and earn spendable coins plus
+              permanent points.
             </p>
             <div className="mt-6 max-w-2xl">
               <div className="mb-2 flex items-center justify-between text-sm font-extrabold text-white">
