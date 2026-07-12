@@ -35,12 +35,10 @@ import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import {
   mergeAndRankLeaderboards,
   mapWithConcurrency,
-  resolveCoinBalance,
   resolveStudentId,
   resolveStudentName,
   type LeaderboardRow,
 } from "@/lib/leaderboard";
-import { Coins } from "lucide-react";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
@@ -545,7 +543,6 @@ const LeaderBoard = () => {
         points: student?.total_marks || 0,
         trackerPoints: student?.tracker_points,
         mindPoints: student?.mind_points,
-        coinBalance: resolveCoinBalance(student),
         className: student?.class_name ?? "",
         badge:
           index === 0
@@ -1017,7 +1014,6 @@ const LeaderBoard = () => {
         points: student?.total_marks || 0,
         trackerPoints: student?.tracker_points,
         mindPoints: student?.mind_points,
-        coinBalance: resolveCoinBalance(student),
         badge:
           index === 0
             ? "gold"
@@ -1041,7 +1037,6 @@ const LeaderBoard = () => {
         points: student?.total_marks || 0,
         trackerPoints: student?.tracker_points,
         mindPoints: student?.mind_points,
-        coinBalance: resolveCoinBalance(student),
         badge:
           index === 0
             ? "gold"
@@ -1373,23 +1368,6 @@ const LeaderBoard = () => {
       width: 120,
       align: "center" as const,
     },
-    {
-      title: "Coins",
-      dataIndex: "coinBalance",
-      key: "coinBalance",
-      render: (coins: number | undefined) => (
-        <span
-          className="inline-flex items-center justify-center gap-1 font-bold text-amber-700"
-          style={{ fontVariantNumeric: "tabular-nums" }}
-          title="Spendable coin balance"
-        >
-          <Coins className="h-4 w-4" aria-hidden="true" />
-          {Number(coins ?? 0).toLocaleString()}
-        </span>
-      ),
-      width: 120,
-      align: "center" as const,
-    },
   ];
 
   if (isStudent || (!isStudent && (leaderboardScope === "school" || leaderboardScope === "year"))) {
@@ -1449,14 +1427,9 @@ const LeaderBoard = () => {
               <Text strong style={{ fontSize: idx === 1 ? 14 : 12.5, maxWidth: 90, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }} title={student.name}>
                 {student.name}
               </Text>
-              <Space size={6}>
-                <Text style={{ fontSize: 12, color: "#0f766e", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                  {student.points} pts
-                </Text>
-                <Text style={{ fontSize: 12, color: "#b45309", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                  {student.coinBalance ?? 0} coins
-                </Text>
-              </Space>
+              <Text style={{ fontSize: 12, color: "#0f766e", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                {student.points} pts
+              </Text>
               <div style={{ width: 80, height: podiumHeight, background: rankColor, opacity: 0.82, borderRadius: "8px 8px 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff" }}>
                 {icon}
               </div>
