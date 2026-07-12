@@ -37,13 +37,24 @@ import {
   spendStudentCoins,
 } from "@/services/studentWalletApi";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
+import HallOfSignsLevel, {
+  createHallProgress,
+  HallProgress,
+  normalizeHallProgress,
+} from "./HallOfSignsLevel";
 import {
   LostLibraryClue,
   LostLibraryClueKind,
   STORIES_OF_THE_PROPHETS_PACK,
 } from "./lost-library-content";
 
-type GameStage = "lobby" | "room" | "puzzle" | "complete";
+type GameStage =
+  | "lobby"
+  | "room"
+  | "puzzle"
+  | "level-one-complete"
+  | "hall"
+  | "complete";
 
 type Position = {
   x: number;
@@ -51,6 +62,7 @@ type Position = {
 };
 
 type SavedAdventure = {
+  version: 2;
   stage: GameStage;
   runId: string;
   purchasePending: boolean;
@@ -58,6 +70,9 @@ type SavedAdventure = {
   foundClueIds: string[];
   orderedClueIds: string[];
   attempts: number;
+  levelOneComplete: boolean;
+  hallStarted: boolean;
+  hallProgress: HallProgress;
 };
 
 type CheckoutErrorData = {
@@ -81,6 +96,8 @@ const isGameStage = (value: unknown): value is GameStage =>
   value === "lobby" ||
   value === "room" ||
   value === "puzzle" ||
+  value === "level-one-complete" ||
+  value === "hall" ||
   value === "complete";
 
 const clueIcon = (kind: LostLibraryClueKind, className = "h-5 w-5") => {
@@ -133,6 +150,11 @@ export default function LostLibraryGame() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isRestored, setIsRestored] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [levelOneComplete, setLevelOneComplete] = useState(false);
+  const [hallStarted, setHallStarted] = useState(false);
+  const [hallProgress, setHallProgress] = useState<HallProgress>(
+    createHallProgress
+  );
 
   const {
     data: wallet,
@@ -214,6 +236,8 @@ export default function LostLibraryGame() {
 
     try {
       const saved = JSON.parse(raw) as Partial<SavedAdventure>;
+      const isLegacyLevelOneComplete =
+        saved.version !== 2 && saved.stage === "complete";
       const validClueIds = new Set(PACK.room.clues.map((clue) => clue.id));
       const restoredFound = Array.isArray(saved.foundClueIds)
         ? saved.foundClueIds.filter((id) => validClueIds.has(id))
@@ -227,7 +251,11 @@ export default function LostLibraryGame() {
 
       if (typeof saved.runId === "string") setRunId(saved.runId);
       setPurchasePending(Boolean(saved.purchasePending));
-      if (isGameStage(saved.stage)) setStage(saved.stage);
+      if (isLegacyLevelOneComplete) {
+        setStage("level-one-complete");
+      } else if (isGameStage(saved.stage)) {
+        setStage(saved.stage);
+      }
       if (
         saved.player &&
         Number.isFinite(saved.player.x) &&
@@ -243,6 +271,16 @@ export default function LostLibraryGame() {
       setAttempts(
         Number.isFinite(saved.attempts) ? Math.max(0, saved.attempts ?? 0) : 0
       );
+      const restoredHallProgress = normalizeHallProgress(saved.hallProgress);
+      setLevelOneComplete(
+        Boolean(saved.levelOneComplete) ||
+          isLegacyLevelOneComplete ||
+          restoredHallProgress.completed
+      );
+      setHallStarted(
+        Boolean(saved.hallStarted) || restoredHallProgress.completed
+      );
+      setHallProgress(restoredHallProgress);
       if (saved.stage !== "lobby") {
         setNotice("Welcome back. Your adventure has been restored.");
       }
@@ -257,6 +295,7 @@ export default function LostLibraryGame() {
     if (!isRestored || !runId || stage === "lobby") return;
 
     const saved: SavedAdventure = {
+      version: 2,
       stage,
       runId,
       purchasePending: false,
@@ -264,12 +303,18 @@ export default function LostLibraryGame() {
       foundClueIds,
       orderedClueIds,
       attempts,
+      levelOneComplete,
+      hallStarted,
+      hallProgress,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(saved));
   }, [
     attempts,
     foundClueIds,
+    hallProgress,
+    hallStarted,
     isRestored,
+    levelOneComplete,
     orderedClueIds,
     player,
     runId,
@@ -350,9 +395,16 @@ export default function LostLibraryGame() {
     setIsStarting(true);
 
     if (hasActiveRun) {
-      setStage(
-        foundClueIds.length === PACK.room.clues.length ? "puzzle" : "room"
-      );
+      const resumeStage: GameStage = hallProgress.completed
+        ? "complete"
+        : hallStarted
+          ? "hall"
+          : levelOneComplete
+            ? "level-one-complete"
+            : foundClueIds.length === PACK.room.clues.length
+              ? "puzzle"
+              : "room";
+      setStage(resumeStage);
       setIsStarting(false);
       return;
     }
@@ -378,6 +430,7 @@ export default function LostLibraryGame() {
       }
 
       const pendingSave: SavedAdventure = {
+        version: 2,
         stage: "lobby",
         runId: nextRunId,
         purchasePending: true,
@@ -385,6 +438,9 @@ export default function LostLibraryGame() {
         foundClueIds: [],
         orderedClueIds: PACK.room.startingOrder,
         attempts: 0,
+        levelOneComplete: false,
+        hallStarted: false,
+        hallProgress: createHallProgress(),
       };
       window.localStorage.setItem(storageKey, JSON.stringify(pendingSave));
       setPurchasePending(true);
@@ -418,6 +474,9 @@ export default function LostLibraryGame() {
     setOrderedClueIds(PACK.room.startingOrder);
     setAttempts(0);
     setShowHint(false);
+    setLevelOneComplete(false);
+    setHallStarted(false);
+    setHallProgress(createHallProgress());
     setNotice(
       "Move with the arrow keys or the compass. Search for glowing objects."
     );
@@ -442,7 +501,8 @@ export default function LostLibraryGame() {
     );
 
     if (isCorrect) {
-      setStage("complete");
+      setLevelOneComplete(true);
+      setStage("level-one-complete");
       setNotice("The first scroll has been restored.");
       playSound("success");
       return;
@@ -469,6 +529,9 @@ export default function LostLibraryGame() {
     setOrderedClueIds(PACK.room.startingOrder);
     setAttempts(0);
     setShowHint(false);
+    setLevelOneComplete(false);
+    setHallStarted(false);
+    setHallProgress(createHallProgress());
     setCheckoutError(null);
     setNotice(
       "Move with the arrow keys or the compass. Search for glowing objects."
@@ -510,7 +573,7 @@ export default function LostLibraryGame() {
                 {PACK.subject}
               </span>
               <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
-                Playable prototype
+                Two levels playable
               </span>
             </div>
 
@@ -524,16 +587,16 @@ export default function LostLibraryGame() {
               {PACK.subtitle}
             </p>
             <p className="mt-6 max-w-xl text-sm font-medium leading-7 text-slate-200 sm:text-base">
-              A forgotten scroll is waiting inside the Gallery of the Ark.
-              Explore the room, uncover four clues, and rebuild its story before
-              the lanterns fade.
+              Restore the first scroll inside the Gallery of the Ark, then
+              continue into the Hall of Signs for visual discovery, lesson
+              matching, and a magical symbol lock.
             </p>
 
             <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-3">
               {[
-                ["Explore", "Move through a magical room"],
-                ["Discover", "Find four hidden scroll seals"],
-                ["Restore", "Solve the final timeline puzzle"],
+                ["Room one", "Explore and restore the timeline"],
+                ["Room two", "Discover and match story signs"],
+                ["One entry", "Both rooms share the same run"],
               ].map(([title, detail], index) => (
                 <div
                   key={title}
@@ -577,14 +640,16 @@ export default function LostLibraryGame() {
                       ? purchasePending
                         ? "Resume coin checkout"
                         : `Enter for ${PACK.entryCost} coins`
-                      : "Preview the room"}
+                      : "Preview the adventure"}
                   </span>
                   <span className="block text-[10px] font-bold text-amber-900/70">
                     {hasActiveRun
-                      ? "Your paid run is saved and ready"
+                      ? isStudent
+                        ? "Your paid run is saved and ready"
+                        : "Your preview progress is saved and ready"
                       : isStudent
                       ? `${walletBalance.toLocaleString()} coins currently in your pocket`
-                      : "Preview mode — no coins are charged"}
+                      : "Preview mode — both rooms are free"}
                   </span>
                 </span>
               </button>
@@ -624,6 +689,88 @@ export default function LostLibraryGame() {
 
   if (stage === "complete") {
     return (
+      <div className="relative overflow-hidden rounded-[32px] border border-cyan-200 bg-gradient-to-br from-[#11163a] via-[#25205a] to-[#064e5a] px-6 py-14 text-center text-white shadow-[0_30px_80px_rgba(30,27,75,0.3)] sm:px-10">
+        <div className="absolute inset-0 opacity-30">
+          {Array.from({ length: 30 }).map((_, index) => (
+            <span
+              key={index}
+              className="absolute animate-pulse text-cyan-100"
+              style={{
+                left: `${(index * 37) % 100}%`,
+                top: `${(index * 61) % 100}%`,
+                animationDelay: `${(index % 6) * 0.2}s`,
+              }}
+            >
+              ✦
+            </span>
+          ))}
+        </div>
+        <div className="relative mx-auto max-w-2xl">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[28px] border border-cyan-100/60 bg-gradient-to-br from-cyan-300 to-indigo-400 text-indigo-950 shadow-[0_0_50px_rgba(34,211,238,.45)]">
+            <Trophy className="h-11 w-11" />
+          </div>
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.28em] text-amber-300">
+            Second seal restored
+          </p>
+          <h1 className="mt-3 text-3xl font-black sm:text-5xl">
+            The Hall of Signs is awake!
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm font-medium leading-7 text-slate-200 sm:text-base">
+            You found the true signs, matched their lessons, and opened the
+            final symbol lock. Two rooms of the Lost Library now glow again.
+          </p>
+
+          <div className="mx-auto mt-8 flex w-fit gap-2 rounded-3xl border border-cyan-100/20 bg-white/[0.08] px-7 py-4 backdrop-blur">
+            {[0, 1, 2].map((star) => (
+              <Sparkles
+                key={star}
+                className="h-9 w-9 fill-amber-300 text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,.75)]"
+              />
+            ))}
+          </div>
+
+          <div className="mx-auto mt-6 max-w-sm rounded-3xl border border-cyan-200/25 bg-cyan-300/10 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">
+              Room badge · 2 of 4 rooms restored
+            </p>
+            <p className="mt-2 text-xl font-black text-white">
+              {PACK.hall.badge}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-300">
+              No leaderboard points changed. Report achievements will connect
+              when the game-progress service is added.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-5 max-w-md rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-bold leading-5 text-slate-200">
+            Next room: <span className="text-amber-300">Whispering Shelves</span>{" "}
+            — coming in the next Lost Library level.
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={resetAdventure}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-amber-300 px-5 text-sm font-black text-amber-950 transition hover:-translate-y-0.5 hover:bg-amber-200"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Replay adventure
+            </button>
+            <Link
+              href="/dashboard/games"
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.08] px-5 text-sm font-bold text-white transition hover:bg-white/[0.14]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to games
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "level-one-complete") {
+    return (
       <div className="relative overflow-hidden rounded-[32px] border border-amber-200 bg-gradient-to-br from-[#11163a] via-[#25205a] to-[#073b4c] px-6 py-14 text-center text-white shadow-[0_30px_80px_rgba(30,27,75,0.3)] sm:px-10">
         <div className="absolute inset-0 opacity-30">
           {Array.from({ length: 24 }).map((_, index) => (
@@ -645,7 +792,7 @@ export default function LostLibraryGame() {
             <Trophy className="h-11 w-11" />
           </div>
           <p className="mt-6 text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
-            Scroll restored
+            First scroll restored · Room 1 of 4
           </p>
           <h1 className="mt-3 text-3xl font-black sm:text-5xl">
             The Gallery is glowing again!
@@ -672,19 +819,22 @@ export default function LostLibraryGame() {
               {PACK.room.badge}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-300">
-              Prototype progress is saved on this device. Report achievements
-              will be connected when the game-progress service is added.
+              Your progress is saved on this device. Continue into the Hall of
+              Signs without spending any more coins.
             </p>
           </div>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button
               type="button"
-              onClick={resetAdventure}
-              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-amber-300 px-5 text-sm font-black text-amber-950 transition hover:-translate-y-0.5 hover:bg-amber-200"
+              onClick={() => {
+                setHallStarted(true);
+                setStage("hall");
+              }}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-indigo-400 px-5 text-sm font-black text-indigo-950 transition hover:-translate-y-0.5"
             >
-              <RotateCcw className="h-4 w-4" />
-              Play again
+              Enter the Hall of Signs
+              <ArrowRight className="h-4 w-4" />
             </button>
             <Link
               href="/dashboard/games"
@@ -696,6 +846,23 @@ export default function LostLibraryGame() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (stage === "hall") {
+    return (
+      <HallOfSignsLevel
+        progress={hallProgress}
+        onProgressChange={setHallProgress}
+        onComplete={(progress) => {
+          setHallProgress(progress);
+          setStage("complete");
+        }}
+        onExit={exitRoom}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => setSoundEnabled((current) => !current)}
+        onSound={playSound}
+      />
     );
   }
 
