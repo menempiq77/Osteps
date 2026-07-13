@@ -642,7 +642,7 @@ export default function FavoriteSidebar() {
       </button>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-[800] md:hidden" role="presentation">
+        <div className="fixed inset-0 z-[980] md:hidden" role="presentation">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"

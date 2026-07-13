@@ -416,7 +416,7 @@ export default function SubjectRightSidebar({
       </button>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-[800] md:hidden" role="presentation">
+        <div className="fixed inset-0 z-[980] md:hidden" role="presentation">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
@@ -449,7 +449,7 @@ export default function SubjectRightSidebar({
       {isSubjectPickerOpen ? (
         <div
           ref={subjectPickerRef}
-          className="fixed right-3 top-[68px] z-[820] w-[calc(100vw-24px)] max-w-[360px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:right-[76px] md:z-[720] md:w-[300px]"
+          className="fixed right-3 top-[68px] z-[990] w-[calc(100vw-24px)] max-w-[360px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:right-[76px] md:z-[720] md:w-[300px]"
           role="dialog"
           aria-label="Choose subject"
         >
