@@ -56,6 +56,10 @@ export function PwaLifecycle() {
   useEffect(() => {
     if (!serwist) return;
 
+    void serwist.register().catch((error: unknown) => {
+      console.error("Failed to register the Osteps service worker.", error);
+    });
+
     let reloading = false;
     const reloadForUpdate = (event: { isUpdate?: boolean }) => {
       if (!event.isUpdate || reloading) return;
