@@ -4,7 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import { MoreVertical, FileText, BookMarked } from "lucide-react";
+import {
+  BookMarked,
+  FileText,
+  MoreVertical,
+  PanelRightOpen,
+  X,
+} from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
@@ -88,6 +94,7 @@ export default function SubjectRightSidebar({
     toSubjectHref,
     loading: subjectContextLoading,
   } = useSubjectContext();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [isSubjectPickerOpen, setIsSubjectPickerOpen] = useState(false);
   const [subjectSearch, setSubjectSearch] = useState("");
   const subjectButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -175,6 +182,22 @@ export default function SubjectRightSidebar({
     };
   }, [isSubjectPickerOpen]);
 
+  useEffect(() => {
+    setMobileOpen(false);
+    setIsSubjectPickerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
+
   const sortedSubjects = useMemo(
     () => [...subjects].sort((a, b) => formatDashboardSubjectName(a.name).localeCompare(formatDashboardSubjectName(b.name))),
     [subjects]
@@ -261,19 +284,14 @@ export default function SubjectRightSidebar({
   };
 
   const isOverlay = overlayState !== "pinned";
-  const asideClassName = isOverlay
+  const desktopAsideClassName = isOverlay
     ? `fixed bottom-0 right-0 top-[56px] z-[710] hidden w-[64px] flex-col overflow-hidden border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:flex ${
         overlayState === "revealed" ? "translate-x-0" : "translate-x-full"
       }`
     : "fixed bottom-0 right-0 top-[56px] z-[640] hidden w-[64px] flex-col overflow-hidden border-l border-white/10 bg-[#424253] text-white shadow-[-12px_0_28px_rgba(15,23,42,0.18)] md:flex";
 
-  return (
+  const renderSidebarContent = (mobile = false) => (
     <>
-      <aside
-        className={asideClassName}
-        onMouseEnter={onPointerEnter}
-        onMouseLeave={onPointerLeave}
-      >
         <div className="border-b border-white/10 px-1.5 py-2 text-center">
           <button
             ref={subjectButtonRef}
@@ -335,8 +353,15 @@ export default function SubjectRightSidebar({
                 <button
                   key={`${item.name}-${item.href}`}
                   type="button"
-                  onClick={() => router.push(item.href)}
-                  className={`group relative flex w-full flex-col items-center gap-1 px-1 py-2 text-center transition ${
+                  onClick={() => {
+                    router.push(item.href);
+                    setMobileOpen(false);
+                  }}
+                  className={`group relative flex w-full items-center transition ${
+                    mobile
+                      ? "gap-3 px-4 py-3 text-left"
+                      : "flex-col gap-1 px-1 py-2 text-center"
+                  } ${
                     active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
                   }`}
                   title={item.name}
@@ -348,7 +373,11 @@ export default function SubjectRightSidebar({
                     style={{ backgroundColor: accent }}
                   />
                   <Icon className="h-5 w-5" style={{ color: accent }} />
-                  <span className="line-clamp-2 max-w-[56px] text-[9px] font-semibold leading-tight drop-shadow">
+                  <span
+                    className={`font-semibold leading-tight drop-shadow ${
+                      mobile ? "text-sm" : "line-clamp-2 max-w-[56px] text-[9px]"
+                    }`}
+                  >
                     {compactLabel(item.name)}
                   </span>
                 </button>
@@ -361,12 +390,66 @@ export default function SubjectRightSidebar({
             <MoreVertical className="h-4 w-4" />
           </div>
         </div>
+    </>
+  );
+
+  return (
+    <>
+      <aside
+        className={desktopAsideClassName}
+        onMouseEnter={onPointerEnter}
+        onMouseLeave={onPointerLeave}
+      >
+        {renderSidebarContent()}
       </aside>
+
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="fixed right-0 top-[58%] z-[680] flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-2xl border border-r-0 border-white/15 bg-[#424253] px-2 py-3 text-white shadow-[-8px_0_22px_rgba(15,23,42,0.28)] md:hidden"
+        aria-label="Open subject shortcuts"
+        aria-expanded={mobileOpen}
+        aria-controls="mobile-subject-sidebar"
+      >
+        <PanelRightOpen className="h-5 w-5 text-[#93c5fd]" />
+        <span className="text-[9px] font-black uppercase tracking-wide">Subject</span>
+      </button>
+
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-[800] md:hidden" role="presentation">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close subject shortcuts"
+          />
+          <aside
+            id="mobile-subject-sidebar"
+            className="absolute bottom-0 right-0 top-0 flex w-[min(78vw,280px)] flex-col overflow-hidden border-l border-white/10 bg-[#424253] text-white shadow-[-18px_0_40px_rgba(15,23,42,0.36)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Subject shortcuts"
+          >
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
+              <span className="text-sm font-black">Subject shortcuts</span>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl bg-white/10 p-2 text-white transition hover:bg-white/20"
+                aria-label="Close subject shortcuts"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {renderSidebarContent(true)}
+          </aside>
+        </div>
+      ) : null}
 
       {isSubjectPickerOpen ? (
         <div
           ref={subjectPickerRef}
-          className="fixed right-[76px] top-[68px] z-[720] hidden w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:block"
+          className="fixed right-3 top-[68px] z-[820] w-[calc(100vw-24px)] max-w-[360px] overflow-hidden rounded-2xl border border-white/10 bg-[#353545] text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)] md:right-[76px] md:z-[720] md:w-[300px]"
           role="dialog"
           aria-label="Choose subject"
         >
