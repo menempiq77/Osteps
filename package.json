@@ -22,6 +22,7 @@
     "@fullcalendar/timegrid": "^6.1.17",
     "@hello-pangea/dnd": "^18.0.1",
     "@reduxjs/toolkit": "^2.6.1",
+    "@serwist/next": "^9.5.11",
     "@tanstack/react-query": "^5.81.5",
     "@tanstack/react-query-devtools": "^5.81.5",
     "antd": "^5.24.6",
@@ -53,6 +54,7 @@
     "eslint": "9.39.2",
     "eslint-config-next": "16.1.6",
     "postcss": "^8.5.6",
+    "serwist": "^9.5.11",
     "tailwindcss": "^3.4.19",
     "typescript": "^5"
   }
