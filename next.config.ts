@@ -16,10 +16,10 @@ const withSerwist = withSerwistInit({
   register: false,
   additionalPrecacheEntries: [
     { url: "/offline.html", revision: offlineRevision },
-    { url: "/icons/osteps-192.png", revision: null },
-    { url: "/icons/osteps-512.png", revision: null },
-    { url: "/icons/osteps-maskable-512.png", revision: null },
-    { url: "/icons/apple-touch-icon.png", revision: null },
+    { url: "/icons/osteps-192.png?v=20260714", revision: null },
+    { url: "/icons/osteps-512.png?v=20260714", revision: null },
+    { url: "/icons/osteps-maskable-512.png?v=20260714", revision: null },
+    { url: "/icons/apple-touch-icon.png?v=20260714", revision: null },
   ],
   exclude: [/.*/],
 });
