@@ -87,15 +87,15 @@ export default function TextbookUpload({ gradeSlug }: TextbookUploadProps) {
   const handleDeleteOne = async (fileName: string) => {
     if (!confirm(`Remove "${fileName}"?`)) return;
 
+    setError(null);
     try {
       const res = await fetch(
         `/api/textbook/upload?gradeSlug=${gradeSlug}&fileName=${encodeURIComponent(fileName)}`,
         { method: "DELETE" },
       );
-      if (res.ok) {
-        await loadFiles();
-        if (viewerUrl) setViewerUrl(null);
-      }
+      if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
+      await loadFiles();
+      if (viewerUrl) setViewerUrl(null);
     } catch {
       setError("Failed to delete file");
     }
@@ -104,14 +104,14 @@ export default function TextbookUpload({ gradeSlug }: TextbookUploadProps) {
   const handleDeleteAll = async () => {
     if (!confirm("Remove all uploaded textbooks for this grade?")) return;
 
+    setError(null);
     try {
       const res = await fetch(`/api/textbook/upload?gradeSlug=${gradeSlug}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        setFiles([]);
-        setViewerUrl(null);
-      }
+      if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
+      setFiles([]);
+      setViewerUrl(null);
     } catch {
       setError("Failed to delete textbooks");
     }
