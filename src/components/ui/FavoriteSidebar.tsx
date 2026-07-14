@@ -17,10 +17,12 @@ import {
   Megaphone,
   MessageCircle,
   MoreVertical,
+  PanelLeftOpen,
   Settings,
   Star,
   Users,
   Wrench,
+  X,
 } from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
@@ -69,6 +71,7 @@ const itemLabel = (value: string) =>
 export default function FavoriteSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const {
     subjects,
@@ -504,7 +507,22 @@ export default function FavoriteSidebar() {
     return () => clearInterval(interval);
   }, [pollUnread]);
 
-  const renderItem = (entry: FavoriteEntry) => {
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
+
+  const renderItem = (entry: FavoriteEntry, mobile = false) => {
     const Icon = entry.icon;
     const accent = sidebarAccent[entry.section] || "#93c5fd";
     const isChatEntry = entry.id === "fixed-chat";
@@ -512,8 +530,15 @@ export default function FavoriteSidebar() {
       <button
         key={entry.id}
         type="button"
-        onClick={() => handleClick(entry)}
-        className={`group relative flex w-full flex-col items-center gap-1 px-1 py-2 text-center transition ${
+        onClick={() => {
+          handleClick(entry);
+          setMobileOpen(false);
+        }}
+        className={`group relative flex w-full items-center transition ${
+          mobile
+            ? "gap-3 px-4 py-3 text-left"
+            : "flex-col gap-1 px-1 py-2 text-center"
+        } ${
           entry.active ? "bg-[#525264] text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
         }`}
         title={entry.name}
@@ -532,19 +557,26 @@ export default function FavoriteSidebar() {
             </span>
           )}
         </span>
-        <span className="line-clamp-2 max-w-[56px] text-[9px] font-semibold leading-tight drop-shadow">
+        <span
+          className={`font-semibold leading-tight drop-shadow ${
+            mobile ? "text-sm" : "line-clamp-2 max-w-[56px] text-[9px]"
+          }`}
+        >
           {itemLabel(entry.name)}
         </span>
       </button>
     );
   };
 
-  return (
-    <aside className="fixed bottom-0 left-0 top-[56px] z-[650] hidden w-[64px] flex-col overflow-hidden border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+  const renderSidebarContent = (mobile = false) => (
+    <>
       <div className="shrink-0 border-b border-white/10 px-1.5 pb-2 pt-2">
         <button
           type="button"
-          onClick={() => router.push("/dashboard/subject-cards")}
+          onClick={() => {
+            router.push("/dashboard/subject-cards");
+            setMobileOpen(false);
+          }}
           className="group flex h-[50px] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] p-1 shadow-inner transition hover:bg-white/15 hover:shadow-[0_0_0_3px_rgba(56,193,108,0.18)]"
           aria-label="Go to Home"
           title="Home"
@@ -562,7 +594,9 @@ export default function FavoriteSidebar() {
 
       {/* Fixed quick-access shortcuts */}
       <div className="shrink-0 border-b-2 border-white/60 py-1.5">
-        <div className="space-y-0.5">{fixedEntries.map(renderItem)}</div>
+        <div className="space-y-0.5">
+          {fixedEntries.map((entry) => renderItem(entry, mobile))}
+        </div>
       </div>
 
       {/* User-chosen favourites */}
@@ -575,7 +609,9 @@ export default function FavoriteSidebar() {
             </span>
           </div>
         ) : (
-          <div className="space-y-0.5">{favoriteEntries.map(renderItem)}</div>
+          <div className="space-y-0.5">
+            {favoriteEntries.map((entry) => renderItem(entry, mobile))}
+          </div>
         )}
       </div>
 
@@ -584,6 +620,57 @@ export default function FavoriteSidebar() {
           <MoreVertical className="h-4 w-4" />
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <aside className="fixed bottom-0 left-0 top-[56px] z-[650] hidden w-[64px] flex-col overflow-hidden border-r border-white/10 bg-[#424253] text-white shadow-[12px_0_28px_rgba(15,23,42,0.18)] md:flex">
+        {renderSidebarContent()}
+      </aside>
+
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-0 top-[58%] z-[680] flex -translate-y-1/2 flex-col items-center gap-1 rounded-r-2xl border border-l-0 border-white/15 bg-[#424253] px-2 py-3 text-white shadow-[8px_0_22px_rgba(15,23,42,0.28)] md:hidden"
+        aria-label="Open main shortcuts"
+        aria-expanded={mobileOpen}
+        aria-controls="mobile-main-sidebar"
+      >
+        <PanelLeftOpen className="h-5 w-5 text-[#86efac]" />
+        <span className="text-[9px] font-black uppercase tracking-wide">Menu</span>
+      </button>
+
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-[980] md:hidden" role="presentation">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close main shortcuts"
+          />
+          <aside
+            id="mobile-main-sidebar"
+            className="absolute bottom-0 left-0 top-0 flex w-[min(78vw,280px)] flex-col overflow-hidden border-r border-white/10 bg-[#424253] text-white shadow-[18px_0_40px_rgba(15,23,42,0.36)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main shortcuts"
+          >
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
+              <span className="text-sm font-black">Main shortcuts</span>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl bg-white/10 p-2 text-white transition hover:bg-white/20"
+                aria-label="Close main shortcuts"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {renderSidebarContent(true)}
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }
