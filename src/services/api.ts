@@ -5,6 +5,7 @@ import { getStoredSubjectId } from '@/lib/subjectScope';
 import { normalizeTaskRecord } from '@/lib/taskTypeMetadata';
 import { withSubjectQuery } from '@/lib/subjectScope';
 import { shouldUseLegacyUnscopedSubjectData } from '@/lib/subjectScope';
+import { throwOnEmbeddedFailure } from '@/lib/apiResponse';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -367,24 +368,9 @@ export const fetchStudentTasks = async (
       params: withSubjectQuery({}, subjectId),
     });
     const payload = response.data;
-    const embeddedStatusCode = Number(
-      payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
-    );
-    const embeddedMessage = String(payload?.msg ?? payload?.message ?? "");
-    const isEmbeddedFailure =
-      payload?.success === false ||
-      payload?.status === false ||
-      payload?.ok === false ||
-      embeddedStatusCode >= 400;
-
-    if (isEmbeddedFailure) {
-      const syntheticError: any = new Error(embeddedMessage || "Failed to fetch student tasks");
-      syntheticError.response = {
-        data: payload,
-        status: embeddedStatusCode,
-      };
-      throw syntheticError;
-    }
+    throwOnEmbeddedFailure(payload, {
+      fallbackMessage: "Failed to fetch student tasks",
+    });
 
     return (payload?.data ?? []).map(normalizeStudentTask);
   } catch (error: any) {
@@ -443,25 +429,10 @@ export const uploadTaskByStudent = async (formData: FormData, assessmentId: numb
     },
   });
   const payload = response.data;
-  const embeddedStatusCode = Number(
-    payload?.status_code ?? payload?.statusCode ?? payload?.code ?? response.status
-  );
-  const embeddedFailure =
-    payload?.success === false ||
-    payload?.status === false ||
-    payload?.ok === false ||
-    embeddedStatusCode >= 400;
-
-  if (embeddedFailure) {
-    const error: any = new Error(
-      payload?.msg || payload?.message || "Failed to submit task"
-    );
-    error.response = {
-      data: payload,
-      status: embeddedStatusCode,
-    };
-    throw error;
-  }
+  throwOnEmbeddedFailure(payload, {
+    fallbackStatus: response.status,
+    fallbackMessage: "Failed to submit task",
+  });
 
   return payload;
 };
@@ -477,21 +448,9 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   // The backend returns HTTP 200 even when it fails, signalling the real
   // outcome via status_code in the body. Surface those as thrown errors so the
   // caller never reports a false "saved".
-  const embeddedStatusCode = Number(
-    payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
-  );
-  const isEmbeddedFailure =
-    payload?.success === false ||
-    payload?.status === false ||
-    payload?.ok === false ||
-    embeddedStatusCode >= 400;
-  if (isEmbeddedFailure) {
-    const syntheticError: any = new Error(
-      String(payload?.msg ?? payload?.message ?? "Failed to save student marks")
-    );
-    syntheticError.response = { data: payload, status: embeddedStatusCode };
-    throw syntheticError;
-  }
+  throwOnEmbeddedFailure(payload, {
+    fallbackMessage: "Failed to save student marks",
+  });
   return payload;
 };
 

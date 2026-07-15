@@ -1,6 +1,6 @@
 // src/services/timetableApi.ts
 import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import { getAuthHeader } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
 type TimetableSubjectScope = number | 'all' | undefined;
@@ -9,10 +9,6 @@ type TimetableFetchOptions = {
   dateTo?: string;
 };
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 const resolveTimetableQuery = (subjectScope?: TimetableSubjectScope): { subject_id?: number } => {
   if (subjectScope === 'all') return {};

@@ -1,6 +1,6 @@
 // src/services/dashboardApis.ts
 import { API_BASE_URL } from '@/lib/config';
-import { store } from '@/store/store';
+import { getAuthHeader } from "@/lib/apiClient";
 import { resolveScopedSubjectId } from '@/lib/subjectScope';
 
 interface SchoolData {
@@ -23,10 +23,6 @@ interface SearchStudentResponse {
   msg: string;
 }
 
-const getAuthHeader = (): Record<string, string> => {
-  const token = store.getState().auth.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 const withSubjectSearch = (path: string): string => {
   const subjectId = resolveScopedSubjectId();

@@ -1,13 +1,10 @@
 // src/services/studentsApi.ts
-import axios from 'axios';
-import { store } from '@/store/store';
-import { API_BASE_URL } from '@/lib/config';
+import { createApiClient } from '@/lib/apiClient';
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 import { isReadOnlyWorkspace } from '@/lib/readOnlyWorkspace';
+import { isEmbeddedFailure, getPayloadMessage, getApiErrorMessage } from '@/lib/apiResponse';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
+const api = createApiClient();
 
 const getRawStudents = async (
   classId: string | number,
@@ -31,15 +28,6 @@ const getRawStudents = async (
   });
   return response.data.data;
 };
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 // fetch Students
 export const fetchStudents = async (
@@ -103,33 +91,13 @@ export const addStudent = async (studentData: {
   try {
     const response = await api.post('/add-student', withSubjectPayload(studentData, subjectId));
     const payload = response.data;
-    const statusCode = Number(
-      payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
-    );
-    const isExplicitFailure =
-      payload?.success === false || payload?.status === false || payload?.ok === false;
-
-    if ((Number.isFinite(statusCode) && statusCode >= 400) || isExplicitFailure) {
-      const backendMessage =
-        payload?.msg || payload?.message || payload?.data?.message || "Failed to add student";
-      throw new Error(String(backendMessage));
+    if (isEmbeddedFailure(payload)) {
+      throw new Error(getPayloadMessage(payload, "Failed to add student"));
     }
 
     return payload?.data ?? payload;
   } catch (error: any) {
-    const backendMessage =
-      error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      error?.response?.data?.data?.message ||
-      (Array.isArray(error?.response?.data?.errors)
-        ? error.response.data.errors[0]
-        : undefined) ||
-      (typeof error?.response?.data?.errors === "object"
-        ? Object.values(error.response.data.errors)[0]
-        : undefined) ||
-      error?.message ||
-      "Failed to add student";
-    throw new Error(String(Array.isArray(backendMessage) ? backendMessage[0] : backendMessage));
+    throw new Error(getApiErrorMessage(error, "Failed to add student"));
   }
 };
 // edit Student
@@ -154,33 +122,13 @@ export const updateStudent = async (
   try {
     const response = await api.post(`/update-student/${id}`, withSubjectPayload(studentData, subjectId));
     const payload = response.data;
-    const statusCode = Number(
-      payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
-    );
-    const isExplicitFailure =
-      payload?.success === false || payload?.status === false || payload?.ok === false;
-
-    if ((Number.isFinite(statusCode) && statusCode >= 400) || isExplicitFailure) {
-      const backendMessage =
-        payload?.msg || payload?.message || payload?.data?.message || "Failed to update student";
-      throw new Error(String(backendMessage));
+    if (isEmbeddedFailure(payload)) {
+      throw new Error(getPayloadMessage(payload, "Failed to update student"));
     }
 
     return payload?.data ?? payload;
   } catch (error: any) {
-    const backendMessage =
-      error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      error?.response?.data?.data?.message ||
-      (Array.isArray(error?.response?.data?.errors)
-        ? error.response.data.errors[0]
-        : undefined) ||
-      (typeof error?.response?.data?.errors === "object"
-        ? Object.values(error.response.data.errors)[0]
-        : undefined) ||
-      error?.message ||
-      "Failed to update student";
-    throw new Error(String(Array.isArray(backendMessage) ? backendMessage[0] : backendMessage));
+    throw new Error(getApiErrorMessage(error, "Failed to update student"));
   }
 };
 
@@ -196,27 +144,13 @@ export const updateStudentSupport = async (
       withSubjectPayload(data, subjectId)
     );
     const payload = response.data;
-    const statusCode = Number(
-      payload?.status_code ?? payload?.statusCode ?? payload?.code ?? 200
-    );
-    const isExplicitFailure =
-      payload?.success === false || payload?.status === false || payload?.ok === false;
-
-    if ((Number.isFinite(statusCode) && statusCode >= 400) || isExplicitFailure) {
-      const backendMessage =
-        payload?.msg || payload?.message || payload?.data?.message || "Failed to update support info";
-      throw new Error(String(backendMessage));
+    if (isEmbeddedFailure(payload)) {
+      throw new Error(getPayloadMessage(payload, "Failed to update support info"));
     }
 
     return payload?.data ?? payload;
   } catch (error: any) {
-    const backendMessage =
-      error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      error?.response?.data?.data?.message ||
-      error?.message ||
-      "Failed to update support info";
-    throw new Error(String(Array.isArray(backendMessage) ? backendMessage[0] : backendMessage));
+    throw new Error(getApiErrorMessage(error, "Failed to update support info"));
   }
 };
 
