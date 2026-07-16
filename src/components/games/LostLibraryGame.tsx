@@ -37,11 +37,13 @@ import {
   spendStudentCoins,
 } from "@/services/studentWalletApi";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
+import ArcadeQuestionGate from "./ArcadeQuestionGate";
 import HallOfSignsLevel, {
   createHallProgress,
   HallProgress,
   normalizeHallProgress,
 } from "./HallOfSignsLevel";
+import useArcadeQuestionPool from "./useArcadeQuestionPool";
 import {
   LostLibraryClue,
   LostLibraryClueKind,
@@ -53,6 +55,7 @@ type GameStage =
   | "room"
   | "puzzle"
   | "level-one-complete"
+  | "question-gate"
   | "hall"
   | "complete";
 
@@ -97,6 +100,7 @@ const isGameStage = (value: unknown): value is GameStage =>
   value === "room" ||
   value === "puzzle" ||
   value === "level-one-complete" ||
+  value === "question-gate" ||
   value === "hall" ||
   value === "complete";
 
@@ -129,7 +133,7 @@ export default function LostLibraryGame() {
   const studentId = String(currentUser?.student ?? "");
   const storageKey = useMemo(
     () => `osteps:lost-library:${PACK.room.id}:${currentUser?.id ?? "guest"}`,
-    [currentUser?.id]
+    [currentUser?.id],
   );
 
   const [stage, setStage] = useState<GameStage>("lobby");
@@ -138,12 +142,12 @@ export default function LostLibraryGame() {
   const [player, setPlayer] = useState<Position>(START_POSITION);
   const [foundClueIds, setFoundClueIds] = useState<string[]>([]);
   const [orderedClueIds, setOrderedClueIds] = useState<string[]>(
-    PACK.room.startingOrder
+    PACK.room.startingOrder,
   );
   const [attempts, setAttempts] = useState(0);
   const [activeClue, setActiveClue] = useState<LostLibraryClue | null>(null);
   const [notice, setNotice] = useState(
-    "Move with the arrow keys or the compass. Search for glowing objects."
+    "Move with the arrow keys or the compass. Search for glowing objects.",
   );
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -152,9 +156,16 @@ export default function LostLibraryGame() {
   const [showHint, setShowHint] = useState(false);
   const [levelOneComplete, setLevelOneComplete] = useState(false);
   const [hallStarted, setHallStarted] = useState(false);
-  const [hallProgress, setHallProgress] = useState<HallProgress>(
-    createHallProgress
-  );
+  const [hallProgress, setHallProgress] =
+    useState<HallProgress>(createHallProgress);
+  const {
+    questions,
+    isLoading: questionsLoading,
+    errorMessage: questionsError,
+    isPreview: questionsPreview,
+    subjectName,
+    refreshQuestions,
+  } = useArcadeQuestionPool();
 
   const {
     data: wallet,
@@ -210,18 +221,16 @@ export default function LostLibraryGame() {
       gain.gain.setValueAtTime(0.0001, now + index * 0.08);
       gain.gain.exponentialRampToValueAtTime(
         kind === "move" ? 0.025 : 0.09,
-        now + index * 0.08 + 0.015
+        now + index * 0.08 + 0.015,
       );
       gain.gain.exponentialRampToValueAtTime(
         0.0001,
-        now + index * 0.08 + (kind === "move" ? 0.08 : 0.28)
+        now + index * 0.08 + (kind === "move" ? 0.08 : 0.28),
       );
       oscillator.connect(gain);
       gain.connect(context.destination);
       oscillator.start(now + index * 0.08);
-      oscillator.stop(
-        now + index * 0.08 + (kind === "move" ? 0.09 : 0.3)
-      );
+      oscillator.stop(now + index * 0.08 + (kind === "move" ? 0.09 : 0.3));
     });
   };
 
@@ -269,16 +278,16 @@ export default function LostLibraryGame() {
       setFoundClueIds(restoredFound);
       setOrderedClueIds(restoredOrder);
       setAttempts(
-        Number.isFinite(saved.attempts) ? Math.max(0, saved.attempts ?? 0) : 0
+        Number.isFinite(saved.attempts) ? Math.max(0, saved.attempts ?? 0) : 0,
       );
       const restoredHallProgress = normalizeHallProgress(saved.hallProgress);
       setLevelOneComplete(
         Boolean(saved.levelOneComplete) ||
           isLegacyLevelOneComplete ||
-          restoredHallProgress.completed
+          restoredHallProgress.completed,
       );
       setHallStarted(
-        Boolean(saved.hallStarted) || restoredHallProgress.completed
+        Boolean(saved.hallStarted) || restoredHallProgress.completed,
       );
       setHallProgress(restoredHallProgress);
       if (saved.stage !== "lobby") {
@@ -346,7 +355,7 @@ export default function LostLibraryGame() {
     setNotice(
       nextFound.length === PACK.room.clues.length
         ? "You found every clue. The timeline puzzle is ready."
-        : `${nextFound.length} of ${PACK.room.clues.length} scroll seals found.`
+        : `${nextFound.length} of ${PACK.room.clues.length} scroll seals found.`,
     );
     playSound("clue");
   };
@@ -423,7 +432,7 @@ export default function LostLibraryGame() {
       }
       if (!isWalletUnavailable && walletBalance < PACK.entryCost) {
         setCheckoutError(
-          `You need ${PACK.entryCost} coins to enter. Complete more tracker topics to fill your pocket.`
+          `You need ${PACK.entryCost} coins to enter. Complete more tracker topics to fill your pocket.`,
         );
         setIsStarting(false);
         return;
@@ -453,12 +462,12 @@ export default function LostLibraryGame() {
         });
         queryClient.setQueryData(
           ["student-coin-wallet", studentId],
-          nextWallet
+          nextWallet,
         );
         window.dispatchEvent(
           new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
             detail: { amount: -PACK.entryCost },
-          })
+          }),
         );
         setPurchasePending(false);
         playSound("coin");
@@ -478,7 +487,7 @@ export default function LostLibraryGame() {
     setHallStarted(false);
     setHallProgress(createHallProgress());
     setNotice(
-      "Move with the arrow keys or the compass. Search for glowing objects."
+      "Move with the arrow keys or the compass. Search for glowing objects.",
     );
     setStage("room");
     setIsStarting(false);
@@ -497,7 +506,7 @@ export default function LostLibraryGame() {
 
   const checkSequence = () => {
     const isCorrect = PACK.room.correctOrder.every(
-      (clueId, index) => orderedClueIds[index] === clueId
+      (clueId, index) => orderedClueIds[index] === clueId,
     );
 
     if (isCorrect) {
@@ -514,7 +523,7 @@ export default function LostLibraryGame() {
     setNotice(
       nextAttempts >= 2
         ? "Almost there. Use the new hint, then try the sequence again."
-        : "The scroll shimmered, but the events are not in the right order yet."
+        : "The scroll shimmered, but the events are not in the right order yet.",
     );
     playSound("wrong");
   };
@@ -534,7 +543,7 @@ export default function LostLibraryGame() {
     setHallProgress(createHallProgress());
     setCheckoutError(null);
     setNotice(
-      "Move with the arrow keys or the compass. Search for glowing objects."
+      "Move with the arrow keys or the compass. Search for glowing objects.",
     );
   };
 
@@ -637,10 +646,10 @@ export default function LostLibraryGame() {
                     {hasActiveRun
                       ? "Continue your adventure"
                       : isStudent
-                      ? purchasePending
-                        ? "Resume coin checkout"
-                        : `Enter for ${PACK.entryCost} coins`
-                      : "Preview the adventure"}
+                        ? purchasePending
+                          ? "Resume coin checkout"
+                          : `Enter for ${PACK.entryCost} coins`
+                        : "Preview the adventure"}
                   </span>
                   <span className="block text-[10px] font-bold text-amber-900/70">
                     {hasActiveRun
@@ -648,8 +657,8 @@ export default function LostLibraryGame() {
                         ? "Your paid run is saved and ready"
                         : "Your preview progress is saved and ready"
                       : isStudent
-                      ? `${walletBalance.toLocaleString()} coins currently in your pocket`
-                      : "Preview mode — both rooms are free"}
+                        ? `${walletBalance.toLocaleString()} coins currently in your pocket`
+                        : "Preview mode — both rooms are free"}
                   </span>
                 </span>
               </button>
@@ -743,8 +752,9 @@ export default function LostLibraryGame() {
           </div>
 
           <div className="mx-auto mt-5 max-w-md rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-bold leading-5 text-slate-200">
-            Next room: <span className="text-amber-300">Whispering Shelves</span>{" "}
-            — coming in the next Lost Library level.
+            Next room:{" "}
+            <span className="text-amber-300">Whispering Shelves</span> — coming
+            in the next Lost Library level.
           </div>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -828,12 +838,12 @@ export default function LostLibraryGame() {
             <button
               type="button"
               onClick={() => {
-                setHallStarted(true);
-                setStage("hall");
+                void refreshQuestions();
+                setStage("question-gate");
               }}
               className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-indigo-400 px-5 text-sm font-black text-indigo-950 transition hover:-translate-y-0.5"
             >
-              Enter the Hall of Signs
+              Answer 5 questions
               <ArrowRight className="h-4 w-4" />
             </button>
             <Link
@@ -846,6 +856,28 @@ export default function LostLibraryGame() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (stage === "question-gate") {
+    return (
+      <ArcadeQuestionGate
+        gameId="lost-library"
+        gameTitle="Escape the Lost Library"
+        completedLevel={1}
+        nextLevelLabel="Hall of Signs"
+        questions={questions}
+        isLoading={questionsLoading}
+        errorMessage={questionsError}
+        isPreview={questionsPreview}
+        subjectName={subjectName}
+        onPassed={() => {
+          setHallStarted(true);
+          setStage("hall");
+        }}
+        onBack={() => setStage("level-one-complete")}
+        onRetryLoad={() => void refreshQuestions()}
+      />
     );
   }
 
@@ -936,7 +968,7 @@ export default function LostLibraryGame() {
             <ol className="space-y-3">
               {orderedClueIds.map((clueId, index) => {
                 const clue = PACK.room.clues.find(
-                  (candidate) => candidate.id === clueId
+                  (candidate) => candidate.id === clueId,
                 );
                 if (!clue) return null;
 
@@ -1216,8 +1248,7 @@ export default function LostLibraryGame() {
             <button
               type="button"
               onClick={() => {
-                const allFound =
-                  foundClueIds.length === PACK.room.clues.length;
+                const allFound = foundClueIds.length === PACK.room.clues.length;
                 setActiveClue(null);
                 if (allFound) setStage("puzzle");
               }}
