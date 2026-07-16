@@ -18,6 +18,16 @@ export const isDocumentFullscreenActive = () => {
   return Boolean(getCurrentFullscreenElement(document as FullscreenCapableDocument));
 };
 
+export const isDocumentFullscreenSupported = () => {
+  if (typeof document === "undefined") return false;
+  const fullscreenTarget = document.documentElement as FullscreenCapableElement;
+  return Boolean(
+    fullscreenTarget.requestFullscreen ||
+      fullscreenTarget.webkitRequestFullscreen ||
+      fullscreenTarget.msRequestFullscreen,
+  );
+};
+
 export const requestDocumentFullscreenFromGesture = async (): Promise<boolean> => {
   if (typeof document === "undefined") return false;
 

@@ -115,7 +115,7 @@ export default function ArcadeQuestionGate({
           </h2>
           <p className="mt-3 text-sm font-bold leading-6 text-slate-600">
             {errorMessage ??
-              "Complete a tracker topic that contains multiple-choice questions, then return to unlock the next level."}
+              "Complete at least one tracker topic, then return to unlock the next level."}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button

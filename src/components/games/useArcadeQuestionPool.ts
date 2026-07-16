@@ -24,6 +24,19 @@ export type ArcadeQuestion = {
 
 type RawRecord = Record<string, unknown>;
 
+type TrackerTopicSummary = {
+  id: number;
+  title: string;
+  position: number | null;
+};
+
+type CompletedTrackerTopic = TrackerTopicSummary & {
+  quizId: number | null;
+  trackerId: number;
+  trackerTitle: string;
+  trackerTopics: TrackerTopicSummary[];
+};
+
 const PREVIEW_QUESTIONS: ArcadeQuestion[] = [
   {
     id: "preview-1",
@@ -172,38 +185,68 @@ const trackerFromStudentResponse = (value: unknown) => {
   return asRecord(value);
 };
 
-const completedQuizTopics = (value: unknown) => {
+const isCompletedTopic = (topic: RawRecord) =>
+  asArray(topic.status_progress)
+    .map(asRecord)
+    .some(
+      (progress) =>
+        progress.is_completed === true ||
+        Number(progress.is_completed) === 1,
+    );
+
+const completedTrackerTopics = (value: unknown) => {
   const tracker = trackerFromStudentResponse(value);
+  const trackerId = numberValue(tracker.id);
+  if (!trackerId) return [];
+
+  const trackerTitle =
+    textValue(tracker.name) ||
+    textValue(tracker.title) ||
+    `Tracker ${trackerId}`;
+  const trackerTopics = asArray(tracker.topics)
+    .map(asRecord)
+    .map((topic): TrackerTopicSummary | null => {
+      const id = numberValue(topic.id);
+      const quiz = nestedRecord(topic, "quiz");
+      const title =
+        textValue(topic.title) ||
+        textValue(topic.name) ||
+        textValue(quiz.name);
+      if (!id || !title) return null;
+
+      return {
+        id,
+        title,
+        position: numberValue(topic.position),
+      };
+    })
+    .filter((topic): topic is TrackerTopicSummary => topic !== null);
+
   return asArray(tracker.topics)
     .map(asRecord)
-    .filter((topic) =>
-      asArray(topic.status_progress)
-        .map(asRecord)
-        .some(
-          (progress) =>
-            progress.is_completed === true ||
-            Number(progress.is_completed) === 1,
-        ),
-    )
+    .filter(isCompletedTopic)
     .map((topic) => {
+      const id = numberValue(topic.id);
       const quiz = nestedRecord(topic, "quiz");
       const quizId = numberValue(topic.quiz_id) ?? numberValue(quiz.id);
-      if (!quizId) return null;
+      const topicTitle =
+        textValue(topic.title) ||
+        textValue(topic.name) ||
+        textValue(quiz.name);
+      if (!id || !topicTitle) return null;
+
       return {
+        id,
         quizId,
-        topicTitle:
-          textValue(topic.title) ||
-          textValue(topic.name) ||
-          `Completed topic ${quizId}`,
+        title: topicTitle,
+        position: numberValue(topic.position),
+        trackerId,
+        trackerTitle,
+        trackerTopics,
       };
     })
     .filter(
-      (
-        topic,
-      ): topic is {
-        quizId: number;
-        topicTitle: string;
-      } => topic !== null,
+      (topic): topic is CompletedTrackerTopic => topic !== null,
     );
 };
 
@@ -256,6 +299,62 @@ const normalizeQuizQuestions = (
     .filter((question): question is ArcadeQuestion => question !== null);
 };
 
+const rotateOptions = (
+  options: ArcadeQuestionOption[],
+  offset: number,
+) => {
+  const shift = offset % options.length;
+  return [...options.slice(shift), ...options.slice(0, shift)];
+};
+
+const progressQuestionFromTopic = (
+  topic: CompletedTrackerTopic,
+): ArcadeQuestion => {
+  const alternatives = topic.trackerTopics
+    .filter((candidate) => candidate.id !== topic.id)
+    .sort((left, right) => {
+      const leftPosition = left.position ?? Number.MAX_SAFE_INTEGER;
+      const rightPosition = right.position ?? Number.MAX_SAFE_INTEGER;
+      return leftPosition - rightPosition || left.id - right.id;
+    })
+    .slice(0, 3);
+
+  if (topic.position && alternatives.length > 0) {
+    const options: ArcadeQuestionOption[] = [
+      {
+        id: `topic-${topic.id}`,
+        text: topic.title,
+        correct: true,
+      },
+      ...alternatives.map((candidate) => ({
+        id: `topic-${candidate.id}`,
+        text: candidate.title,
+        correct: false,
+      })),
+    ];
+
+    return {
+      id: `progress-${topic.trackerId}-${topic.id}`,
+      prompt: `Which topic appears at position ${topic.position} in ${topic.trackerTitle}?`,
+      options: rotateOptions(options, topic.id),
+      sourceLabel: `${topic.trackerTitle}: completed tracker progress`,
+    };
+  }
+
+  return {
+    id: `progress-${topic.trackerId}-${topic.id}`,
+    prompt: `Is “${topic.title}” one of your completed topics in ${topic.trackerTitle}?`,
+    options: rotateOptions(
+      [
+        { id: "yes", text: "Yes, it is completed", correct: true },
+        { id: "no", text: "No, it is not completed", correct: false },
+      ],
+      topic.id,
+    ),
+    sourceLabel: `${topic.trackerTitle}: completed tracker progress`,
+  };
+};
+
 const loadCompletedTopicQuestions = async (options: {
   studentId: number;
   fallbackClassId: number | null;
@@ -292,32 +391,52 @@ const loadCompletedTopicQuestions = async (options: {
     ),
   );
   const completedTopics = topicResults.flatMap((result) =>
-    result.status === "fulfilled" ? completedQuizTopics(result.value) : [],
+    result.status === "fulfilled" ? completedTrackerTopics(result.value) : [],
   );
   const uniqueTopics = Array.from(
     new Map(
-      completedTopics.map((topic) => [String(topic.quizId), topic]),
+      completedTopics.map((topic) => [
+        `${topic.trackerId}:${topic.id}`,
+        topic,
+      ]),
     ).values(),
   );
 
   const questionResults = await Promise.allSettled(
-    uniqueTopics.map(async (topic) => ({
-      topic,
-      response: await fetchQuizQuestions(
-        topic.quizId,
-        options.subjectId ?? undefined,
-      ),
-    })),
+    uniqueTopics
+      .filter(
+        (topic): topic is CompletedTrackerTopic & { quizId: number } =>
+          topic.quizId !== null,
+      )
+      .map(async (topic) => ({
+        topic,
+        response: await fetchQuizQuestions(
+          topic.quizId,
+          options.subjectId ?? undefined,
+        ),
+      })),
   );
-  const questions = questionResults.flatMap((result) =>
-    result.status === "fulfilled"
-      ? normalizeQuizQuestions(
-          result.value.response,
-          result.value.topic.quizId,
-          result.value.topic.topicTitle,
-        )
-      : [],
+  const quizQuestionsByTopic = new Map(
+    questionResults.flatMap((result) => {
+      if (result.status !== "fulfilled") return [];
+      const questions = normalizeQuizQuestions(
+        result.value.response,
+        result.value.topic.quizId,
+        result.value.topic.title,
+      );
+      return [[
+        `${result.value.topic.trackerId}:${result.value.topic.id}`,
+        questions,
+      ] as const];
+    }),
   );
+  const questions = uniqueTopics.flatMap((topic) => {
+    const quizQuestions =
+      quizQuestionsByTopic.get(`${topic.trackerId}:${topic.id}`) ?? [];
+    return quizQuestions.length > 0
+      ? quizQuestions
+      : [progressQuestionFromTopic(topic)];
+  });
 
   return Array.from(
     new Map(questions.map((question) => [question.id, question])).values(),

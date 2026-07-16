@@ -38,6 +38,7 @@ import {
 } from "@/services/studentWalletApi";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import ArcadeQuestionGate from "./ArcadeQuestionGate";
+import GameFullscreenButton from "./GameFullscreenButton";
 import HallOfSignsLevel, {
   createHallProgress,
   HallProgress,
@@ -670,6 +671,7 @@ export default function LostLibraryGame() {
                 <ArrowLeft className="h-4 w-4" />
                 All games
               </Link>
+              <GameFullscreenButton variant="dark" />
             </div>
 
             {isStudent && isWalletUnavailable ? (

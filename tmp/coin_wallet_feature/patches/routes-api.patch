@@ -1,11 +1,9 @@
 --- a/routes/api.php
 +++ b/routes/api.php
-@@ -50,0 +51 @@
+@@ -50,1 +50,2 @@
+ use App\Http\Controllers\Api\SeatingLayoutController;
 +use App\Http\Controllers\Api\StudentCoinWalletController;
-@@ -378 +379,3 @@
--Route::get('leaderboard/school-self', [LeaderBoardController::class, 'schoolSelf'])->name('leaderboard-school-self');
-+	Route::get('leaderboard/school-self', [LeaderBoardController::class, 'schoolSelf'])->name('leaderboard-school-self');
+@@ -378,1 +379,3 @@
+ Route::get('leaderboard/school-self', [LeaderBoardController::class, 'schoolSelf'])->name('leaderboard-school-self');
 +    Route::get('student-wallet/balance', [StudentCoinWalletController::class, 'balance'])->name('student-wallet-balance');
 +    Route::post('student-wallet/spend', [StudentCoinWalletController::class, 'spend'])->name('student-wallet-spend');
-@@ -450 +452,0 @@
--

@@ -3,6 +3,7 @@
 import { Gamepad2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { ReactNode } from "react";
+import GameFullscreenButton from "./GameFullscreenButton";
 
 type ArcadeShellProps = {
   title: string;
@@ -50,6 +51,7 @@ export default function ArcadeShell({
         </div>
 
         <div className="flex items-center gap-2">
+          <GameFullscreenButton />
           {showPause && onPauseToggle ? (
             <button
               type="button"

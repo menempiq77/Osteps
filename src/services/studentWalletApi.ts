@@ -19,9 +19,32 @@ export type StudentWalletBalance = {
   coin_balance: number;
 };
 
+const normalizeWalletBalance = (value: unknown): StudentWalletBalance => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("The student wallet returned an invalid response.");
+  }
+
+  const record = value as Record<string, unknown>;
+  const studentId = Number(record.student_id);
+  const coinBalance = Number(record.coin_balance);
+  if (
+    !Number.isInteger(studentId) ||
+    studentId <= 0 ||
+    !Number.isFinite(coinBalance) ||
+    coinBalance < 0
+  ) {
+    throw new Error("The student wallet returned an invalid balance.");
+  }
+
+  return {
+    student_id: studentId,
+    coin_balance: coinBalance,
+  };
+};
+
 export const fetchStudentWalletBalance = async (): Promise<StudentWalletBalance> => {
   const response = await api.get("/student-wallet/balance");
-  return response?.data?.data ?? response?.data;
+  return normalizeWalletBalance(response?.data?.data ?? response?.data);
 };
 
 export const spendStudentCoins = async (payload: {
@@ -30,5 +53,5 @@ export const spendStudentCoins = async (payload: {
   description?: string;
 }): Promise<StudentWalletBalance> => {
   const response = await api.post("/student-wallet/spend", payload);
-  return response?.data?.data ?? response?.data;
+  return normalizeWalletBalance(response?.data?.data ?? response?.data);
 };
