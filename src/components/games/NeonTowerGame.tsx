@@ -13,10 +13,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import ArcadeQuestionGate from "./ArcadeQuestionGate";
 import ArcadeShell from "./ArcadeShell";
+import useArcadeQuestionPool from "./useArcadeQuestionPool";
 import useArcadePass from "./useArcadePass";
 
-type GameStage = "lobby" | "levels" | "playing" | "won" | "lost" | "complete";
+type GameStage =
+  "lobby" | "levels" | "playing" | "won" | "lost" | "gate" | "complete";
 
 type TowerBlock = {
   id: number;
@@ -29,6 +32,7 @@ type TowerProgress = {
   version: 1;
   unlockedLevel: number;
   bestStars: Record<string, number>;
+  pendingGateLevel: number | null;
 };
 
 type LevelConfig = {
@@ -53,6 +57,7 @@ const DEFAULT_PROGRESS: TowerProgress = {
   version: 1,
   unlockedLevel: 1,
   bestStars: {},
+  pendingGateLevel: null,
 };
 
 const LEVELS: LevelConfig[] = [
@@ -268,6 +273,12 @@ const normalizeProgress = (value: unknown): TowerProgress => {
       LEVELS.length,
     ),
     bestStars,
+    pendingGateLevel:
+      Number.isFinite(candidate.pendingGateLevel) &&
+      Number(candidate.pendingGateLevel) >= 1 &&
+      Number(candidate.pendingGateLevel) < LEVELS.length
+        ? Number(candidate.pendingGateLevel)
+        : null,
   };
 };
 
@@ -313,6 +324,14 @@ export default function NeonTowerGame() {
     gameTitle: "Neon Tower",
     entryCost: ENTRY_COST,
   });
+  const {
+    questions,
+    isLoading: questionsLoading,
+    errorMessage: questionsError,
+    isPreview: questionsPreview,
+    subjectName,
+    refreshQuestions,
+  } = useArcadeQuestionPool();
 
   const [stage, setStage] = useState<GameStage>("lobby");
   const [progress, setProgress] = useState<TowerProgress>(DEFAULT_PROGRESS);
@@ -415,9 +434,11 @@ export default function NeonTowerGame() {
     setActiveX(nextX);
   };
 
-  const beginLevel = (levelNumber: number) => {
+  const beginLevel = (levelNumber: number, allowLocked = false) => {
     const nextLevel = LEVELS[levelNumber - 1];
-    if (!nextLevel || levelNumber > progress.unlockedLevel) return;
+    if (!nextLevel || (!allowLocked && levelNumber > progress.unlockedLevel)) {
+      return;
+    }
 
     const base: TowerBlock = {
       id: 0,
@@ -439,13 +460,11 @@ export default function NeonTowerGame() {
 
   const completeLevel = (nextSettled: TowerBlock[], nextPerfects: number) => {
     const stars = starsForLevel(lives, level.lives, nextPerfects, level.target);
-    const nextUnlocked =
-      currentLevel < LEVELS.length
-        ? Math.max(progress.unlockedLevel, currentLevel + 1)
-        : progress.unlockedLevel;
+    const needsGate =
+      currentLevel < LEVELS.length && currentLevel >= progress.unlockedLevel;
     const nextProgress: TowerProgress = {
       version: 1,
-      unlockedLevel: nextUnlocked,
+      unlockedLevel: progress.unlockedLevel,
       bestStars: {
         ...progress.bestStars,
         [String(currentLevel)]: Math.max(
@@ -453,6 +472,7 @@ export default function NeonTowerGame() {
           progress.bestStars[String(currentLevel)] ?? 0,
         ),
       },
+      pendingGateLevel: needsGate ? currentLevel : progress.pendingGateLevel,
     };
 
     setSettledBlocks(nextSettled);
@@ -462,6 +482,24 @@ export default function NeonTowerGame() {
     saveProgress(nextProgress);
     playSound("win");
     setStage("won");
+  };
+
+  const openQuestionGate = (completedLevel: number) => {
+    setCurrentLevel(completedLevel);
+    void refreshQuestions();
+    setStage("gate");
+  };
+
+  const passQuestionGate = () => {
+    const completedLevel = progress.pendingGateLevel ?? currentLevel;
+    const nextLevel = completedLevel + 1;
+    const nextProgress: TowerProgress = {
+      ...progress,
+      unlockedLevel: Math.max(progress.unlockedLevel, nextLevel),
+      pendingGateLevel: null,
+    };
+    saveProgress(nextProgress);
+    beginLevel(nextLevel, true);
   };
 
   const dropBlock = useCallback(() => {
@@ -746,6 +784,33 @@ export default function NeonTowerGame() {
     );
   }
 
+  if (stage === "gate") {
+    const completedLevel = progress.pendingGateLevel ?? currentLevel;
+    return (
+      <ArcadeShell
+        title="Neon Tower"
+        subtitle="Five correct answers unlock the next level"
+        soundEnabled={soundEnabled}
+        onSoundToggle={() => setSoundEnabled((current) => !current)}
+      >
+        <ArcadeQuestionGate
+          gameId="neon-tower"
+          gameTitle="Neon Tower"
+          completedLevel={completedLevel}
+          nextLevelLabel={`Level ${completedLevel + 1}`}
+          questions={questions}
+          isLoading={questionsLoading}
+          errorMessage={questionsError}
+          isPreview={questionsPreview}
+          subjectName={subjectName}
+          onPassed={passQuestionGate}
+          onBack={() => setStage("levels")}
+          onRetryLoad={() => void refreshQuestions()}
+        />
+      </ArcadeShell>
+    );
+  }
+
   if (stage === "levels") {
     const minutesRemaining = passExpiresAt
       ? Math.max(1, Math.ceil((passExpiresAt - Date.now()) / 60000))
@@ -782,6 +847,25 @@ export default function NeonTowerGame() {
               End arcade pass
             </button>
           </div>
+
+          {progress.pendingGateLevel ? (
+            <button
+              type="button"
+              onClick={() => openQuestionGate(progress.pendingGateLevel ?? 1)}
+              className="mt-5 flex w-full items-center justify-between gap-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-cyan-50 to-fuchsia-50 px-5 py-4 text-left"
+            >
+              <span>
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-indigo-500">
+                  Knowledge gate waiting
+                </span>
+                <span className="mt-1 block text-sm font-black text-slate-800">
+                  Answer five questions to unlock Level{" "}
+                  {progress.pendingGateLevel + 1}
+                </span>
+              </span>
+              <Sparkles className="h-6 w-6 shrink-0 text-fuchsia-500" />
+            </button>
+          ) : null}
 
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {LEVELS.map((item) => {
@@ -1040,16 +1124,22 @@ export default function NeonTowerGame() {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  currentLevel === LEVELS.length
-                    ? setStage("complete")
-                    : beginLevel(currentLevel + 1)
-                }
+                onClick={() => {
+                  if (currentLevel === LEVELS.length) {
+                    setStage("complete");
+                  } else if (progress.pendingGateLevel === currentLevel) {
+                    openQuestionGate(currentLevel);
+                  } else {
+                    beginLevel(currentLevel + 1);
+                  }
+                }}
                 className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 text-sm font-black text-white"
               >
                 {currentLevel === LEVELS.length
                   ? "Claim Neon Crown"
-                  : "Next level"}
+                  : progress.pendingGateLevel === currentLevel
+                    ? "Answer 5 questions"
+                    : "Next level"}
               </button>
               <button
                 type="button"

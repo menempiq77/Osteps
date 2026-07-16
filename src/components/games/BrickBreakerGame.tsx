@@ -23,10 +23,13 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import ArcadeQuestionGate from "./ArcadeQuestionGate";
 import ArcadeShell from "./ArcadeShell";
+import useArcadeQuestionPool from "./useArcadeQuestionPool";
 import useArcadePass from "./useArcadePass";
 
-type GameStage = "lobby" | "levels" | "playing" | "won" | "lost" | "complete";
+type GameStage =
+  "lobby" | "levels" | "playing" | "won" | "lost" | "gate" | "complete";
 type BrickLayout = "full" | "checker" | "pyramid" | "diamond" | "waves";
 type SoundKind = "launch" | "paddle" | "brick" | "life" | "win";
 
@@ -78,6 +81,7 @@ type BreakerProgress = {
   unlockedLevel: number;
   bestScores: Record<string, number>;
   bestStars: Record<string, number>;
+  pendingGateLevel: number | null;
 };
 
 const GAME_WIDTH = 640;
@@ -92,6 +96,7 @@ const DEFAULT_PROGRESS: BreakerProgress = {
   unlockedLevel: 1,
   bestScores: {},
   bestStars: {},
+  pendingGateLevel: null,
 };
 
 const LEVELS: LevelConfig[] = [
@@ -313,6 +318,12 @@ const normalizeProgress = (value: unknown): BreakerProgress => {
       saved.bestStars && typeof saved.bestStars === "object"
         ? saved.bestStars
         : {},
+    pendingGateLevel:
+      Number.isFinite(saved.pendingGateLevel) &&
+      Number(saved.pendingGateLevel) >= 1 &&
+      Number(saved.pendingGateLevel) < LEVELS.length
+        ? Number(saved.pendingGateLevel)
+        : null,
   };
 };
 
@@ -351,13 +362,7 @@ const createBricks = (level: LevelConfig) => {
   for (let row = 0; row < level.rows; row += 1) {
     for (let column = 0; column < level.columns; column += 1) {
       if (
-        !shouldPlaceBrick(
-          level.layout,
-          row,
-          column,
-          level.rows,
-          level.columns,
-        )
+        !shouldPlaceBrick(level.layout, row, column, level.rows, level.columns)
       ) {
         continue;
       }
@@ -433,10 +438,17 @@ export default function BrickBreakerGame() {
     gameTitle: "Brick Bounce",
     entryCost: ENTRY_COST,
   });
+  const {
+    questions,
+    isLoading: questionsLoading,
+    errorMessage: questionsError,
+    isPreview: questionsPreview,
+    subjectName,
+    refreshQuestions,
+  } = useArcadeQuestionPool();
 
   const [stage, setStage] = useState<GameStage>("lobby");
-  const [progress, setProgress] =
-    useState<BreakerProgress>(DEFAULT_PROGRESS);
+  const [progress, setProgress] = useState<BreakerProgress>(DEFAULT_PROGRESS);
   const [isProgressRestored, setIsProgressRestored] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [lives, setLives] = useState(STARTING_LIVES);
@@ -568,13 +580,7 @@ export default function BrickBreakerGame() {
       context.shadowBlur = 13;
       context.fillStyle = brick.color;
       context.beginPath();
-      context.roundRect(
-        brick.x,
-        brick.y,
-        brick.width,
-        brick.height,
-        7,
-      );
+      context.roundRect(brick.x, brick.y, brick.width, brick.height, 7);
       context.fill();
       context.shadowBlur = 0;
       context.strokeStyle = "rgba(255,255,255,.85)";
@@ -646,14 +652,15 @@ export default function BrickBreakerGame() {
   }, [level]);
 
   const saveBestScore = useCallback(
-    (nextScore: number, stars = 0, unlockNext = false) => {
+    (nextScore: number, stars = 0, levelCompleted = false) => {
       const key = String(currentLevel);
+      const needsGate =
+        levelCompleted &&
+        currentLevel < LEVELS.length &&
+        currentLevel >= progress.unlockedLevel;
       const nextProgress: BreakerProgress = {
         version: 1,
-        unlockedLevel:
-          unlockNext && currentLevel < LEVELS.length
-            ? Math.max(progress.unlockedLevel, currentLevel + 1)
-            : progress.unlockedLevel,
+        unlockedLevel: progress.unlockedLevel,
         bestScores: {
           ...progress.bestScores,
           [key]: Math.max(nextScore, progress.bestScores[key] ?? 0),
@@ -662,6 +669,7 @@ export default function BrickBreakerGame() {
           ...progress.bestStars,
           [key]: Math.max(stars, progress.bestStars[key] ?? 0),
         },
+        pendingGateLevel: needsGate ? currentLevel : progress.pendingGateLevel,
       };
       saveProgress(nextProgress);
     },
@@ -672,7 +680,8 @@ export default function BrickBreakerGame() {
     const runtime = runtimeRef.current;
     const elapsedSeconds = Math.floor((Date.now() - runtime.startedAt) / 1000);
     const timeBonus = Math.max(0, 900 - elapsedSeconds * 5);
-    const completionBonus = currentLevel * 100 + runtime.lives * 250 + timeBonus;
+    const completionBonus =
+      currentLevel * 100 + runtime.lives * 250 + timeBonus;
     runtime.score += completionBonus;
     const stars = starsForLives(runtime.lives);
     setScore(runtime.score);
@@ -706,7 +715,8 @@ export default function BrickBreakerGame() {
     runtime.paddleX = (GAME_WIDTH - level.paddleWidth) / 2;
     runtime.ball.x = GAME_WIDTH / 2;
     runtime.ball.y = PADDLE_Y - BALL_RADIUS - 4;
-    runtime.ball.vx = level.ballSpeed * (runtime.lives % 2 === 0 ? 0.56 : -0.56);
+    runtime.ball.vx =
+      level.ballSpeed * (runtime.lives % 2 === 0 ? 0.56 : -0.56);
     runtime.ball.vy = -level.ballSpeed;
     setLaunched(false);
     setNotice(
@@ -773,8 +783,7 @@ export default function BrickBreakerGame() {
           const speed = level.ballSpeed * (1 + (currentLevel - 1) * 0.012);
           runtime.ball.vx = clamp(hitOffset, -0.9, 0.9) * speed;
           if (Math.abs(runtime.ball.vx) < speed * 0.2) {
-            runtime.ball.vx =
-              speed * 0.2 * (runtime.ball.vx < 0 ? -1 : 1);
+            runtime.ball.vx = speed * 0.2 * (runtime.ball.vx < 0 ? -1 : 1);
           }
           runtime.ball.vy = -Math.sqrt(
             Math.max(speed * speed - runtime.ball.vx * runtime.ball.vx, 1),
@@ -909,9 +918,11 @@ export default function BrickBreakerGame() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [stage]);
 
-  const beginLevel = (levelNumber: number) => {
+  const beginLevel = (levelNumber: number, allowLocked = false) => {
     const nextLevel = LEVELS[levelNumber - 1];
-    if (!nextLevel || levelNumber > progress.unlockedLevel) return;
+    if (!nextLevel || (!allowLocked && levelNumber > progress.unlockedLevel)) {
+      return;
+    }
     const runtime = createRuntime(nextLevel);
     runtimeRef.current = runtime;
     setCurrentLevel(levelNumber);
@@ -925,6 +936,24 @@ export default function BrickBreakerGame() {
     setStage("playing");
   };
 
+  const openQuestionGate = (completedLevel: number) => {
+    setCurrentLevel(completedLevel);
+    void refreshQuestions();
+    setStage("gate");
+  };
+
+  const passQuestionGate = () => {
+    const completedLevel = progress.pendingGateLevel ?? currentLevel;
+    const nextLevel = completedLevel + 1;
+    const nextProgress: BreakerProgress = {
+      ...progress,
+      unlockedLevel: Math.max(progress.unlockedLevel, nextLevel),
+      pendingGateLevel: null,
+    };
+    saveProgress(nextProgress);
+    beginLevel(nextLevel, true);
+  };
+
   const launchBall = () => {
     const runtime = runtimeRef.current;
     if (stage !== "playing" || paused || runtime.launched) return;
@@ -934,7 +963,9 @@ export default function BrickBreakerGame() {
     playSound("launch");
   };
 
-  const movePaddleFromPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+  const movePaddleFromPointer = (
+    event: ReactPointerEvent<HTMLCanvasElement>,
+  ) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const pointerX =
       ((event.clientX - rect.left) / Math.max(rect.width, 1)) * GAME_WIDTH;
@@ -1004,9 +1035,9 @@ export default function BrickBreakerGame() {
                 </span>
               </h1>
               <p className="mt-4 max-w-md text-sm font-bold leading-6 text-indigo-100">
-                Slide the paddle left and right, keep the ball in play, and clear
-                15 increasingly challenging levels before your three balls run
-                out.
+                Slide the paddle left and right, keep the ball in play, and
+                clear 15 increasingly challenging levels before your three balls
+                run out.
               </p>
             </div>
 
@@ -1113,6 +1144,33 @@ export default function BrickBreakerGame() {
     );
   }
 
+  if (stage === "gate") {
+    const completedLevel = progress.pendingGateLevel ?? currentLevel;
+    return (
+      <ArcadeShell
+        title="Brick Bounce"
+        subtitle="Five correct answers unlock the next level"
+        soundEnabled={soundEnabled}
+        onSoundToggle={() => setSoundEnabled((current) => !current)}
+      >
+        <ArcadeQuestionGate
+          gameId="brick-breaker"
+          gameTitle="Brick Bounce"
+          completedLevel={completedLevel}
+          nextLevelLabel={`Level ${completedLevel + 1}`}
+          questions={questions}
+          isLoading={questionsLoading}
+          errorMessage={questionsError}
+          isPreview={questionsPreview}
+          subjectName={subjectName}
+          onPassed={passQuestionGate}
+          onBack={() => setStage("levels")}
+          onRetryLoad={() => void refreshQuestions()}
+        />
+      </ArcadeShell>
+    );
+  }
+
   if (stage === "levels") {
     const minutesRemaining = passExpiresAt
       ? Math.max(1, Math.ceil((passExpiresAt - Date.now()) / 60000))
@@ -1149,6 +1207,25 @@ export default function BrickBreakerGame() {
               End arcade pass
             </button>
           </div>
+
+          {progress.pendingGateLevel ? (
+            <button
+              type="button"
+              onClick={() => openQuestionGate(progress.pendingGateLevel ?? 1)}
+              className="mt-5 flex w-full items-center justify-between gap-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-cyan-50 to-fuchsia-50 px-5 py-4 text-left"
+            >
+              <span>
+                <span className="block text-xs font-black uppercase tracking-[0.16em] text-indigo-500">
+                  Knowledge gate waiting
+                </span>
+                <span className="mt-1 block text-sm font-black text-slate-800">
+                  Answer five questions to unlock Level{" "}
+                  {progress.pendingGateLevel + 1}
+                </span>
+              </span>
+              <Sparkles className="h-6 w-6 shrink-0 text-fuchsia-500" />
+            </button>
+          ) : null}
 
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {LEVELS.map((item) => {
@@ -1337,8 +1414,8 @@ export default function BrickBreakerGame() {
               {level.name}
             </h2>
             <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-              Keep the ball above your paddle and break all {totalBricks} bricks.
-              Tough bricks show how many hits remain.
+              Keep the ball above your paddle and break all {totalBricks}{" "}
+              bricks. Tough bricks show how many hits remain.
             </p>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
@@ -1373,16 +1450,22 @@ export default function BrickBreakerGame() {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  currentLevel === LEVELS.length
-                    ? setStage("complete")
-                    : beginLevel(currentLevel + 1)
-                }
+                onClick={() => {
+                  if (currentLevel === LEVELS.length) {
+                    setStage("complete");
+                  } else if (progress.pendingGateLevel === currentLevel) {
+                    openQuestionGate(currentLevel);
+                  } else {
+                    beginLevel(currentLevel + 1);
+                  }
+                }}
                 className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 text-sm font-black text-white"
               >
                 {currentLevel === LEVELS.length
                   ? "Claim Galaxy Trophy"
-                  : "Next level"}
+                  : progress.pendingGateLevel === currentLevel
+                    ? "Answer 5 questions"
+                    : "Next level"}
               </button>
               <button
                 type="button"
@@ -1437,8 +1520,12 @@ export default function BrickBreakerGame() {
               </button>
               <div className="rounded-[24px] border border-white bg-white/70 p-4 text-xs font-bold leading-5 text-slate-500">
                 <p className="font-black text-slate-700">Controls</p>
-                <p className="mt-1">Phone/tablet: drag the paddle or tap to launch.</p>
-                <p>Computer: ← → or A/D to move, Space to launch, P to pause.</p>
+                <p className="mt-1">
+                  Phone/tablet: drag the paddle or tap to launch.
+                </p>
+                <p>
+                  Computer: ← → or A/D to move, Space to launch, P to pause.
+                </p>
               </div>
             </>
           ) : null}
