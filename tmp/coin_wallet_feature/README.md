@@ -61,13 +61,13 @@ install -D "$FEATURE/Services/StudentCoinWalletService.php" \
 install -D "$FEATURE/Controllers/StudentCoinWalletController.php" \
   "$BACKEND/app/Http/Controllers/Api/StudentCoinWalletController.php"
 
-git -C "$BACKEND" apply --check --ignore-space-change "$FEATURE/patches/TopicController.patch"
-git -C "$BACKEND" apply --check --ignore-space-change "$FEATURE/patches/LeaderBoardController.patch"
-git -C "$BACKEND" apply --check --ignore-space-change "$FEATURE/patches/routes-api.patch"
+patch --dry-run --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/TopicController.patch"
+patch --dry-run --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/LeaderBoardController.patch"
+patch --dry-run --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/routes-api.patch"
 
-git -C "$BACKEND" apply --ignore-space-change "$FEATURE/patches/TopicController.patch"
-git -C "$BACKEND" apply --ignore-space-change "$FEATURE/patches/LeaderBoardController.patch"
-git -C "$BACKEND" apply --ignore-space-change "$FEATURE/patches/routes-api.patch"
+patch --forward --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/TopicController.patch"
+patch --forward --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/LeaderBoardController.patch"
+patch --forward --ignore-whitespace -d "$BACKEND" -p1 < "$FEATURE/patches/routes-api.patch"
 
 php "$BACKEND/artisan" migrate --force
 php "$BACKEND/artisan" route:list --path=student-wallet

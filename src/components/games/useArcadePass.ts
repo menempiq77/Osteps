@@ -69,6 +69,7 @@ export default function useArcadePass({
   const {
     data: wallet,
     isLoading: isWalletLoading,
+    isError: isWalletUnavailable,
     refetch: refetchWallet,
   } = useQuery({
     queryKey: ["student-coin-wallet", studentId],
@@ -210,6 +211,7 @@ export default function useArcadePass({
     isRestored,
     isStarting,
     isWalletLoading,
+    isWalletUnavailable,
     passActive: Boolean(pass?.active && pass.expiresAt > Date.now()),
     passExpiresAt: pass?.expiresAt ?? null,
     startPass,

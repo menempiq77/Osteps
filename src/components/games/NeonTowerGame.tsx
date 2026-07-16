@@ -315,6 +315,7 @@ export default function NeonTowerGame() {
     isRestored: isPassRestored,
     isStarting,
     isWalletLoading,
+    isWalletUnavailable,
     passActive,
     passExpiresAt,
     startPass,
@@ -776,7 +777,9 @@ export default function NeonTowerGame() {
             <p className="mt-3 text-center text-xs font-bold text-slate-500">
               {isPreview
                 ? "Preview mode does not spend coins."
-                : `${walletBalance.toLocaleString()} coins currently in your pocket`}
+                : isWalletUnavailable
+                  ? "Coin balance unavailable — reconnect and try again."
+                  : `${walletBalance.toLocaleString()} coins currently in your pocket`}
             </p>
           </div>
         </div>

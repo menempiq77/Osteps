@@ -19,7 +19,7 @@ export default function StudentCoinWallet({
   const normalizedStudentId = String(studentId);
 
   const { data: balance = 0, refetch } = useQuery({
-    queryKey: ["student-coin-wallet", normalizedStudentId],
+    queryKey: ["student-coin-wallet-display", normalizedStudentId],
     queryFn: async () => {
       try {
         const wallet = await fetchStudentWalletBalance();
