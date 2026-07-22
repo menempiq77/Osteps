@@ -16,10 +16,22 @@ import {
 } from "@/services/yearsApi";
 import { fetchClasses, updateClass } from "@/services/classesApi";
 import { fetchTerm, addTerm, deleteTerm } from "@/services/termsApi";
-import { fetchStudents } from "@/services/studentsApi";
+import { fetchBaseClassStudents, fetchStudents } from "@/services/studentsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { archiveSubjectClass, restoreSubjectClass, deactivateSubjectClassesByYear, fetchSubjectClasses, isMissingSubjectWorkspaceRoute } from "@/services/subjectWorkspaceApi";
-import { readSubjectClassBaseMap, resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import {
+  archiveSubjectClass,
+  createSubjectClass,
+  deactivateSubjectClassesByYear,
+  enrollStudentsToSubjectClass,
+  fetchSubjectClasses,
+  isMissingSubjectWorkspaceRoute,
+  restoreSubjectClass,
+} from "@/services/subjectWorkspaceApi";
+import {
+  readSubjectClassBaseMap,
+  resolveSubjectClassLinkedIdWithFallback,
+  writeSubjectClassBaseEntry,
+} from "@/lib/subjectClassResolution";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 interface Year {
@@ -53,6 +65,24 @@ type SubjectClassRow = {
     id?: number | string | null;
     year_id?: number | string | null;
   } | null;
+};
+
+type ArchivedYearGroupImport = {
+  key: string;
+  sourceSubjectId: number;
+  sourceSubjectName: string;
+  yearId: number;
+  yearName: string;
+  classes: SubjectClassRow[];
+};
+
+type RequestError = {
+  message?: unknown;
+  response?: {
+    data?: {
+      msg?: unknown;
+    };
+  };
 };
 
 const resolveSubjectClassYearId = (row: SubjectClassRow): number =>
@@ -90,6 +120,17 @@ const normalizeClassLabel = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const isSubjectClassActive = (row: SubjectClassRow) =>
+  row?.is_active === undefined ? true : Number(row.is_active) === 1;
+
+const resolveStudentId = (student: Record<string, unknown>): number =>
+  Number(student.id ?? student.student_id ?? 0);
+
+const resolveRequestError = (error: unknown, fallback: string): string => {
+  const requestError = error as RequestError;
+  return String(requestError?.response?.data?.msg ?? requestError?.message ?? fallback);
+};
+
 export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [years, setYears] = useState<Year[]>([]);
@@ -114,9 +155,19 @@ export default function Page() {
   const [yearStats, setYearStats] = useState<
     Record<number, { classes: number; students: number }>
   >({});
+  const [archivedYearGroups, setArchivedYearGroups] = useState<ArchivedYearGroupImport[]>([]);
+  const [archivedYearGroupsLoading, setArchivedYearGroupsLoading] = useState(false);
+  const [importingArchivedYear, setImportingArchivedYear] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
-  const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
+  const {
+    activeSubjectId,
+    activeSubject,
+    canUseSubjectContext,
+    loading: subjectContextLoading,
+    refreshSubjects,
+    subjects,
+  } = useSubjectContext();
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const hasAccess = currentUser?.role === "SCHOOL_ADMIN";
@@ -216,6 +267,118 @@ export default function Page() {
       return list;
     }
   };
+
+  useEffect(() => {
+    if (
+      !isModalOpen ||
+      currentYear ||
+      !isSubjectWorkspaceMode ||
+      !activeSubjectId ||
+      !hasAccess ||
+      !schoolId
+    ) {
+      setArchivedYearGroups([]);
+      setArchivedYearGroupsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setArchivedYearGroupsLoading(true);
+
+    const loadArchivedYearGroups = async () => {
+      try {
+        const schoolYears = await fetchYearsBySchool(Number(schoolId));
+        const yearNameById = new Map(
+          (
+            (Array.isArray(schoolYears) ? schoolYears : []) as Array<{
+              id?: number | string | null;
+              name?: string | null;
+            }>
+          ).map((year) => [
+            Number(year.id),
+            String(year.name ?? `Year ${year.id ?? ""}`).trim(),
+          ])
+        );
+        const sourceSubjects = subjects.filter(
+          (subject) => Number(subject.id) !== Number(activeSubjectId)
+        );
+        const sourceRows = await Promise.all(
+          sourceSubjects.map(async (subject) => {
+            try {
+              const rows = (await fetchSubjectClasses({
+                subject_id: Number(subject.id),
+                include_inactive: true,
+              })) as SubjectClassRow[];
+              return { subject, rows: Array.isArray(rows) ? rows : [] };
+            } catch {
+              return { subject, rows: [] as SubjectClassRow[] };
+            }
+          })
+        );
+
+        const groups = sourceRows.flatMap(({ subject, rows }) => {
+          const isArchivedSubject =
+            rows.length > 0 && rows.every((row) => !isSubjectClassActive(row));
+          if (!isArchivedSubject) return [];
+
+          const rowsByYear = new Map<number, SubjectClassRow[]>();
+          rows.forEach((row) => {
+            const yearId = resolveSubjectClassYearId(row);
+            if (!Number.isFinite(yearId) || yearId <= 0) return;
+            const labelKey = normalizeClassLabel(resolveSubjectClassLabel(row));
+            if (!labelKey) return;
+            const existing = rowsByYear.get(yearId) ?? [];
+            if (!existing.some((item) =>
+              normalizeClassLabel(resolveSubjectClassLabel(item)) === labelKey
+            )) {
+              existing.push(row);
+            }
+            rowsByYear.set(yearId, existing);
+          });
+
+          return Array.from(rowsByYear.entries()).map(([yearId, classes]) => ({
+            key: `${subject.id}:${yearId}`,
+            sourceSubjectId: Number(subject.id),
+            sourceSubjectName: String(subject.name ?? "").trim(),
+            yearId,
+            yearName: yearNameById.get(yearId) || `Year ${yearId}`,
+            classes,
+          }));
+        });
+
+        if (!cancelled) {
+          setArchivedYearGroups(
+            groups.sort((a, b) =>
+              a.sourceSubjectName.localeCompare(b.sourceSubjectName) ||
+              a.yearName.localeCompare(b.yearName)
+            )
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setArchivedYearGroups([]);
+          messageApi.error("Failed to load archived year groups.");
+        }
+      } finally {
+        if (!cancelled) setArchivedYearGroupsLoading(false);
+      }
+    };
+
+    void loadArchivedYearGroups();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeSubjectId,
+    currentYear,
+    hasAccess,
+    isModalOpen,
+    isSubjectWorkspaceMode,
+    messageApi,
+    schoolId,
+    subjects,
+  ]);
 
   useEffect(() => {
     if (subjectContextLoading) return;
@@ -594,6 +757,152 @@ export default function Page() {
     }
   };
 
+  const handleImportArchivedYear = async (groupKey: string) => {
+    if (!hasAccess || !isSubjectWorkspaceMode || !activeSubjectId) {
+      messageApi.warning("Only School Admin can import archived year groups.");
+      return;
+    }
+
+    const sourceGroup = archivedYearGroups.find((group) => group.key === groupKey);
+    if (!sourceGroup) {
+      messageApi.error("The selected archived year group is no longer available.");
+      return;
+    }
+
+    setImportingArchivedYear(true);
+    const importedStudentIds = new Set<number>();
+    let importedClasses = 0;
+    const failures: string[] = [];
+
+    try {
+      const latestSourceRows = (await fetchSubjectClasses({
+        subject_id: sourceGroup.sourceSubjectId,
+        include_inactive: true,
+      })) as SubjectClassRow[];
+      const sourceRows = Array.isArray(latestSourceRows) ? latestSourceRows : [];
+      if (sourceRows.length === 0 || sourceRows.some(isSubjectClassActive)) {
+        throw new Error("The source subject is no longer archived.");
+      }
+      const sourceClassLabels = new Set<string>();
+      const sourceClasses = sourceRows.filter((row) => {
+        if (resolveSubjectClassYearId(row) !== sourceGroup.yearId) return false;
+        const label = normalizeClassLabel(resolveSubjectClassLabel(row));
+        if (!label || sourceClassLabels.has(label)) return false;
+        sourceClassLabels.add(label);
+        return true;
+      });
+      if (sourceClasses.length === 0) {
+        throw new Error("The selected year group no longer contains archived classes.");
+      }
+
+      const targetRows = (await fetchSubjectClasses({
+        subject_id: Number(activeSubjectId),
+        include_inactive: true,
+      })) as SubjectClassRow[];
+      const targetClasses = Array.isArray(targetRows) ? [...targetRows] : [];
+
+      for (const sourceClass of sourceClasses) {
+        const classLabel = resolveSubjectClassLabel(sourceClass);
+        const normalizedLabel = normalizeClassLabel(classLabel);
+
+        try {
+          const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
+            sourceClass,
+            sourceGroup.sourceSubjectId
+          );
+          if (!linkedClassId) {
+            throw new Error("its base class could not be found");
+          }
+
+          const baseClassStudents = await fetchBaseClassStudents(linkedClassId);
+          const studentIds = Array.from(
+            new Set(
+              (Array.isArray(baseClassStudents) ? baseClassStudents : [])
+                .map((student: Record<string, unknown>) => resolveStudentId(student))
+                .filter((id) => Number.isFinite(id) && id > 0)
+            )
+          );
+          const matchingTargetClasses = targetClasses.filter(
+            (row) =>
+              resolveSubjectClassYearId(row) === sourceGroup.yearId &&
+              normalizeClassLabel(resolveSubjectClassLabel(row)) === normalizedLabel
+          );
+          const activeTargetClass = matchingTargetClasses.find(isSubjectClassActive);
+          const archivedTargetClass = matchingTargetClasses.find(
+            (row) => !isSubjectClassActive(row)
+          );
+
+          if (!activeTargetClass && archivedTargetClass) {
+            throw new Error("it is already archived in the current subject");
+          }
+
+          let targetSubjectClassId = Number(activeTargetClass?.id ?? 0);
+          if (!targetSubjectClassId) {
+            const response = await createSubjectClass({
+              subject_id: Number(activeSubjectId),
+              year_id: sourceGroup.yearId,
+              name: classLabel,
+              base_class_label: classLabel,
+            });
+            targetSubjectClassId = Number(response?.data?.id ?? response?.id ?? 0);
+            if (!Number.isFinite(targetSubjectClassId) || targetSubjectClassId <= 0) {
+              throw new Error("the new subject class could not be created");
+            }
+            targetClasses.push({
+              id: targetSubjectClassId,
+              year_id: sourceGroup.yearId,
+              name: classLabel,
+              base_class_label: classLabel,
+              is_active: 1,
+            });
+          }
+
+          writeSubjectClassBaseEntry(
+            Number(activeSubjectId),
+            String(targetSubjectClassId),
+            String(linkedClassId)
+          );
+
+          if (studentIds.length > 0) {
+            await enrollStudentsToSubjectClass({
+              subject_class_id: targetSubjectClassId,
+              student_ids: studentIds,
+            });
+            studentIds.forEach((id) => importedStudentIds.add(id));
+          }
+          importedClasses += 1;
+        } catch (err: unknown) {
+          failures.push(`${classLabel}: ${resolveRequestError(err, "failed")}`);
+        }
+      }
+
+      if (importedClasses > 0) {
+        setStatsVersion((version) => version + 1);
+        refreshSubjects();
+        messageApi.success(
+          `Imported ${sourceGroup.yearName} with ${importedClasses} ${
+            importedClasses === 1 ? "class" : "classes"
+          } and assigned ${importedStudentIds.size} ${
+            importedStudentIds.size === 1 ? "student" : "students"
+          } to ${formattedSubjectName || "this subject"}.`
+        );
+      }
+
+      if (failures.length > 0) {
+        messageApi.error(
+          `${failures.length} ${failures.length === 1 ? "class" : "classes"} could not be imported. ${failures[0]}`
+        );
+      } else {
+        setIsModalOpen(false);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      messageApi.error(resolveRequestError(err, "Failed to import archived year group."));
+    } finally {
+      setImportingArchivedYear(false);
+    }
+  };
+
   const confirmArchive = (id: number) => {
     if (!hasAccess && !isTeacher) {
       messageApi.warning("You do not have permission to archive year groups.");
@@ -935,6 +1244,19 @@ export default function Page() {
         <YearForm
           onSubmit={handleSubmitYear}
           defaultValues={currentYear || undefined}
+          archivedYearGroups={archivedYearGroups.map((group) => ({
+            key: group.key,
+            sourceSubjectName: group.sourceSubjectName,
+            yearName: group.yearName,
+            classCount: group.classes.length,
+          }))}
+          archivedYearGroupsLoading={archivedYearGroupsLoading}
+          importingArchivedYear={importingArchivedYear}
+          onImportArchivedYear={
+            hasAccess && isSubjectWorkspaceMode && !isReadOnlyArchivedWorkspace
+              ? handleImportArchivedYear
+              : undefined
+          }
         />
       </Modal>
 
