@@ -792,19 +792,31 @@ export default function SubjectCardsPage() {
 
         {subjectsLoading ? (
           <SubjectCardsSkeleton includeCreateCard={isSchoolAdmin} />
-        ) : subjects.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10">
-            <Empty description="No assigned subjects found." />
-          </div>
-        ) : displayedSubjects.length === 0 ? (
+        ) : subjects.length === 0 || displayedSubjects.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-10">
             <Empty
               description={
-                subjectTab === "archived"
+                subjects.length === 0
+                  ? "No subjects yet. Create the first subject dashboard."
+                  : subjectTab === "archived"
                   ? "No archived subjects. Archive a subject from the Active tab to see it here."
-                  : "No subjects match that search."
+                  : subjectSearch.trim()
+                    ? "No subjects match that search."
+                    : "No active subjects. Create a new subject or restore one from Archived."
               }
-            />
+            >
+              {isSchoolAdmin && subjectTab === "active" && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#38C16C] px-4 py-2 text-sm font-bold text-white
+                             shadow-[0_8px_18px_rgba(56,193,108,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#31ad60]"
+                >
+                  <PlusOutlined />
+                  Create subject
+                </button>
+              )}
+            </Empty>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8">
