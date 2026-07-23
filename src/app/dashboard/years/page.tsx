@@ -201,6 +201,12 @@ export default function Page() {
     localStorage.setItem(hiddenYearsStorageKey, JSON.stringify(next));
   };
 
+  const removeHiddenYear = (yearId: number) => {
+    if (typeof window === "undefined" || !hiddenYearsStorageKey) return;
+    const next = readHiddenYears().filter((id) => id !== yearId);
+    localStorage.setItem(hiddenYearsStorageKey, JSON.stringify(next));
+  };
+
   const readAddedYears = (): number[] => {
     if (typeof window === "undefined" || !addedYearsStorageKey) return [];
     try {
@@ -451,8 +457,8 @@ export default function Page() {
         // Active tab: years with at least one active class (or explicitly added, empty years).
         yearsData = schoolYearList.filter((year: any) => {
           const id = Number(year?.id);
-          if (hiddenIds.has(id)) return false;
-          return activeYearIds.has(id) || addedIds.has(id);
+          if (activeYearIds.has(id)) return true;
+          return !hiddenIds.has(id) && addedIds.has(id);
         });
 
         // Archived tab: years whose classes are all archived (no active class remains).
@@ -877,6 +883,7 @@ export default function Page() {
       }
 
       if (importedClasses > 0) {
+        removeHiddenYear(sourceGroup.yearId);
         setStatsVersion((version) => version + 1);
         refreshSubjects();
         messageApi.success(
