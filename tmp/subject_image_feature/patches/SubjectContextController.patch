@@ -1,0 +1,22 @@
+--- a/app/Http/Controllers/Api/SubjectContextController.php
++++ b/app/Http/Controllers/Api/SubjectContextController.php
+@@ -289 +289,3 @@
+-        $qualifiedCode = $alias . '.code';
++        $code = Schema::hasColumn('subjects', 'code')
++            ? "{$alias}.code as code"
++            : "NULL as code";
+@@ -291,3 +293,3 @@
+-        if (Schema::hasColumn('subjects', 'code')) {
+-            return "{$alias}.id, {$alias}.name, {$qualifiedCode} as code";
+-        }
++        $dashboardImageUrl = Schema::hasColumn('subjects', 'dashboard_image_url')
++            ? "{$alias}.dashboard_image_url as dashboard_image_url"
++            : "NULL as dashboard_image_url";
+@@ -295 +297,6 @@
+-        return "{$alias}.id, {$alias}.name, NULL as code";
++        return implode(', ', [
++            "{$alias}.id",
++            "{$alias}.name",
++            $code,
++            $dashboardImageUrl,
++        ]);

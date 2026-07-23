@@ -14,7 +14,12 @@ export interface User {
   studentClassName?: string;
   studentYearName?: string;
   contact?: string;
-  assigned_subjects?: Array<{ id: number; name: string; code?: string | null }>;
+  assigned_subjects?: Array<{
+    id: number;
+    name: string;
+    code?: string | null;
+    dashboard_image_url?: string | null;
+  }>;
   default_subject_id?: number | null;
   subject_roles?: Array<{ subject_id: number; role_scope: string }>;
 }

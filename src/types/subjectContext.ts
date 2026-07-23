@@ -5,6 +5,7 @@ export interface SubjectBrief {
   name: string;
   code?: string | null;
   class_label?: string | null;
+  dashboard_image_url?: string | null;
 }
 
 export interface SubjectRole {
