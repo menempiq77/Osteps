@@ -8,6 +8,7 @@ import {
   deleteAssignTermQuiz,
   duplicateAssessment,
   fetchSchoolAssessment,
+  importArchivedAssessments,
   updateAssessment,
 } from "@/services/api";
 import {
@@ -126,27 +127,6 @@ function filterAssessmentsBySubject(
 const isSubjectClassActive = (row: SubjectClassStatusRow) =>
   row.is_active === undefined ? true : Number(row.is_active) === 1;
 
-const resolveCreatedAssessmentId = (response: unknown): number => {
-  if (!response || typeof response !== "object") return 0;
-  const root = response as Record<string, unknown>;
-  const data =
-    root.data && typeof root.data === "object"
-      ? (root.data as Record<string, unknown>)
-      : null;
-  const assessment =
-    root.assessment && typeof root.assessment === "object"
-      ? (root.assessment as Record<string, unknown>)
-      : null;
-  const nestedAssessment =
-    data?.assessment && typeof data.assessment === "object"
-      ? (data.assessment as Record<string, unknown>)
-      : null;
-
-  return Number(
-    root.id ?? data?.id ?? assessment?.id ?? nestedAssessment?.id ?? 0,
-  );
-};
-
 const resolveRequestError = (error: unknown, fallback: string): string => {
   const requestError = error as RequestError;
   return String(
@@ -155,6 +135,39 @@ const resolveRequestError = (error: unknown, fallback: string): string => {
       requestError.message ??
       fallback,
   );
+};
+
+const IMPORT_REQUEST_TOKEN_KEY = "osteps_archived_assessment_import_tokens";
+
+const readImportRequestTokens = (): Record<string, string> => {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(
+      sessionStorage.getItem(IMPORT_REQUEST_TOKEN_KEY) || "{}",
+    );
+  } catch {
+    return {};
+  }
+};
+
+const getImportRequestToken = (signature: string): string => {
+  const tokens = readImportRequestTokens();
+  if (tokens[signature]) return tokens[signature];
+
+  const token =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  tokens[signature] = token;
+  sessionStorage.setItem(IMPORT_REQUEST_TOKEN_KEY, JSON.stringify(tokens));
+  return token;
+};
+
+const clearImportRequestToken = (signature: string) => {
+  if (typeof window === "undefined") return;
+  const tokens = readImportRequestTokens();
+  delete tokens[signature];
+  sessionStorage.setItem(IMPORT_REQUEST_TOKEN_KEY, JSON.stringify(tokens));
 };
 
 export default function Page() {
@@ -479,25 +492,9 @@ export default function Page() {
     }
 
     setImportingAssessments(true);
-    let importedCount = 0;
-    const failures: string[] = [];
 
     try {
-      const latestClassRows = (await fetchSubjectClasses({
-        subject_id: selectedArchivedSource.subjectId,
-        include_inactive: true,
-      })) as SubjectClassStatusRow[];
-      const sourceClasses = Array.isArray(latestClassRows)
-        ? latestClassRows
-        : [];
-      if (
-        sourceClasses.length === 0 ||
-        sourceClasses.some(isSubjectClassActive)
-      ) {
-        throw new Error("The source subject is no longer archived.");
-      }
-
-      let latestSourceAssessments = (
+      const latestSourceAssessments = (
         await fetchSchoolAssessment(
           schoolIdNum,
           selectedArchivedSource.subjectId,
@@ -517,106 +514,91 @@ export default function Page() {
         );
       }
 
-      for (const sourceAssessment of assessmentsToImport) {
-        let duplicateId = 0;
+      const sourceIdsBefore = latestSourceAssessments
+        .map((assessment: Assessment) => String(assessment.id))
+        .sort();
+      const selectedIds = selectedAssessmentIds.map(Number).sort((a, b) => a - b);
+      const requestSignature = [
+        schoolIdNum,
+        selectedArchivedSource.subjectId,
+        Number(activeSubjectId),
+        selectedIds.join(","),
+      ].join(":");
+      const importResponse = await importArchivedAssessments({
+        source_subject_id: selectedArchivedSource.subjectId,
+        target_subject_id: Number(activeSubjectId),
+        assessment_ids: selectedIds,
+        request_token: getImportRequestToken(requestSignature),
+      });
+      const importedRows = importResponse.data?.assessments ?? [];
 
-        try {
-          const sourceIdsBefore = new Set(
-            latestSourceAssessments.map((assessment: Assessment) =>
-              String(assessment.id),
-            ),
-          );
-          const duplicateResponse = await duplicateAssessment(
-            sourceAssessment.id,
-          );
-          duplicateId = resolveCreatedAssessmentId(duplicateResponse);
-          if (sourceIdsBefore.has(String(duplicateId))) {
-            duplicateId = 0;
-          }
+      if (
+        Number(importResponse.data?.imported_count ?? 0) !== selectedIds.length ||
+        importedRows.length !== selectedIds.length
+      ) {
+        throw new Error("The server did not confirm every selected assessment.");
+      }
 
-          if (!duplicateId) {
-            const sourceAssessmentsAfter = await fetchSchoolAssessment(
-              schoolIdNum,
-              selectedArchivedSource.subjectId,
-            );
-            const createdAssessment = (
-              Array.isArray(sourceAssessmentsAfter)
-                ? sourceAssessmentsAfter
-                : []
-            )
-              .filter(
-                (assessment: Assessment) =>
-                  String(assessment.type).toLowerCase() === "assessment",
-              )
-              .filter(
-                (assessment: Assessment) =>
-                  !sourceIdsBefore.has(String(assessment.id)),
-              )
-              .sort(
-                (a: Assessment, b: Assessment) => Number(b.id) - Number(a.id),
-              )[0];
-            duplicateId = Number(createdAssessment?.id ?? 0);
-            latestSourceAssessments = (
-              Array.isArray(sourceAssessmentsAfter)
-                ? sourceAssessmentsAfter
-                : []
-            ).filter(
-              (assessment: Assessment) =>
-                String(assessment.type).toLowerCase() === "assessment",
-            );
-          }
+      const [targetAssessmentsAfter, sourceAssessmentsAfter] = await Promise.all([
+        fetchSchoolAssessment(schoolIdNum, Number(activeSubjectId)),
+        fetchSchoolAssessment(
+          schoolIdNum,
+          selectedArchivedSource.subjectId,
+        ),
+      ]);
+      const sourceIdsAfter = (Array.isArray(sourceAssessmentsAfter)
+        ? sourceAssessmentsAfter
+        : []
+      )
+        .filter(
+          (assessment: Assessment) =>
+            String(assessment.type).toLowerCase() === "assessment",
+        )
+        .map((assessment: Assessment) => String(assessment.id))
+        .sort();
 
-          if (!duplicateId) {
-            throw new Error("The copied assessment could not be identified.");
-          }
+      if (sourceIdsBefore.join(",") !== sourceIdsAfter.join(",")) {
+        throw new Error("The archived source changed during the import.");
+      }
 
-          await updateAssessment(String(duplicateId), {
-            name: sourceAssessment.name,
-            type: "assessment",
-            school_id: schoolIdNum,
-            subject_id: Number(activeSubjectId),
-          });
-          importedCount += 1;
-        } catch (importError) {
-          if (duplicateId) {
-            try {
-              await deleteAssessment(duplicateId);
-            } catch (cleanupError) {
-              console.error(
-                "Failed to remove incomplete assessment import",
-                cleanupError,
-              );
-            }
-          }
-          failures.push(
-            `${sourceAssessment.name}: ${resolveRequestError(
-              importError,
-              "import failed",
-            )}`,
+      const targetRows = Array.isArray(targetAssessmentsAfter)
+        ? targetAssessmentsAfter
+        : [];
+      for (const importedRow of importedRows) {
+        const targetAssessment = targetRows.find(
+          (assessment: Assessment) =>
+            Number(assessment.id) === Number(importedRow.id),
+        ) as (Assessment & { subject_id?: number | string | null }) | undefined;
+        const sourceAssessment = assessmentsToImport.find(
+          (assessment: Assessment) =>
+            Number(assessment.id) === Number(importedRow.source_assessment_id),
+        );
+
+        if (
+          !targetAssessment ||
+          !sourceAssessment ||
+          Number(targetAssessment.id) === Number(sourceAssessment.id) ||
+          Number(targetAssessment.subject_id) !== Number(activeSubjectId) ||
+          targetAssessment.name !== sourceAssessment.name ||
+          String(targetAssessment.type).toLowerCase() !==
+            String(sourceAssessment.type).toLowerCase() ||
+          Number(importedRow.assignment_count) !== 0
+        ) {
+          throw new Error(
+            `The imported copy of "${sourceAssessment?.name ?? "an assessment"}" failed ownership verification.`,
           );
         }
       }
 
       await refreshAssessments();
-
-      if (importedCount > 0) {
-        messageApi.success(
-          `${importedCount} ${
-            importedCount === 1 ? "assessment" : "assessments"
-          } imported with all tasks.`,
-        );
-      }
-
-      if (failures.length > 0) {
-        messageApi.error(
-          `${failures.length} ${
-            failures.length === 1 ? "assessment" : "assessments"
-          } could not be imported: ${failures.join("; ")}`,
-        );
-      } else {
-        setImportOpen(false);
-        setSelectedAssessmentIds([]);
-      }
+      clearImportRequestToken(requestSignature);
+      messageApi.success(
+        `${importedRows.length} ${
+          importedRows.length === 1 ? "assessment" : "assessments"
+        } imported with all tasks.`,
+      );
+      setImportOpen(false);
+      setSelectedAssessmentIds([]);
     } catch (importError) {
       messageApi.error(
         resolveRequestError(importError, "Failed to import assessments."),
