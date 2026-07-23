@@ -325,18 +325,18 @@ export default function DashboardLayout({
   const dashboardPaddingClass = isReadOnlyView
     ? "px-3 pb-3 pt-4 md:pb-6 md:pl-4 md:pr-[84px] md:pt-4"
     : showSubjectRightSidebar
-    ? "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
-    : "px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
+    ? "px-3 pb-3 pt-[100px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
+    : "px-3 pb-3 pt-[100px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
   const mainContentPaddingClass = isReadOnlyView
     ? "max-w-7xl px-3 pb-3 pt-4 md:pb-6 md:pl-4 md:pr-[84px] md:pt-4"
     : showSubjectRightSidebar
-    ? "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
-    : "max-w-7xl px-3 pb-3 pt-[78px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
+    ? "max-w-7xl px-3 pb-3 pt-[100px] md:pb-6 md:pl-[84px] md:pr-[84px] md:pt-[66px]"
+    : "max-w-7xl px-3 pb-3 pt-[100px] md:pb-6 md:pl-[84px] md:pr-6 md:pt-[66px]";
   const fullWidthContentPaddingClass = isReadOnlyView
     ? "pt-4 md:pl-4 md:pr-[72px] md:pt-4"
     : showSubjectRightSidebar
-    ? "pt-[78px] md:pl-[72px] md:pr-[72px] md:pt-[66px]"
-    : "pt-[78px] md:pl-[72px] md:pt-[66px]";
+    ? "pt-[100px] md:pl-[72px] md:pr-[72px] md:pt-[66px]"
+    : "pt-[100px] md:pl-[72px] md:pt-[66px]";
 
   const userRoleLabel = (() => {
     const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
@@ -369,14 +369,14 @@ export default function DashboardLayout({
   };
 
   const renderThemeSwitcher = () => (
-    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-1.5 shadow-inner backdrop-blur-md">
+    <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/[0.08] px-1.5 py-1 shadow-inner backdrop-blur-md sm:px-2.5 sm:py-1.5">
       {(Object.keys(THEMES) as ThemeName[]).map((name) => (
         <button
           key={name}
           type="button"
           title={THEMES[name].label}
           onClick={() => handleThemeChange(name)}
-          className={`h-5 w-5 rounded-full border transition ${
+          className={`h-3.5 w-3.5 rounded-full border transition sm:h-5 sm:w-5 ${
             themeName === name
               ? "scale-110 ring-2 ring-offset-1 ring-[var(--theme-border)]"
               : "opacity-80 hover:opacity-100"
@@ -388,11 +388,11 @@ export default function DashboardLayout({
   );
 
   const renderNavigationButtons = () => (
-    <div className="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
+    <div className="flex shrink-0 items-center justify-start gap-1 lg:justify-end">
       <button
         type="button"
         onClick={() => router.push("/dashboard/subject-cards")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Home"
         title="Home"
       >
@@ -401,7 +401,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => window.history.back()}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Back"
         title="Back"
       >
@@ -410,7 +410,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={() => window.history.forward()}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Next"
         title="Next"
       >
@@ -420,12 +420,12 @@ export default function DashboardLayout({
   );
 
   const renderAccountActions = () => (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
       <SchoolNotificationBell />
       <button
         type="button"
         onClick={() => router.push(settingsHref)}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Open settings"
         title="Settings"
       >
@@ -434,7 +434,7 @@ export default function DashboardLayout({
       <button
         type="button"
         onClick={handleLogout}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-white/20 active:scale-95 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Sign out"
         title="Sign out"
       >
@@ -450,7 +450,7 @@ export default function DashboardLayout({
   }) => {
     return (
       <div
-        className="fixed left-0 right-0 top-0 z-[900] overflow-hidden border-b border-white/10 px-3 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0"
+        className="fixed left-0 right-0 top-0 z-[900] h-[92px] overflow-hidden border-b border-white/10 px-2 py-1.5 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] md:h-14 md:px-4 md:py-0"
         style={{
           background:
             "linear-gradient(105deg, #242936 0%, #253742 30%, #373f61 63%, #403344 100%)",
@@ -459,33 +459,33 @@ export default function DashboardLayout({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_28%),radial-gradient(circle_at_8%_18%,rgba(56,193,108,0.18),transparent_24%),radial-gradient(circle_at_92%_50%,rgba(255,255,255,0.10),transparent_25%)]" />
         <div className="pointer-events-none absolute -left-10 -top-16 h-36 w-36 rounded-full bg-[#38C16C]/18 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-0 h-32 w-32 rounded-full bg-[#38C16C]/10 blur-3xl" />
-        <div className="relative flex min-h-[46px] w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between md:h-full md:min-h-0">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div className="flex shrink-0 items-center gap-2.5">
+        <div className="relative flex h-full w-full flex-col gap-1 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-2 md:flex-1 md:gap-2.5">
+            <div className="flex shrink-0 items-center gap-2">
               <QuickLauncher />
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-[#38C16C] text-sm font-black text-white shadow-[0_0_0_3px_rgba(56,193,108,0.20)] sm:h-10 sm:w-10 sm:text-base">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-[#38C16C] text-xs font-black text-white shadow-[0_0_0_2px_rgba(56,193,108,0.20)] sm:h-10 sm:w-10 sm:rounded-xl sm:text-base">
                 {userInitials}
               </div>
             </div>
             <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-green-300 md:text-[10px]">
+              <p className="text-[8px] font-black uppercase tracking-[0.16em] text-green-300 md:text-[10px] md:tracking-[0.2em]">
                 {workspaceLabel}
               </p>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                <h1 className="truncate text-base font-black leading-tight text-white md:text-lg">
+                <h1 className="truncate text-sm font-black leading-tight text-white md:text-lg">
                   Welcome back, {userFirstName}
                 </h1>
-                <span className="rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300">
+                <span className="hidden rounded-full border border-[#38C16C]/30 bg-[#38C16C]/15 px-2.5 py-0.5 text-[11px] font-black text-green-300 sm:inline">
                   {userRoleLabel}
                 </span>
-                <span className="rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-slate-200 backdrop-blur-md">
+                <span className="hidden rounded-full border border-white/15 bg-white/[0.08] px-2.5 py-0.5 text-[11px] font-semibold text-slate-200 backdrop-blur-md sm:inline">
                   {userDisplayName || "Osteps User"}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+          <div className="flex w-full min-w-0 items-center justify-start gap-1 overflow-x-auto pb-0.5 md:w-auto md:justify-end md:gap-2 md:overflow-visible md:pb-0">
             {showSubjectSwitcher ? <SubjectSwitcher /> : null}
             {normalizedRole === "STUDENT" && currentUser?.student ? (
               <StudentCoinWallet studentId={currentUser.student} />
