@@ -10,8 +10,17 @@ import {
   fetchSchoolAssessment,
   updateAssessment,
 } from "@/services/api";
-import { Breadcrumb, Button, message, Modal, Spin } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import {
+  Alert,
+  Breadcrumb,
+  Button,
+  Empty,
+  message,
+  Modal,
+  Select,
+  Spin,
+} from "antd";
+import { ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
@@ -19,6 +28,8 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 
 interface Assessment {
   id: string;
@@ -27,13 +38,36 @@ interface Assessment {
   term_id: string;
 }
 
+type ArchivedAssessmentSource = {
+  subjectId: number;
+  subjectName: string;
+  assessments: Assessment[];
+};
+
+type SubjectClassStatusRow = {
+  is_active?: number | string | null;
+};
+
+type RequestError = {
+  message?: unknown;
+  response?: {
+    data?: {
+      message?: unknown;
+      msg?: unknown;
+    };
+  };
+};
+
 const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
 
 function readQuizSubjectMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 
 function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
@@ -55,11 +89,17 @@ function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
 
 function readAssessmentSubjectMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(ASSESSMENT_SUBJECT_MAP_KEY) || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(ASSESSMENT_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 
-function tagAssessmentWithSubject(assessmentId: number | string, subjectId: number) {
+function tagAssessmentWithSubject(
+  assessmentId: number | string,
+  subjectId: number,
+) {
   const map = readAssessmentSubjectMap();
   map[String(assessmentId)] = subjectId;
   if (typeof window !== "undefined") {
@@ -75,10 +115,47 @@ function untagAssessment(assessmentId: number | string) {
   }
 }
 
-function filterAssessmentsBySubject(assessments: Assessment[], subjectId: number): Assessment[] {
+function filterAssessmentsBySubject(
+  assessments: Assessment[],
+  subjectId: number,
+): Assessment[] {
   const map = readAssessmentSubjectMap();
   return assessments.filter((a) => map[String(a.id)] === subjectId);
 }
+
+const isSubjectClassActive = (row: SubjectClassStatusRow) =>
+  row.is_active === undefined ? true : Number(row.is_active) === 1;
+
+const resolveCreatedAssessmentId = (response: unknown): number => {
+  if (!response || typeof response !== "object") return 0;
+  const root = response as Record<string, unknown>;
+  const data =
+    root.data && typeof root.data === "object"
+      ? (root.data as Record<string, unknown>)
+      : null;
+  const assessment =
+    root.assessment && typeof root.assessment === "object"
+      ? (root.assessment as Record<string, unknown>)
+      : null;
+  const nestedAssessment =
+    data?.assessment && typeof data.assessment === "object"
+      ? (data.assessment as Record<string, unknown>)
+      : null;
+
+  return Number(
+    root.id ?? data?.id ?? assessment?.id ?? nestedAssessment?.id ?? 0,
+  );
+};
+
+const resolveRequestError = (error: unknown, fallback: string): string => {
+  const requestError = error as RequestError;
+  return String(
+    requestError.response?.data?.msg ??
+      requestError.response?.data?.message ??
+      requestError.message ??
+      fallback,
+  );
+};
 
 export default function Page() {
   const { termId, classId } = useParams();
@@ -90,18 +167,31 @@ export default function Page() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [rawQuizzes, setRawQuizzes] = useState<any[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
-    null
+    null,
   );
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(
-    null
+    null,
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [archivedAssessmentSources, setArchivedAssessmentSources] = useState<
+    ArchivedAssessmentSource[]
+  >([]);
+  const [archivedAssessmentsLoading, setArchivedAssessmentsLoading] =
+    useState(false);
+  const [importingAssessments, setImportingAssessments] = useState(false);
+  const [selectedSourceSubjectId, setSelectedSourceSubjectId] = useState<
+    number | null
+  >(null);
+  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(
+    [],
+  );
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, activeSubject, subjects } =
+    useSubjectContext();
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
-  // Assessments have no subject_id in the DB; show all school assessments
-  // (localStorage-based subject tagging is unreliable across browsers/devices)
   const assessments = rawAssessments;
   const quizzes = inSubjectContext
     ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
@@ -109,12 +199,25 @@ export default function Page() {
   const isTeacher = currentUser?.role === "TEACHER";
   const normalizedTermId = typeof termId === "string" ? termId : "";
   const schoolIdNum = Number(currentUser?.school ?? 0);
-  const isContextReady = schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
+  const isContextReady =
+    schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
+  const canImportArchivedAssessments =
+    currentUser?.role === "SCHOOL_ADMIN" &&
+    inSubjectContext &&
+    !isReadOnlyArchivedWorkspace;
+  const selectedArchivedSource =
+    archivedAssessmentSources.find(
+      (source) => source.subjectId === selectedSourceSubjectId,
+    ) ?? null;
 
   const refreshAssessments = async () => {
-    const data = await fetchSchoolAssessment(schoolIdNum, activeSubjectId ?? undefined);
+    const data = await fetchSchoolAssessment(
+      schoolIdNum,
+      activeSubjectId ?? undefined,
+    );
     const sortedAssessments = (data ?? []).sort(
-      (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+      (a: { position?: number }, b: { position?: number }) =>
+        (a?.position ?? 0) - (b?.position ?? 0),
     );
     setRawAssessments(sortedAssessments);
   };
@@ -144,7 +247,8 @@ export default function Page() {
 
         if (assessmentResult.status === "fulfilled") {
           const sortedAssessments = (assessmentResult.value ?? []).sort(
-            (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+            (a: { position?: number }, b: { position?: number }) =>
+              (a?.position ?? 0) - (b?.position ?? 0),
           );
           setRawAssessments(sortedAssessments);
         } else {
@@ -172,9 +276,108 @@ export default function Page() {
     };
   }, [schoolIdNum, activeSubjectId, canUseSubjectContext, isContextReady]);
 
+  useEffect(() => {
+    if (
+      !importOpen ||
+      !canImportArchivedAssessments ||
+      !activeSubjectId ||
+      !schoolIdNum
+    ) {
+      setArchivedAssessmentSources([]);
+      setArchivedAssessmentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setArchivedAssessmentsLoading(true);
+
+    const loadArchivedAssessments = async () => {
+      try {
+        const sourceSubjects = subjects.filter(
+          (subject) => Number(subject.id) !== Number(activeSubjectId),
+        );
+        const sourceRows = await Promise.all(
+          sourceSubjects.map(async (subject) => {
+            try {
+              const [classRows, sourceAssessments] = await Promise.all([
+                fetchSubjectClasses({
+                  subject_id: Number(subject.id),
+                  include_inactive: true,
+                }) as Promise<SubjectClassStatusRow[]>,
+                fetchSchoolAssessment(schoolIdNum, Number(subject.id)),
+              ]);
+              return {
+                subject,
+                classRows: Array.isArray(classRows) ? classRows : [],
+                assessments: (Array.isArray(sourceAssessments)
+                  ? sourceAssessments
+                  : []
+                ).filter(
+                  (assessment: Assessment) =>
+                    String(assessment.type).toLowerCase() === "assessment",
+                ),
+              };
+            } catch {
+              return {
+                subject,
+                classRows: [] as SubjectClassStatusRow[],
+                assessments: [] as Assessment[],
+              };
+            }
+          }),
+        );
+
+        if (cancelled) return;
+
+        const archivedSources = sourceRows
+          .filter(
+            ({ classRows, assessments: sourceAssessments }) =>
+              classRows.length > 0 &&
+              classRows.every((row) => !isSubjectClassActive(row)) &&
+              sourceAssessments.length > 0,
+          )
+          .map(({ subject, assessments: sourceAssessments }) => ({
+            subjectId: Number(subject.id),
+            subjectName: String(subject.name ?? `Subject ${subject.id}`),
+            assessments: sourceAssessments,
+          }))
+          .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+
+        setArchivedAssessmentSources(archivedSources);
+        setSelectedSourceSubjectId((current) =>
+          archivedSources.some((source) => source.subjectId === current)
+            ? current
+            : (archivedSources[0]?.subjectId ?? null),
+        );
+      } catch (loadError) {
+        console.error(loadError);
+        messageApi.error("Failed to load archived assessments.");
+        setArchivedAssessmentSources([]);
+      } finally {
+        if (!cancelled) setArchivedAssessmentsLoading(false);
+      }
+    };
+
+    loadArchivedAssessments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    importOpen,
+    canImportArchivedAssessments,
+    activeSubjectId,
+    schoolIdNum,
+    subjects,
+    messageApi,
+  ]);
+
   const loadQuizzes = async (schoolId: string) => {
     try {
-      const response = await fetchQuizes(schoolId, activeSubjectId ?? undefined);
+      const response = await fetchQuizes(
+        schoolId,
+        activeSubjectId ?? undefined,
+      );
       setRawQuizzes(response);
     } catch (error) {
       setRawQuizzes([]);
@@ -195,7 +398,7 @@ export default function Page() {
         newAssessment = await assignAssesmentQuiz(
           parseInt(normalizedTermId),
           parseInt(assessmentData.name),
-          activeSubjectId ?? undefined
+          activeSubjectId ?? undefined,
         );
       } else {
         newAssessment = await addAssessment({
@@ -258,6 +461,171 @@ export default function Page() {
     }
   };
 
+  const handleImportArchivedAssessments = async () => {
+    if (
+      !canImportArchivedAssessments ||
+      !activeSubjectId ||
+      !selectedArchivedSource
+    ) {
+      messageApi.warning(
+        "Only School Admin can import assessments into an active subject.",
+      );
+      return;
+    }
+
+    if (selectedAssessmentIds.length === 0) {
+      messageApi.warning("Select at least one assessment to import.");
+      return;
+    }
+
+    setImportingAssessments(true);
+    let importedCount = 0;
+    const failures: string[] = [];
+
+    try {
+      const latestClassRows = (await fetchSubjectClasses({
+        subject_id: selectedArchivedSource.subjectId,
+        include_inactive: true,
+      })) as SubjectClassStatusRow[];
+      const sourceClasses = Array.isArray(latestClassRows)
+        ? latestClassRows
+        : [];
+      if (
+        sourceClasses.length === 0 ||
+        sourceClasses.some(isSubjectClassActive)
+      ) {
+        throw new Error("The source subject is no longer archived.");
+      }
+
+      let latestSourceAssessments = (
+        await fetchSchoolAssessment(
+          schoolIdNum,
+          selectedArchivedSource.subjectId,
+        )
+      ).filter(
+        (assessment: Assessment) =>
+          String(assessment.type).toLowerCase() === "assessment",
+      );
+      const selectedIdSet = new Set(selectedAssessmentIds.map(String));
+      const assessmentsToImport = latestSourceAssessments.filter(
+        (assessment: Assessment) => selectedIdSet.has(String(assessment.id)),
+      );
+
+      if (assessmentsToImport.length !== selectedAssessmentIds.length) {
+        throw new Error(
+          "One or more selected assessments are no longer available.",
+        );
+      }
+
+      for (const sourceAssessment of assessmentsToImport) {
+        let duplicateId = 0;
+
+        try {
+          const sourceIdsBefore = new Set(
+            latestSourceAssessments.map((assessment: Assessment) =>
+              String(assessment.id),
+            ),
+          );
+          const duplicateResponse = await duplicateAssessment(
+            sourceAssessment.id,
+          );
+          duplicateId = resolveCreatedAssessmentId(duplicateResponse);
+          if (sourceIdsBefore.has(String(duplicateId))) {
+            duplicateId = 0;
+          }
+
+          if (!duplicateId) {
+            const sourceAssessmentsAfter = await fetchSchoolAssessment(
+              schoolIdNum,
+              selectedArchivedSource.subjectId,
+            );
+            const createdAssessment = (
+              Array.isArray(sourceAssessmentsAfter)
+                ? sourceAssessmentsAfter
+                : []
+            )
+              .filter(
+                (assessment: Assessment) =>
+                  String(assessment.type).toLowerCase() === "assessment",
+              )
+              .filter(
+                (assessment: Assessment) =>
+                  !sourceIdsBefore.has(String(assessment.id)),
+              )
+              .sort(
+                (a: Assessment, b: Assessment) => Number(b.id) - Number(a.id),
+              )[0];
+            duplicateId = Number(createdAssessment?.id ?? 0);
+            latestSourceAssessments = (
+              Array.isArray(sourceAssessmentsAfter)
+                ? sourceAssessmentsAfter
+                : []
+            ).filter(
+              (assessment: Assessment) =>
+                String(assessment.type).toLowerCase() === "assessment",
+            );
+          }
+
+          if (!duplicateId) {
+            throw new Error("The copied assessment could not be identified.");
+          }
+
+          await updateAssessment(String(duplicateId), {
+            name: sourceAssessment.name,
+            type: "assessment",
+            school_id: schoolIdNum,
+            subject_id: Number(activeSubjectId),
+          });
+          importedCount += 1;
+        } catch (importError) {
+          if (duplicateId) {
+            try {
+              await deleteAssessment(duplicateId);
+            } catch (cleanupError) {
+              console.error(
+                "Failed to remove incomplete assessment import",
+                cleanupError,
+              );
+            }
+          }
+          failures.push(
+            `${sourceAssessment.name}: ${resolveRequestError(
+              importError,
+              "import failed",
+            )}`,
+          );
+        }
+      }
+
+      await refreshAssessments();
+
+      if (importedCount > 0) {
+        messageApi.success(
+          `${importedCount} ${
+            importedCount === 1 ? "assessment" : "assessments"
+          } imported with all tasks.`,
+        );
+      }
+
+      if (failures.length > 0) {
+        messageApi.error(
+          `${failures.length} ${
+            failures.length === 1 ? "assessment" : "assessments"
+          } could not be imported: ${failures.join("; ")}`,
+        );
+      } else {
+        setImportOpen(false);
+        setSelectedAssessmentIds([]);
+      }
+    } catch (importError) {
+      messageApi.error(
+        resolveRequestError(importError, "Failed to import assessments."),
+      );
+    } finally {
+      setImportingAssessments(false);
+    }
+  };
+
   const confirmDelete = (id: string) => {
     setAssessmentToDelete(id);
     setDeleteOpen(true);
@@ -267,7 +635,9 @@ export default function Page() {
     if (!assessmentToDelete) return;
 
     try {
-      const assessment = rawAssessments.find((a) => a.id === assessmentToDelete);
+      const assessment = rawAssessments.find(
+        (a) => a.id === assessmentToDelete,
+      );
 
       if (assessment?.type === "quiz") {
         await deleteAssignTermQuiz(assessmentToDelete);
@@ -276,7 +646,7 @@ export default function Page() {
       }
       untagAssessment(assessmentToDelete);
       setRawAssessments(
-        rawAssessments.filter((a) => a.id !== assessmentToDelete)
+        rawAssessments.filter((a) => a.id !== assessmentToDelete),
       );
       setDeleteOpen(false);
       setAssessmentToDelete(null);
@@ -311,7 +681,8 @@ export default function Page() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 truncate">
-              {activeSubject?.name ? `${activeSubject.name} — ` : ""}All Assessments
+              {activeSubject?.name ? `${activeSubject.name} — ` : ""}All
+              Assessments
             </h1>
             <span className="inline-flex items-center rounded-full bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-900/5">
               {assessments.length} {assessments.length === 1 ? "item" : "items"}
@@ -322,19 +693,35 @@ export default function Page() {
           </p>
         </div>
         {!isTeacher && (
-          <Button
-            type="primary"
-            size="large"
-            className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90 self-start sm:self-auto shrink-0"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setIsAddingQuiz(false);
-              setEditingAssessment(null);
-              setOpen(true);
-            }}
-          >
-            Add Assessment
-          </Button>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+            {canImportArchivedAssessments && (
+              <Button
+                size="large"
+                className="premium-pill-btn"
+                icon={<ImportOutlined />}
+                onClick={() => {
+                  setSelectedSourceSubjectId(null);
+                  setSelectedAssessmentIds([]);
+                  setImportOpen(true);
+                }}
+              >
+                Import Archived
+              </Button>
+            )}
+            <Button
+              type="primary"
+              size="large"
+              className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90 shrink-0"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setIsAddingQuiz(false);
+                setEditingAssessment(null);
+                setOpen(true);
+              }}
+            >
+              Add Assessment
+            </Button>
+          </div>
         )}
       </div>
 
@@ -344,8 +731,8 @@ export default function Page() {
           editingAssessment
             ? "Edit Assessment"
             : isAddingQuiz
-            ? "Add New Quiz"
-            : "Add New Assessment"
+              ? "Add New Quiz"
+              : "Add New Assessment"
         }
         open={open}
         onCancel={() => {
@@ -378,6 +765,118 @@ export default function Page() {
             quizzes={quizzes}
           />
         )}
+      </Modal>
+
+      <Modal
+        title="Import assessments from an archived subject"
+        open={importOpen}
+        onCancel={() => {
+          if (importingAssessments) return;
+          setImportOpen(false);
+          setSelectedAssessmentIds([]);
+        }}
+        onOk={handleImportArchivedAssessments}
+        okText={`Import ${
+          selectedAssessmentIds.length > 0 ? selectedAssessmentIds.length : ""
+        } ${
+          selectedAssessmentIds.length === 1 ? "Assessment" : "Assessments"
+        }`.replace("  ", " ")}
+        okButtonProps={{
+          disabled:
+            archivedAssessmentsLoading ||
+            !selectedSourceSubjectId ||
+            selectedAssessmentIds.length === 0,
+          loading: importingAssessments,
+          className: "!bg-primary !border-primary",
+        }}
+        cancelButtonProps={{ disabled: importingAssessments }}
+        maskClosable={!importingAssessments}
+        closable={!importingAssessments}
+        centered
+      >
+        <div className="space-y-4">
+          <Alert
+            type="info"
+            showIcon
+            message="Copy assessment content, not historical results"
+            description={`The selected assessments and all tasks will be copied into ${
+              activeSubject?.name ?? "this active subject"
+            }. Imported copies start unassigned. The archived originals, student submissions, marks, and previous assignments remain unchanged.`}
+          />
+
+          {archivedAssessmentsLoading ? (
+            <div className="flex min-h-40 items-center justify-center">
+              <Spin />
+            </div>
+          ) : archivedAssessmentSources.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="No assessments were found in archived subjects."
+            />
+          ) : (
+            <>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Archived subject
+                </label>
+                <Select
+                  className="w-full"
+                  value={selectedSourceSubjectId}
+                  onChange={(value) => {
+                    setSelectedSourceSubjectId(value);
+                    setSelectedAssessmentIds([]);
+                  }}
+                  options={archivedAssessmentSources.map((source) => ({
+                    value: source.subjectId,
+                    label: `${source.subjectName} (${source.assessments.length} ${
+                      source.assessments.length === 1
+                        ? "assessment"
+                        : "assessments"
+                    })`,
+                  }))}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Assessments to import
+                </label>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  className="w-full"
+                  value={selectedAssessmentIds}
+                  placeholder="Choose one or more assessments"
+                  onChange={setSelectedAssessmentIds}
+                  maxTagCount="responsive"
+                  options={(selectedArchivedSource?.assessments ?? []).map(
+                    (assessment) => ({
+                      value: String(assessment.id),
+                      label: assessment.name,
+                    }),
+                  )}
+                />
+                {selectedArchivedSource &&
+                  selectedAssessmentIds.length <
+                    selectedArchivedSource.assessments.length && (
+                    <Button
+                      type="link"
+                      className="!px-0"
+                      onClick={() =>
+                        setSelectedAssessmentIds(
+                          selectedArchivedSource.assessments.map((assessment) =>
+                            String(assessment.id),
+                          ),
+                        )
+                      }
+                    >
+                      Select all {selectedArchivedSource.assessments.length}
+                    </Button>
+                  )}
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
 
       <AllAssessmentList
