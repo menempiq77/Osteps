@@ -20,7 +20,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['school_id', 'request_token']);
-            $table->index(['school_id', 'source_subject_id', 'target_subject_id']);
+            $table->index(
+                ['school_id', 'source_subject_id', 'target_subject_id'],
+                'assessment_import_scope_idx'
+            );
         });
     }
 

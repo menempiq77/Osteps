@@ -31,10 +31,14 @@ install -D "$FEATURE/Controllers/ArchivedAssessmentImportController.php" \
   "$BACKEND/app/Http/Controllers/Api/ArchivedAssessmentImportController.php"
 ```
 
-Merge the controller import and route from `routes_api_additions.php` into
-`routes/api.php`, then run:
+Apply the authenticated route patch, then run:
 
 ```bash
+patch --dry-run --ignore-whitespace -d "$BACKEND" -p1 \
+  < "$FEATURE/patches/routes-api.patch"
+patch --forward --ignore-whitespace -d "$BACKEND" -p1 \
+  < "$FEATURE/patches/routes-api.patch"
+
 php "$BACKEND/artisan" migrate --force
 php "$BACKEND/artisan" route:list --path=import-archived-assessments
 ```
