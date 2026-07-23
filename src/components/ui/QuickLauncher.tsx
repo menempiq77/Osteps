@@ -247,6 +247,37 @@ export default function QuickLauncher() {
   const studentTrackerHref = studentSubjectClassId
     ? `/dashboard/trackers/${studentSubjectClassId}`
     : "/dashboard/subject-cards";
+  const shouldResolveArchivedSubjects = ["ADMIN", "SCHOOL_ADMIN", "HOD", "TEACHER"].includes(roleKey);
+  const subjectIdsKey = subjects.map((subject) => subject.id).join(",");
+  const { data: archivedSubjectIds } = useQuery({
+    queryKey: ["quick-launcher-archived-subject-ids", subjectIdsKey],
+    queryFn: async () => {
+      const ids = new Set<number>();
+      await Promise.all(
+        subjects.map(async (subject) => {
+          try {
+            const classes = await fetchSubjectClasses({
+              subject_id: Number(subject.id),
+              include_inactive: true,
+            });
+            const rows = Array.isArray(classes) ? classes : [];
+            const isActive = (row: any) =>
+              row?.is_active === undefined ? true : Number(row?.is_active) === 1;
+            const hasActiveClass = rows.some((row) => isActive(row));
+            const hasArchivedClass = rows.some((row) => !isActive(row));
+            if (!hasActiveClass && hasArchivedClass) {
+              ids.add(Number(subject.id));
+            }
+          } catch {
+            // Keep the subject visible when its class state cannot be verified.
+          }
+        })
+      );
+      return ids;
+    },
+    enabled: open && shouldResolveArchivedSubjects && subjects.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const navigationEntries = useMemo<LauncherEntry[]>(() => {
     const items = buildDashboardNavigation({
@@ -301,7 +332,12 @@ export default function QuickLauncher() {
       return 2;
     };
 
-    return [...subjects]
+    const visibleSubjects =
+      shouldResolveArchivedSubjects && archivedSubjectIds === undefined
+        ? []
+        : subjects.filter((subject) => !archivedSubjectIds?.has(Number(subject.id)));
+
+    return [...visibleSubjects]
       .sort((a, b) => {
         const rankDiff = subjectRank(a.name) - subjectRank(b.name);
         if (rankDiff !== 0) return rankDiff;
@@ -324,7 +360,7 @@ export default function QuickLauncher() {
           subjectName: displayName,
         };
       });
-  }, [activeSubjectId, subjects]);
+  }, [activeSubjectId, archivedSubjectIds, shouldResolveArchivedSubjects, subjects]);
 
   const extraEntries = useMemo<LauncherEntry[]>(() => {
     const items: LauncherEntry[] = [];
@@ -716,14 +752,14 @@ export default function QuickLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-md"
+        className="group flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 hover:shadow-md sm:h-10 sm:w-10 sm:rounded-xl"
         aria-label="Open quick launcher"
       >
-        <span className="grid grid-cols-3 gap-1">
+        <span className="grid grid-cols-3 gap-[3px] sm:gap-1">
           {triggerSquares.map((_, index) => (
             <span
               key={index}
-              className="h-1.5 w-1.5 rounded-[2px] bg-current transition group-hover:scale-110"
+              className="h-1 w-1 rounded-[1px] bg-current transition group-hover:scale-110 sm:h-1.5 sm:w-1.5 sm:rounded-[2px]"
             />
           ))}
         </span>
@@ -732,12 +768,12 @@ export default function QuickLauncher() {
       {open ? (
         <div className="fixed inset-0 z-[1200] bg-[#3f3f4d]">
           <div className="flex h-full w-full flex-col overflow-hidden bg-[#3f3f4d] text-white">
-            <header className="flex h-14 shrink-0 items-center justify-between bg-white px-5 text-[#3f3f4d] shadow-sm">
-              <div className="flex min-w-0 items-center gap-4">
+            <header className="flex h-12 shrink-0 items-center justify-between bg-white px-3 text-[#3f3f4d] shadow-sm sm:h-14 sm:px-5">
+              <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-200 bg-white text-[#3f3f4d] shadow-sm transition hover:bg-slate-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-sm border border-slate-200 bg-white text-[#3f3f4d] shadow-sm transition hover:bg-slate-50 sm:h-9 sm:w-9"
                   aria-label="Close quick launcher"
                 >
                   <span className="grid grid-cols-3 gap-[3px]">
@@ -747,10 +783,10 @@ export default function QuickLauncher() {
                   </span>
                 </button>
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs sm:h-8 sm:w-8 sm:text-sm">
                     👤
                   </span>
-                  <span className="truncate text-sm font-semibold">
+                  <span className="truncate text-xs font-semibold sm:text-sm">
                     {currentUserLabel}
                   </span>
                 </div>
@@ -844,13 +880,13 @@ export default function QuickLauncher() {
               </div>
             </aside>
 
-            <main className="min-w-0 flex-1 overflow-y-auto p-5 md:p-8">
-              <div className="mb-6 flex items-center justify-between gap-3">
+            <main className="min-w-0 flex-1 overflow-y-auto p-3 md:p-8">
+              <div className="mb-3 flex items-center justify-between gap-3 md:mb-6">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-white/50 md:hidden">
                     Quick Launcher
                   </p>
-                  <h2 className="text-lg font-bold uppercase text-white">{activeFilterTitle}</h2>
+                  <h2 className="text-base font-bold uppercase text-white md:text-lg">{activeFilterTitle}</h2>
                   <p className="mt-0.5 text-xs text-white/50">
                     {filteredEntries.length} module{filteredEntries.length === 1 ? "" : "s"}
                   </p>
@@ -865,14 +901,14 @@ export default function QuickLauncher() {
                 </button>
               </div>
 
-              <div className="mb-5 grid gap-2 md:hidden">
-                <label className="flex h-9 items-center gap-2 bg-white px-3 text-[#3f3f4d]">
+              <div className="mb-3 grid gap-2 md:hidden">
+                <label className="flex h-8 items-center gap-2 bg-white px-3 text-[#3f3f4d]">
                   <input
                     ref={mobileSearchRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search for a module..."
-                    className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-slate-400"
+                    className="min-w-0 flex-1 bg-transparent text-[11px] outline-none placeholder:text-slate-400"
                   />
                   <Search className="h-4 w-4 shrink-0 text-[#3f3f4d]" />
                 </label>
@@ -882,7 +918,7 @@ export default function QuickLauncher() {
                       key={filter}
                       type="button"
                       onClick={() => setActiveFilter(filter)}
-                      className={`shrink-0 px-3 py-1.5 text-xs font-semibold ${
+                      className={`shrink-0 px-2.5 py-1 text-[11px] font-semibold ${
                         activeFilter === filter ? "bg-[#575666] text-white" : "bg-white/5 text-white/70"
                       }`}
                     >
@@ -899,27 +935,27 @@ export default function QuickLauncher() {
                   <p className="mt-1 text-xs text-white/45">Try another search, filter, or category.</p>
                 </div>
               ) : (
-                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 md:gap-x-8 md:gap-y-6 xl:grid-cols-3">
                   {filteredEntries.map((entry) => {
                     const isFavorite = favoriteIdSet.has(entry.id);
                     const emoji = getModuleEmoji(entry);
                     return (
                       <div
                         key={entry.id}
-                        className="group flex min-h-[78px] items-center bg-[#555462] transition hover:bg-[#616071]"
+                        className="group flex min-h-[56px] items-center bg-[#555462] transition hover:bg-[#616071] md:min-h-[78px]"
                       >
                         <button
                           type="button"
                           onClick={() => handleEntryClick(entry)}
-                          className="flex min-w-0 flex-1 items-center gap-5 px-6 py-5 text-left"
+                          className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left md:gap-5 md:px-6 md:py-5"
                         >
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#474654] shadow-inner">
-                            <span className="text-2xl leading-none opacity-85 saturate-75">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#474654] shadow-inner md:h-11 md:w-11">
+                            <span className="text-lg leading-none opacity-85 saturate-75 md:text-2xl">
                               {emoji}
                             </span>
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-white/90">
+                            <span className="block truncate text-xs font-semibold text-white/90 md:text-sm">
                               {entry.name}
                             </span>
                             {entry.active || entry.badge ? (
@@ -939,7 +975,7 @@ export default function QuickLauncher() {
                             event.stopPropagation();
                             toggleFavorite(entry.id);
                           }}
-                          className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center text-white/70 transition hover:text-white"
+                          className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center text-white/70 transition hover:text-white md:mr-4"
                         >
                           <Star className={`h-4 w-4 ${isFavorite ? "fill-white text-white" : ""}`} />
                         </button>
