@@ -50,6 +50,7 @@ import { fetchTerm } from "@/services/termsApi";
 import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { normalizeUserRole } from "@/lib/userRole";
 
 const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCharts"), {
   ssr: false,
@@ -295,7 +296,8 @@ export default function DashboardPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
-  const isSUPER_ADMIN = currentUser?.role === "SUPER_ADMIN";
+  const role = normalizeUserRole(currentUser?.role);
+  const isSUPER_ADMIN = role === "SUPER_ADMIN";
   const isSCHOOL_ADMIN = currentUser?.role === "SCHOOL_ADMIN";
   const isTEACHER = currentUser?.role === "TEACHER";
   const isHOD = currentUser?.role === "HOD";
@@ -325,11 +327,10 @@ export default function DashboardPage() {
     activeSubjectId,
     activeSubjectName: activeSubject?.name,
   });
-  const role = String(currentUser?.role || "").trim().toUpperCase();
   const shouldUseSubjectCardsEntry =
     canUseSubjectContext &&
     pathname === "/dashboard" &&
-    ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
+    ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role);
 
   useEffect(() => {
     if (!shouldUseSubjectCardsEntry) return;
@@ -1385,7 +1386,7 @@ export default function DashboardPage() {
 
   // Role-based data
   const getDashboardData = () => {
-    switch (currentUser?.role) {
+    switch (role) {
       case "SUPER_ADMIN":
         return {
           stats: [
@@ -1706,6 +1707,8 @@ export default function DashboardPage() {
       ),
     },
   };
+  const roleStatIcons =
+    statIcons[role as keyof typeof statIcons] ?? {};
 
   const {
     stats,
@@ -2031,11 +2034,8 @@ export default function DashboardPage() {
               {/* Stats Cards */}
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {stats.map((stat, index) => {
-                  const icon = currentUser?.role
-                    ? (statIcons[currentUser?.role] as Record<string, JSX.Element>)[
-                        stat.title
-                      ]
-                    : null;
+                  const icon =
+                    (roleStatIcons as Record<string, JSX.Element>)[stat.title] ?? null;
                   const cardStyle = STAT_CARD_STYLES[index % STAT_CARD_STYLES.length];
                   const isActiveStat = activeStatTitle === stat.title;
 

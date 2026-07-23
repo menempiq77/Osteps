@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { normalizeUserRole } from "@/lib/userRole";
 
 // Types
 type SuperAdmin = {
@@ -51,7 +52,7 @@ export default function SuperAdminsList() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const canManageAdmins = currentUser?.role === "ADMIN";
+  const canManageAdmins = normalizeUserRole(currentUser?.role) === "SUPER_ADMIN";
 
   const loadAdmins = async () => {
     try {

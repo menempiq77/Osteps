@@ -18,6 +18,7 @@ import {
   MessageCircle,
   MoreVertical,
   PanelLeftOpen,
+  School,
   Settings,
   Star,
   Users,
@@ -443,6 +444,55 @@ export default function FavoriteSidebar() {
   };
 
   const fixedEntries = useMemo<FavoriteEntry[]>(() => {
+    if (roleKey === "SUPER_ADMIN") {
+      const platformAdminEntries: FavoriteEntry[] = [
+        {
+          id: "fixed-schools",
+          name: "Schools",
+          section: "Workspace",
+          icon: School,
+          href: "/dashboard/schools",
+          kind: "link",
+        },
+        {
+          id: "fixed-admins",
+          name: "Admins",
+          section: "Workspace",
+          icon: Users,
+          href: "/dashboard/admins",
+          kind: "link",
+        },
+        {
+          id: "fixed-announcements",
+          name: "Announcements",
+          section: "Communication",
+          icon: Megaphone,
+          href: "/dashboard/announcements",
+          kind: "link",
+        },
+        {
+          id: "fixed-settings",
+          name: "Settings",
+          section: "Account",
+          icon: Settings,
+          href: "/dashboard/admins/settings",
+          kind: "link",
+        },
+        {
+          id: "fixed-chat",
+          name: "Chat",
+          section: "Communication",
+          icon: MessageCircle,
+          href: "/dashboard/chat",
+          kind: "link",
+        },
+      ];
+      return platformAdminEntries.map((item) => ({
+        ...item,
+        active: isActiveHref(item.href),
+      }));
+    }
+
     const canManageTimetable = ["SCHOOL_ADMIN", "SUPER_ADMIN", "HOD", "TEACHER"].includes(roleKey);
     const items: FavoriteEntry[] = [
       {
@@ -574,7 +624,7 @@ export default function FavoriteSidebar() {
         <button
           type="button"
           onClick={() => {
-            router.push("/dashboard/subject-cards");
+            router.push(roleKey === "SUPER_ADMIN" ? "/dashboard" : "/dashboard/subject-cards");
             setMobileOpen(false);
           }}
           className="group flex h-[50px] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] p-1 shadow-inner transition hover:bg-white/15 hover:shadow-[0_0_0_3px_rgba(56,193,108,0.18)]"

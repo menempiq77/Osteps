@@ -41,6 +41,7 @@ import { fetchTerm } from "@/services/termsApi";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { READONLY_WINDOW_NAME } from "@/lib/readOnlyWorkspace";
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
+import { normalizeUserRole } from "@/lib/userRole";
 import type { SubjectBrief } from "@/types/subjectContext";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
@@ -406,14 +407,14 @@ export default function SubjectCardsPage() {
   const { subjects, loading, canUseSubjectContext, activeSubjectId, setActiveSubjectId, refreshSubjects } =
     useSubjectContext();
 
-  const role = String(currentUser?.role || "").trim().toUpperCase();
+  const role = normalizeUserRole(currentUser?.role);
   const isStudent = role === "STUDENT";
   const isSchoolAdmin = isSchoolAdminRole(currentUser?.role ?? null);
-  // Staff (assigned teachers, HODs, admins) can also view an archived subject
+  // Assigned teachers and HODs can also view an archived subject
   // read-only — not just the School Admin. Only the School Admin can
   // archive/restore/edit/delete, so those controls stay gated on isSchoolAdmin.
   const canViewArchivedSubjects =
-    isSchoolAdmin || ["ADMIN", "HOD", "TEACHER"].includes(role);
+    isSchoolAdmin || ["HOD", "TEACHER"].includes(role);
 
   // ── Subject archive state ────────────────────────────────────────────
   // Per subject: how many of its subject-classes are active vs archived.
@@ -449,7 +450,7 @@ export default function SubjectCardsPage() {
   const [deleteTyped, setDeleteTyped] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const deleteNameMatches = deleteTyped.trim().toLowerCase() === (deleteConfirmSubject?.name ?? "").trim().toLowerCase();
-  const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(role);
+  const isStaffWorkspaceRole = ["HOD", "TEACHER"].includes(role);
   const subjectProgress = useStudentSubjectProgress(
     isStudent,
     currentUser?.student as string | undefined,
@@ -692,7 +693,7 @@ export default function SubjectCardsPage() {
   };
 
   const canEnterSubjectWorkspace = useMemo(
-    () => ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role),
+    () => ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role),
     [role]
   );
 

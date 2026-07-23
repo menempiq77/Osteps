@@ -10,6 +10,7 @@ import Image from "next/image";
 import Logo from "@/assets/images/Logo2.jpg";
 import LoginImg from "@/assets/images/login.png";
 import { useEffect } from "react";
+import { normalizeUserRole } from "@/lib/userRole";
 
 export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -18,8 +19,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (currentUser) {
-      const role = String(currentUser.role || "").trim().toUpperCase();
-      const redirectPath = ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role)
+      const role = normalizeUserRole(currentUser.role);
+      const redirectPath = ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(role)
         ? "/dashboard/subject-cards"
         : "/dashboard";
       router.push(redirectPath);
