@@ -8,6 +8,7 @@ import { fetchMySubjectContext, setLastSubject } from "@/services/subjectContext
 import type { SubjectBrief } from "@/types/subjectContext";
 import { extractSubjectIdFromPath, isSubjectScopedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { getStoredSubjectId, isSubjectContextEnabled, storeSubjectId } from "@/lib/subjectScope";
+import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
 
 type SubjectContextValue = {
   subjects: SubjectBrief[];
@@ -28,7 +29,14 @@ const isRoleEligible = (role: string | undefined): boolean => {
 };
 
 const normalizeSeedSubjects = (
-  raw: Array<{ id: number; name: string; code?: string | null }> | undefined
+  raw:
+    | Array<{
+        id: number;
+        name: string;
+        code?: string | null;
+        dashboard_image_url?: string | null;
+      }>
+    | undefined
 ): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -37,6 +45,7 @@ const normalizeSeedSubjects = (
       name: String(item?.name ?? ""),
       code: item?.code ?? null,
       class_label: null,
+      dashboard_image_url: normalizeSubjectImageUrl(item?.dashboard_image_url),
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };

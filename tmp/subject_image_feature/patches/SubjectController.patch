@@ -1,0 +1,16 @@
+--- a/app/Http/Controllers/Api/SubjectController.php
++++ b/app/Http/Controllers/Api/SubjectController.php
+@@ -23,0 +24 @@
++            'dashboard_image_url' => $request->input('dashboard_image_url'),
+@@ -39 +40 @@
+-        $subject->update([
++        $updates = [
+@@ -42 +43,7 @@
+-        ]);
++        ];
++
++        if ($request->exists('dashboard_image_url')) {
++            $updates['dashboard_image_url'] = $request->input('dashboard_image_url');
++        }
++
++        $subject->update($updates);

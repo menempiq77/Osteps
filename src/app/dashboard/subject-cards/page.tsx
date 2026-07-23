@@ -40,10 +40,17 @@ import { fetchAssessmentByStudent, fetchTasks, fetchStudentTasks } from "@/servi
 import { fetchTerm } from "@/services/termsApi";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { READONLY_WINDOW_NAME } from "@/lib/readOnlyWorkspace";
+import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
+import type { SubjectBrief } from "@/types/subjectContext";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
   loading: () => <ScheduleWidgetSkeleton />,
 });
+
+type SubjectFormValues = {
+  name: string;
+  dashboard_image_url?: string;
+};
 
 // ── Subject colour palette ────────────────────────────────────────────────────
 const PALETTE = [
@@ -430,11 +437,13 @@ export default function SubjectCardsPage() {
   // ── Create / Edit subject modal state ───────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<{ id: number; name: string } | null>(null);
+  const [editingSubject, setEditingSubject] = useState<SubjectBrief | null>(null);
   const [selectedColorIdx, setSelectedColorIdx] = useState<number | null>(null);
   const [subjectSearch, setSubjectSearch] = useState("");
   const [subjectColorMap, setSubjectColorMap] = useState<Record<string, number>>({});
   const [form] = Form.useForm();
+  const watchedImageUrl = Form.useWatch("dashboard_image_url", form);
+  const imagePreviewUrl = normalizeSubjectImageUrl(watchedImageUrl);
   // ── Delete confirmation modal state ──────────────────────────────────
   const [deleteConfirmSubject, setDeleteConfirmSubject] = useState<{ id: number; name: string } | null>(null);
   const [deleteTyped, setDeleteTyped] = useState("");
@@ -520,13 +529,17 @@ export default function SubjectCardsPage() {
   // ── Subject CRUD handlers ───────────────────────────────────────────
   const openCreateModal = () => {
     setEditingSubject(null);
+    setSelectedColorIdx(null);
     form.resetFields();
     setModalOpen(true);
   };
 
-  const openEditModal = (subject: { id: number; name: string }) => {
+  const openEditModal = (subject: SubjectBrief) => {
     setEditingSubject(subject);
-    form.setFieldsValue({ name: subject.name });
+    form.setFieldsValue({
+      name: subject.name,
+      dashboard_image_url: subject.dashboard_image_url ?? "",
+    });
     // Pre-select stored color if any
     const stored = subjectColorMap[String(subject.id)];
     setSelectedColorIdx(stored != null ? stored : null);
@@ -534,23 +547,32 @@ export default function SubjectCardsPage() {
   };
 
   const handleModalOk = async () => {
-    let values: { name: string };
+    let values: SubjectFormValues;
     try {
       values = await form.validateFields();
     } catch {
       return; // antd shows inline validation errors
     }
     setModalLoading(true);
+    const dashboardImageUrl = normalizeSubjectImageUrl(values.dashboard_image_url);
     try {
       if (editingSubject) {
-        await updateSubject(String(editingSubject.id), { name: values.name.trim(), school_id: currentUser?.school });
+        await updateSubject(String(editingSubject.id), {
+          name: values.name.trim(),
+          school_id: currentUser?.school,
+          dashboard_image_url: dashboardImageUrl,
+        });
         // Persist chosen color to localStorage
         if (selectedColorIdx != null) {
           applySubjectColor(editingSubject.id, selectedColorIdx);
         }
         message.success("Subject updated");
       } else {
-        await addSubject({ name: values.name.trim(), school_id: currentUser?.school });
+        await addSubject({
+          name: values.name.trim(),
+          school_id: currentUser?.school,
+          dashboard_image_url: dashboardImageUrl,
+        });
         message.success("Subject created");
       }
       refreshSubjects();
@@ -829,6 +851,7 @@ export default function SubjectCardsPage() {
               const displayCode = typeof subject.code === "string"
                 ? subject.code.replace(/islamiat/gi, "Islamic")
                 : subject.code;
+              const subjectImageUrl = normalizeSubjectImageUrl(subject.dashboard_image_url);
               const pal = getSubjectPalette(subjectColorMap, subject.id, String(displayName), idx);
 
               return (
@@ -876,7 +899,7 @@ export default function SubjectCardsPage() {
                         ) : (
                           <>
                             <button
-                              onClick={(e) => { e.stopPropagation(); openEditModal({ id: subject.id, name: subject.name }); }}
+                              onClick={(e) => { e.stopPropagation(); openEditModal(subject); }}
                               className="flex h-[18px] w-[18px] items-center justify-center rounded-full
                                          transition-all duration-200 hover:scale-110"
                               style={{ background: "rgba(255,255,255,0.25)", color: "#fff" }}
@@ -937,12 +960,22 @@ export default function SubjectCardsPage() {
                     )}
 
                     {/* icon */}
-                    <div
-                      className="mb-1.5 mt-5 flex h-7 w-7 items-center justify-center rounded-lg text-xs"
-                      style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
-                    >
-                      <BookOutlined />
-                    </div>
+                    {subjectImageUrl ? (
+                      <div className="mb-1.5 mt-5 h-7 w-7 overflow-hidden rounded-lg border border-white/40 bg-white/20">
+                        <img
+                          src={subjectImageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="mb-1.5 mt-5 flex h-7 w-7 items-center justify-center rounded-lg text-xs"
+                        style={{ background: "rgba(255,255,255,0.20)", color: "#fff" }}
+                      >
+                        <BookOutlined />
+                      </div>
+                    )}
 
                     {/* name */}
                     <h3 className="mb-0.5 truncate text-[12px] font-extrabold leading-tight text-white">
@@ -1089,6 +1122,29 @@ export default function SubjectCardsPage() {
           >
             <Input placeholder="e.g. Math, Art, Science" maxLength={100} autoFocus />
           </Form.Item>
+          <Form.Item
+            name="dashboard_image_url"
+            label="Dashboard Image URL"
+            extra="Optional. This image belongs only to this subject."
+            rules={[
+              {
+                validator: (_, value) =>
+                  !String(value ?? "").trim() || normalizeSubjectImageUrl(value)
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("Enter a valid http:// or https:// image URL")),
+              },
+            ]}
+          >
+            <Input placeholder="https://example.com/subject-image.jpg" maxLength={2048} />
+          </Form.Item>
+          {imagePreviewUrl ? (
+            <div className="mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <img src={imagePreviewUrl} alt="Subject image preview" className="h-full w-full object-cover" />
+              </div>
+              <p className="text-xs text-slate-500">This image will appear only in this subject workspace.</p>
+            </div>
+          ) : null}
           {editingSubject && (
             <Form.Item label="Card Color">
               <div className="flex flex-wrap gap-2 mt-1">

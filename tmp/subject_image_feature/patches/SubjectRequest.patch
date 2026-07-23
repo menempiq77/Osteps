@@ -1,0 +1,6 @@
+--- a/app/Http/Requests/SubjectRequest.php
++++ b/app/Http/Requests/SubjectRequest.php
+@@ -28 +28,2 @@
+-            'school_id' => 'required|exists:schools,id'
++            'school_id' => 'required|exists:schools,id',
++            'dashboard_image_url' => 'nullable|url:http,https|max:2048',
