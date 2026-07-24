@@ -5,10 +5,13 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  CircleAlert,
   Clock3,
   CloudSun,
+  Coins,
   HeartPulse,
   Landmark,
+  LoaderCircle,
   Plane,
   RotateCcw,
   Search,
@@ -20,9 +23,12 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import PrayerBeadsIcon from "@/components/icons/PrayerBeadsIcon";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import {
@@ -36,8 +42,32 @@ import {
   type AdhkarCategory,
   type AdhkarEntry,
 } from "@/lib/adhkarData";
+import {
+  claimAdhkarReward,
+  fetchAdhkarRewardStatus,
+} from "@/services/studentWalletApi";
+import { RootState } from "@/store/store";
 
 type Progress = Record<string, number>;
+type RewardType = "morning" | "evening" | "dua";
+type RewardNotice = {
+  tone: "success" | "info" | "error";
+  message: string;
+};
+
+const rewardTypeForCategory = (
+  category: AdhkarCategory,
+): Exclude<RewardType, "dua"> | null => {
+  if (category.id === "featured-morning") return "morning";
+  if (category.id === "featured-evening") return "evening";
+  return null;
+};
+
+const isDuaRewardCategory = (category: AdhkarCategory) =>
+  !rewardTypeForCategory(category) && category.chapterNumber !== 27;
+
+const progressEntryId = (category: AdhkarCategory, entryId: string) =>
+  rewardTypeForCategory(category) ? `${category.id}:${entryId}` : entryId;
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
   daily: Clock3,
@@ -117,15 +147,34 @@ export default function AdhkarPage() {
   const searchParams = useSearchParams();
   const { activeSubject, activeSubjectId, loading, toSubjectHref } =
     useSubjectContext();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const queryClient = useQueryClient();
+  const role = String(currentUser?.role ?? "").trim().toUpperCase();
+  const isStudent = role === "STUDENT";
+  const studentId = String(currentUser?.student ?? "");
   const [progress, setProgress] = useState<Progress>({});
   const [loadedStorageKey, setLoadedStorageKey] = useState("");
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [activeGroup, setActiveGroup] = useState("daily");
+  const [pendingRewardKey, setPendingRewardKey] = useState<string | null>(null);
+  const [rewardNotice, setRewardNotice] = useState<RewardNotice | null>(null);
   const categoryId = searchParams.get("category");
   const selectedCategory =
     ALL_ADHKAR_CATEGORIES.find((category) => category.id === categoryId) ??
     null;
   const isIslamicSubject = isIslamicSubjectName(activeSubject?.name);
+  const {
+    data: rewardStatus,
+    isLoading: isRewardStatusLoading,
+    isError: isRewardStatusUnavailable,
+    refetch: refetchRewardStatus,
+  } = useQuery({
+    queryKey: ["adhkar-reward-status", studentId],
+    queryFn: fetchAdhkarRewardStatus,
+    enabled: isStudent && Boolean(studentId) && isIslamicSubject,
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
   const storageKey = useMemo(
     () =>
       `osteps-adhkar-progress-v1:${activeSubjectId ?? "unknown"}:${getTodayKey()}`,
@@ -184,16 +233,150 @@ export default function AdhkarPage() {
     router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
-  const increment = (entryId: string, target: number) => {
+  const isRewardClaimed = (rewardType: RewardType, adhkarId?: string) => {
+    if (!rewardStatus) return false;
+    if (rewardType === "morning") return rewardStatus.morning_claimed;
+    if (rewardType === "evening") return rewardStatus.evening_claimed;
+    return Boolean(adhkarId && rewardStatus.dua_ids.includes(adhkarId));
+  };
+
+  const claimReward = async (
+    rewardType: RewardType,
+    adhkarId?: string,
+  ) => {
+    if (!isStudent || !studentId) return;
+    const rewardKey =
+      rewardType === "dua" ? `dua:${adhkarId ?? ""}` : rewardType;
+    if (pendingRewardKey === rewardKey) return;
+
+    setPendingRewardKey(rewardKey);
+    setRewardNotice(null);
+    try {
+      const result = await claimAdhkarReward({
+        reward_type: rewardType,
+        ...(adhkarId ? { adhkar_id: adhkarId } : {}),
+      });
+      queryClient.setQueryData(
+        ["adhkar-reward-status", studentId],
+        result,
+      );
+      queryClient.setQueryData(["student-coin-wallet", studentId], {
+        student_id: result.student_id,
+        coin_balance: result.coin_balance,
+      });
+      if (result.awarded) {
+        window.dispatchEvent(
+          new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
+            detail: { amount: result.reward_amount },
+          }),
+        );
+      }
+      setRewardNotice({
+        tone: result.awarded ? "success" : "info",
+        message: result.awarded
+          ? `+${result.reward_amount} ${
+              result.reward_amount === 1 ? "coin" : "coins"
+            } added to your pocket.`
+          : "This Adhkar reward was already collected today.",
+      });
+    } catch {
+      setRewardNotice({
+        tone: "error",
+        message:
+          "Your Adhkar is complete, but the coin reward could not be confirmed. Please retry.",
+      });
+    } finally {
+      setPendingRewardKey(null);
+    }
+  };
+
+  const increment = (category: AdhkarCategory, entry: AdhkarEntry) => {
+    const entryProgressId = progressEntryId(category, entry.id);
+    const currentCount = Math.min(
+      progress[entryProgressId] ?? 0,
+      entry.target,
+    );
+    if (currentCount >= entry.target) return;
+    const nextCount = currentCount + 1;
     setProgress((current) => ({
       ...current,
-      [entryId]: Math.min((current[entryId] ?? 0) + 1, target),
+      [entryProgressId]: nextCount,
+    }));
+
+    if (!isStudent || nextCount < entry.target) return;
+    const categoryRewardType = rewardTypeForCategory(category);
+    if (categoryRewardType) {
+      const categoryComplete = category.entries.every(
+        (candidate) =>
+          (candidate.id === entry.id
+            ? nextCount
+            : progress[progressEntryId(category, candidate.id)] ?? 0) >=
+              candidate.target,
+      );
+      if (
+        categoryComplete &&
+        !isRewardClaimed(categoryRewardType)
+      ) {
+        void claimReward(categoryRewardType);
+      }
+      return;
+    }
+
+    if (
+      isDuaRewardCategory(category) &&
+      !isRewardClaimed("dua", entry.id)
+    ) {
+      void claimReward("dua", entry.id);
+    }
+  };
+
+  const resetEntry = (category: AdhkarCategory, entryId: string) => {
+    setProgress((current) => ({
+      ...current,
+      [progressEntryId(category, entryId)]: 0,
     }));
   };
 
-  const resetEntry = (entryId: string) => {
-    setProgress((current) => ({ ...current, [entryId]: 0 }));
-  };
+  const rewardNoticePanel = rewardNotice ? (
+    <div
+      className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+        rewardNotice.tone === "success"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : rewardNotice.tone === "info"
+            ? "border-sky-200 bg-sky-50 text-sky-800"
+            : "border-rose-200 bg-rose-50 text-rose-800"
+      }`}
+    >
+      {rewardNotice.tone === "error" ? (
+        <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+      ) : (
+        <Coins className="mt-0.5 h-4 w-4 shrink-0" />
+      )}
+      <span>{rewardNotice.message}</span>
+    </div>
+  ) : null;
+
+  const rewardServicePanel =
+    isStudent && isRewardStatusLoading ? (
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600">
+        <LoaderCircle className="h-4 w-4 animate-spin" />
+        Checking today&apos;s coin rewards…
+      </div>
+    ) : isStudent && isRewardStatusUnavailable ? (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span className="inline-flex items-center gap-2 font-semibold">
+          <CircleAlert className="h-4 w-4 shrink-0" />
+          Coin rewards are unavailable. No reward will be shown as collected.
+        </span>
+        <button
+          type="button"
+          onClick={() => void refetchRewardStatus()}
+          className="rounded-xl bg-amber-900 px-3 py-2 text-xs font-bold text-white"
+        >
+          Retry
+        </button>
+      </div>
+    ) : null;
 
   if (loading) {
     return (
@@ -228,8 +411,19 @@ export default function AdhkarPage() {
   if (selectedCategory) {
     const visibleEntries = matchingEntries(selectedCategory, query);
     const completedInCategory = selectedCategory.entries.filter(
-      (entry) => (progress[entry.id] ?? 0) >= entry.target,
+      (entry) =>
+        (progress[progressEntryId(selectedCategory, entry.id)] ?? 0) >=
+        entry.target,
     ).length;
+    const categoryRewardType = rewardTypeForCategory(selectedCategory);
+    const categoryComplete =
+      completedInCategory === selectedCategory.entries.length;
+    const categoryRewardClaimed = categoryRewardType
+      ? isRewardClaimed(categoryRewardType)
+      : false;
+    const categoryRewardPending =
+      categoryRewardType !== null &&
+      pendingRewardKey === categoryRewardType;
 
     return (
       <div className="mx-auto min-w-0 max-w-4xl space-y-4 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-6 md:px-6 md:pt-6">
@@ -301,7 +495,63 @@ export default function AdhkarPage() {
               />
             </div>
           </div>
+          {categoryRewardType && isStudent ? (
+            <div
+              className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white/80 px-4 py-3"
+              style={{ borderColor: selectedCategory.border }}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    color: selectedCategory.accent,
+                    backgroundColor: selectedCategory.soft,
+                  }}
+                >
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900">
+                    {categoryRewardClaimed
+                      ? "10 coins collected today"
+                      : "Complete this collection to earn 10 coins"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Morning and evening rewards can each be collected once per
+                    day.
+                  </p>
+                </div>
+              </div>
+              {categoryComplete && !categoryRewardClaimed ? (
+                <button
+                  type="button"
+                  onClick={() => void claimReward(categoryRewardType)}
+                  disabled={categoryRewardPending}
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                  style={{ backgroundColor: selectedCategory.accent }}
+                >
+                  {categoryRewardPending ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Coins className="h-4 w-4" />
+                  )}
+                  Collect 10 coins
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {selectedCategory.chapterNumber === 27 &&
+          !categoryRewardType &&
+          isStudent ? (
+            <p className="mt-4 rounded-2xl border border-slate-200 bg-white/75 px-4 py-3 text-xs font-semibold text-slate-600">
+              Daily 10-coin rewards are collected from the separate Morning
+              Adhkar and Evening Adhkar collections.
+            </p>
+          ) : null}
         </section>
+
+        {rewardNoticePanel}
+        {rewardServicePanel}
 
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -336,9 +586,18 @@ export default function AdhkarPage() {
             const index = selectedCategory.entries.findIndex(
               (candidate) => candidate.id === entry.id,
             );
-            const count = Math.min(progress[entry.id] ?? 0, entry.target);
+            const count = Math.min(
+              progress[progressEntryId(selectedCategory, entry.id)] ?? 0,
+              entry.target,
+            );
             const complete = count >= entry.target;
             const percentage = entry.target ? (count / entry.target) * 100 : 0;
+            const duaRewardEligible =
+              isStudent && isDuaRewardCategory(selectedCategory);
+            const duaRewardClaimed =
+              duaRewardEligible && isRewardClaimed("dua", entry.id);
+            const duaRewardPending =
+              pendingRewardKey === `dua:${entry.id}`;
 
             return (
               <article
@@ -407,7 +666,7 @@ export default function AdhkarPage() {
                   <div className="flex min-w-0 items-stretch gap-2">
                     <button
                       type="button"
-                      onClick={() => increment(entry.id, entry.target)}
+                      onClick={() => increment(selectedCategory, entry)}
                       disabled={complete}
                       className="relative min-h-16 min-w-0 flex-1 overflow-hidden rounded-2xl border bg-white px-3 text-left shadow-sm transition active:scale-[0.99] disabled:cursor-default md:px-4"
                       style={{
@@ -451,7 +710,7 @@ export default function AdhkarPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => resetEntry(entry.id)}
+                      onClick={() => resetEntry(selectedCategory, entry.id)}
                       disabled={count === 0}
                       className="flex w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-35 md:w-14"
                       aria-label={`Reset ${entry.title}`}
@@ -459,6 +718,39 @@ export default function AdhkarPage() {
                       <RotateCcw className="h-5 w-5" />
                     </button>
                   </div>
+                  {duaRewardEligible ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                      <span
+                        className={`inline-flex items-center gap-2 text-xs font-semibold ${
+                          duaRewardClaimed
+                            ? "text-emerald-700"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        <Coins className="h-4 w-4" />
+                        {duaRewardClaimed
+                          ? "1 coin collected today"
+                          : complete
+                            ? "This dua is ready for its 1-coin reward"
+                            : "Complete this dua to earn 1 coin today"}
+                      </span>
+                      {complete && !duaRewardClaimed ? (
+                        <button
+                          type="button"
+                          onClick={() => void claimReward("dua", entry.id)}
+                          disabled={duaRewardPending}
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                        >
+                          {duaRewardPending ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Coins className="h-4 w-4" />
+                          )}
+                          Collect 1 coin
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             );
@@ -529,8 +821,31 @@ export default function AdhkarPage() {
               />
             </div>
           </div>
+          {isStudent ? (
+            <div className="mt-3 grid gap-2 text-xs font-semibold text-emerald-50 sm:grid-cols-3">
+              {[
+                ["Morning Adhkar", "10 coins once daily"],
+                ["Evening Adhkar", "10 coins once daily"],
+                ["Other duas", "1 coin each daily"],
+              ].map(([title, detail]) => (
+                <div
+                  key={title}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/15 px-3 py-2.5"
+                >
+                  <Coins className="h-4 w-4 shrink-0 text-amber-300" />
+                  <span>
+                    <span className="block text-white">{title}</span>
+                    <span className="text-emerald-100/70">{detail}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
+
+      {rewardNoticePanel}
+      {rewardServicePanel}
 
       <section className="min-w-0">
         <div className="mb-3 px-1">
@@ -545,8 +860,14 @@ export default function AdhkarPage() {
           {FEATURED_ADHKAR_CATEGORIES.map((category) => {
             const Icon = FEATURED_ICONS[category.id] ?? PrayerBeadsIcon;
             const completed = category.entries.filter(
-              (entry) => (progress[entry.id] ?? 0) >= entry.target,
+              (entry) =>
+                (progress[progressEntryId(category, entry.id)] ?? 0) >=
+                entry.target,
             ).length;
+            const rewardType = rewardTypeForCategory(category);
+            const rewardClaimed = rewardType
+              ? isRewardClaimed(rewardType)
+              : false;
 
             return (
               <button
@@ -581,6 +902,20 @@ export default function AdhkarPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     {completed}/{category.entries.length} complete
                   </p>
+                  {isStudent ? (
+                    <p
+                      className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${
+                        rewardClaimed
+                          ? "text-emerald-700"
+                          : "text-amber-700"
+                      }`}
+                    >
+                      <Coins className="h-3.5 w-3.5" />
+                      {rewardClaimed
+                        ? "10 coins collected today"
+                        : "Earn 10 coins today"}
+                    </p>
+                  ) : null}
                 </div>
                 <ChevronRight
                   className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5"

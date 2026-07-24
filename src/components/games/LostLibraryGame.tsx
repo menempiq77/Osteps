@@ -33,8 +33,9 @@ import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RootState } from "@/store/store";
 import {
+  fetchStudentGamePassStatus,
   fetchStudentWalletBalance,
-  spendStudentCoins,
+  purchaseStudentGamePass,
 } from "@/services/studentWalletApi";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import ArcadeQuestionGate from "./ArcadeQuestionGate";
@@ -87,6 +88,7 @@ type CheckoutErrorData = {
 };
 
 const PACK = STORIES_OF_THE_PROPHETS_PACK;
+const GAME_ID = "lost-library";
 const START_POSITION: Position = { x: 50, y: 78 };
 const INTERACTION_DISTANCE = 14;
 
@@ -129,7 +131,7 @@ export default function LostLibraryGame() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const queryClient = useQueryClient();
   const audioContextRef = useRef<AudioContext | null>(null);
-  const role = String(currentUser?.role ?? "").toUpperCase();
+  const role = String(currentUser?.role ?? "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const studentId = String(currentUser?.student ?? "");
   const storageKey = useMemo(
@@ -236,70 +238,120 @@ export default function LostLibraryGame() {
   };
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    let cancelled = false;
+    setIsRestored(false);
+    if (!currentUser?.id) {
+      setIsRestored(true);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       setIsRestored(true);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    try {
-      const saved = JSON.parse(raw) as Partial<SavedAdventure>;
-      const isLegacyLevelOneComplete =
-        saved.version !== 2 && saved.stage === "complete";
-      const validClueIds = new Set(PACK.room.clues.map((clue) => clue.id));
-      const restoredFound = Array.isArray(saved.foundClueIds)
-        ? saved.foundClueIds.filter((id) => validClueIds.has(id))
-        : [];
-      const restoredOrder =
-        Array.isArray(saved.orderedClueIds) &&
-        saved.orderedClueIds.length === PACK.room.clues.length &&
-        saved.orderedClueIds.every((id) => validClueIds.has(id))
-          ? saved.orderedClueIds
-          : PACK.room.startingOrder;
+    const restoreAdventure = async () => {
+      try {
+        const saved = JSON.parse(raw) as Partial<SavedAdventure>;
+        if (typeof saved.runId !== "string") {
+          throw new Error("The saved adventure has no paid run.");
+        }
 
-      if (typeof saved.runId === "string") setRunId(saved.runId);
-      setPurchasePending(Boolean(saved.purchasePending));
-      if (isLegacyLevelOneComplete) {
-        setStage("level-one-complete");
-      } else if (isGameStage(saved.stage)) {
-        setStage(saved.stage);
+        if (isStudent) {
+          if (!studentId) {
+            throw new Error("A student profile is required.");
+          }
+          const verified = await fetchStudentGamePassStatus({
+            game_id: GAME_ID,
+            run_id: saved.runId,
+          }).catch((error: unknown) => {
+            setRunId(saved.runId ?? null);
+            setPurchasePending(true);
+            setStage("lobby");
+            setCheckoutError(checkoutErrorMessage(error));
+            return null;
+          });
+          if (!verified) return;
+          if (!verified.active) {
+            window.localStorage.removeItem(storageKey);
+            setRunId(null);
+            setPurchasePending(false);
+            setStage("lobby");
+            return;
+          }
+        }
+
+        const isLegacyLevelOneComplete =
+          saved.version !== 2 && saved.stage === "complete";
+        const validClueIds = new Set(PACK.room.clues.map((clue) => clue.id));
+        const restoredFound = Array.isArray(saved.foundClueIds)
+          ? saved.foundClueIds.filter((id) => validClueIds.has(id))
+          : [];
+        const restoredOrder =
+          Array.isArray(saved.orderedClueIds) &&
+          saved.orderedClueIds.length === PACK.room.clues.length &&
+          saved.orderedClueIds.every((id) => validClueIds.has(id))
+            ? saved.orderedClueIds
+            : PACK.room.startingOrder;
+
+        setRunId(saved.runId);
+        setPurchasePending(false);
+        if (isLegacyLevelOneComplete) {
+          setStage("level-one-complete");
+        } else if (isGameStage(saved.stage)) {
+          setStage(saved.stage);
+        }
+        if (
+          saved.player &&
+          Number.isFinite(saved.player.x) &&
+          Number.isFinite(saved.player.y)
+        ) {
+          setPlayer({
+            x: clamp(saved.player.x, 5, 95),
+            y: clamp(saved.player.y, 42, 82),
+          });
+        }
+        setFoundClueIds(restoredFound);
+        setOrderedClueIds(restoredOrder);
+        setAttempts(
+          Number.isFinite(saved.attempts)
+            ? Math.max(0, saved.attempts ?? 0)
+            : 0,
+        );
+        const restoredHallProgress = normalizeHallProgress(saved.hallProgress);
+        setLevelOneComplete(
+          Boolean(saved.levelOneComplete) ||
+            isLegacyLevelOneComplete ||
+            restoredHallProgress.completed,
+        );
+        setHallStarted(
+          Boolean(saved.hallStarted) || restoredHallProgress.completed,
+        );
+        setHallProgress(restoredHallProgress);
+        if (saved.stage !== "lobby") {
+          setNotice("Welcome back. Your adventure has been restored.");
+        }
+      } catch (error) {
+        window.localStorage.removeItem(storageKey);
+        setRunId(null);
+        setPurchasePending(false);
+        setStage("lobby");
+        if (isStudent) setCheckoutError(checkoutErrorMessage(error));
+      } finally {
+        if (!cancelled) setIsRestored(true);
       }
-      if (
-        saved.player &&
-        Number.isFinite(saved.player.x) &&
-        Number.isFinite(saved.player.y)
-      ) {
-        setPlayer({
-          x: clamp(saved.player.x, 5, 95),
-          y: clamp(saved.player.y, 42, 82),
-        });
-      }
-      setFoundClueIds(restoredFound);
-      setOrderedClueIds(restoredOrder);
-      setAttempts(
-        Number.isFinite(saved.attempts) ? Math.max(0, saved.attempts ?? 0) : 0,
-      );
-      const restoredHallProgress = normalizeHallProgress(saved.hallProgress);
-      setLevelOneComplete(
-        Boolean(saved.levelOneComplete) ||
-          isLegacyLevelOneComplete ||
-          restoredHallProgress.completed,
-      );
-      setHallStarted(
-        Boolean(saved.hallStarted) || restoredHallProgress.completed,
-      );
-      setHallProgress(restoredHallProgress);
-      if (saved.stage !== "lobby") {
-        setNotice("Welcome back. Your adventure has been restored.");
-      }
-    } catch {
-      window.localStorage.removeItem(storageKey);
-    } finally {
-      setIsRestored(true);
-    }
-  }, [currentUser?.id, storageKey]);
+    };
+
+    void restoreAdventure();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, isStudent, storageKey, studentId]);
 
   useEffect(() => {
     if (!isRestored || !runId || stage === "lobby") return;
@@ -419,6 +471,7 @@ export default function LostLibraryGame() {
       return;
     }
 
+    const isPendingRetry = Boolean(runId && purchasePending);
     const nextRunId = runId ?? crypto.randomUUID();
     setRunId(nextRunId);
 
@@ -428,15 +481,21 @@ export default function LostLibraryGame() {
         setIsStarting(false);
         return;
       }
-      if (isWalletUnavailable) {
-        await refetchWallet();
-      }
-      if (!isWalletUnavailable && walletBalance < PACK.entryCost) {
-        setCheckoutError(
-          `You need ${PACK.entryCost} coins to enter. Complete more tracker topics to fill your pocket.`,
-        );
-        setIsStarting(false);
-        return;
+      if (!isPendingRetry) {
+        const walletResult = await refetchWallet();
+        if (walletResult.error) {
+          setCheckoutError(checkoutErrorMessage(walletResult.error));
+          setIsStarting(false);
+          return;
+        }
+        const balance = Number(walletResult.data?.coin_balance ?? 0);
+        if (balance < PACK.entryCost) {
+          setCheckoutError(
+            `You need ${PACK.entryCost} coins to enter. Complete more tracker topics to fill your pocket.`,
+          );
+          setIsStarting(false);
+          return;
+        }
       }
 
       const pendingSave: SavedAdventure = {
@@ -456,20 +515,28 @@ export default function LostLibraryGame() {
       setPurchasePending(true);
 
       try {
-        const nextWallet = await spendStudentCoins({
-          amount: PACK.entryCost,
-          purchase_key: `game:${PACK.id}:${PACK.room.id}:${nextRunId}`,
-          description: `${PACK.title}: ${PACK.room.title}`,
+        const gamePass = await purchaseStudentGamePass({
+          game_id: GAME_ID,
+          run_id: nextRunId,
         });
         queryClient.setQueryData(
           ["student-coin-wallet", studentId],
-          nextWallet,
+          {
+            student_id: gamePass.student_id,
+            coin_balance: gamePass.coin_balance,
+          },
         );
-        window.dispatchEvent(
-          new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
-            detail: { amount: -PACK.entryCost },
-          }),
-        );
+        if (gamePass.charged) {
+          window.dispatchEvent(
+            new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
+              detail: { amount: -gamePass.entry_cost },
+            }),
+          );
+        }
+        if (!gamePass.active) {
+          throw new Error("The paid adventure was not activated.");
+        }
+        setRunId(gamePass.run_id);
         setPurchasePending(false);
         playSound("coin");
       } catch (error) {
