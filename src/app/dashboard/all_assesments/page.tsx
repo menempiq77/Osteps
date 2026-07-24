@@ -671,15 +671,16 @@ export default function Page() {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Create, organise and weight your assessments. Drag cards to reorder.
+            Create a new assessment or import one from an archived subject.
+            Drag cards to reorder.
           </p>
         </div>
         {!isTeacher && (
-          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <div className="grid w-full grid-cols-1 gap-2 self-start sm:flex sm:w-auto sm:flex-wrap sm:self-auto">
             {canImportArchivedAssessments && (
               <Button
                 size="large"
-                className="premium-pill-btn"
+                className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
                 icon={<ImportOutlined />}
                 onClick={() => {
                   setSelectedSourceSubjectId(null);
@@ -687,13 +688,13 @@ export default function Page() {
                   setImportOpen(true);
                 }}
               >
-                Import Archived
+                Import from Archive
               </Button>
             )}
             <Button
               type="primary"
               size="large"
-              className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90 shrink-0"
+              className="premium-pill-btn !h-11 w-full justify-center !border-0 !bg-primary !text-white hover:!opacity-90 sm:w-auto"
               icon={<PlusOutlined />}
               onClick={() => {
                 setIsAddingQuiz(false);

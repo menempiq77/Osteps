@@ -8,12 +8,16 @@ diff --git a/routes/api.php b/routes/api.php
  use App\Http\Controllers\Api\AskQuestionController;
  use App\Http\Controllers\Api\TrackerQuizController;
  use App\Http\Controllers\Api\AnnouncementController;
-@@ -127,6 +128,8 @@ Route::middleware(['auth:sanctum'])->group(function(){
+@@ -127,6 +128,12 @@ Route::middleware(['auth:sanctum'])->group(function(){
      Route::post('update-assessment/{id}',[AssessmentController::class,'updateAssessment'])->name('update-assessment');
      Route::post('delete-assessment/{id}',[AssessmentController::class,'deleteAssessment'])->name('delete-assessment');
      Route::post('duplicate-assessment/{id}',[AssessmentController::class,'duplicateAssessment'])->name('duplicate-assessment');
 +    Route::post('import-archived-assessments',[ArchivedAssessmentImportController::class,'store'])
 +        ->name('import-archived-assessments');
++    Route::post('import-archived-quizzes',[ArchivedAssessmentImportController::class,'storeQuizzes'])
++        ->name('import-archived-quizzes');
++    Route::post('import-archived-trackers',[ArchivedAssessmentImportController::class,'storeTrackers'])
++        ->name('import-archived-trackers');
  
      //assign specific quiz inside terms
      Route::get('get-assign-term-quiz/{term_id}',[AssignQuizTermController::class,'getAssignTermQuiz'])->name('get-assign-term-quiz');

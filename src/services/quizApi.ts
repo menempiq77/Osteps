@@ -1,5 +1,6 @@
 // src/services/quizApi.ts
 import { createApiClient } from "@/lib/apiClient";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
 const api = createApiClient();
@@ -11,6 +12,38 @@ export const fetchQuizes = async (schoolId: string, subjectId?: number) => {
     params: withSubjectQuery({}, subjectId),
   });
   return response.data.data;
+};
+
+export type ArchivedQuizImportResult = {
+  source_quiz_id: number;
+  imported_quiz_id: number;
+  name: string;
+  subject_id: number;
+  question_count: number;
+  option_count: number;
+  assignment_count: number;
+  submission_count: number;
+};
+
+export const importArchivedQuizzes = async (payload: {
+  source_subject_id: number;
+  target_subject_id: number;
+  quiz_ids: number[];
+  request_token: string;
+}) => {
+  const response = await api.post("/import-archived-quizzes", payload);
+  throwOnEmbeddedFailure(response.data, {
+    fallbackStatus: response.status,
+    fallbackMessage: "Failed to import archived quizzes",
+  });
+  return response.data as {
+    status_code: number;
+    msg: string;
+    data: {
+      imported_count: number;
+      quizzes: ArchivedQuizImportResult[];
+    };
+  };
 };
 // add Quiz
 export const addQuize = async (quizData: { name: string; description?: string; [key: string]: unknown }, subjectId?: number) => {

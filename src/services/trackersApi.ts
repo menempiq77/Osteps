@@ -1,5 +1,6 @@
 // src/services/trackersApi.ts
 import { createApiClient } from "@/lib/apiClient";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
 import { withSubjectPayload, withSubjectQuery } from "@/lib/subjectScope";
 
 const api = createApiClient();
@@ -10,6 +11,40 @@ export const fetchAllTrackers = async (schoolId: number, subjectId?: number) => 
     params: withSubjectQuery({}, subjectId),
   });
   return response.data.data;
+};
+
+export type ArchivedTrackerImportResult = {
+  source_tracker_id: number;
+  imported_tracker_id: number;
+  name: string;
+  subject_id: number;
+  topic_count: number;
+  status_count: number;
+  quiz_count: number;
+  assignment_count: number;
+  progress_count: number;
+  certificate_count: number;
+};
+
+export const importArchivedTrackers = async (payload: {
+  source_subject_id: number;
+  target_subject_id: number;
+  tracker_ids: number[];
+  request_token: string;
+}) => {
+  const response = await api.post("/import-archived-trackers", payload);
+  throwOnEmbeddedFailure(response.data, {
+    fallbackStatus: response.status,
+    fallbackMessage: "Failed to import archived trackers",
+  });
+  return response.data as {
+    status_code: number;
+    msg: string;
+    data: {
+      imported_count: number;
+      trackers: ArchivedTrackerImportResult[];
+    };
+  };
 };
 
 
