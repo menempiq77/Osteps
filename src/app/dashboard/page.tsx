@@ -40,6 +40,7 @@ import { shouldUseLegacyUnscopedSubjectData } from "@/lib/subjectScope";
 import { filterStudentsBySubjectScope, studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
 import {
   makeSubjectHintScopeKey,
   matchesSubjectStudentHint,
@@ -123,10 +124,6 @@ const THEME_COLOR_LIGHT = "var(--theme-soft)";
 const THEME_COLOR_DARK = "var(--theme-dark)";
 const formatSubjectDashboardName = (value?: string | null) =>
   String(value || "Subject").replace(/islamiat/gi, "Islamic").trim();
-const ISLAMIC_DASHBOARD_IMAGE =
-  "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Green_Dome%2C_Masjid_Nabawi%2C_Madina.jpg";
-const ARABIC_DASHBOARD_IMAGE =
-  "https://commons.wikimedia.org/wiki/Special:Redirect/file/The_Arabic_Alphabet._Ottoman_Calligraphy_%28CBL_T_490%2C_ff.1b-2a%29.jpg";
 
 const parseDueTimestamp = (dueDate: unknown): number | null => {
   if (!dueDate) return null;
@@ -1823,6 +1820,7 @@ export default function DashboardPage() {
     ? `View the latest information for ${subjectDashboardName}.`
     : "Let's get started. Explore your dashboard to manage your activities.";
   const isStudentDashboard = currentUser?.role === "STUDENT";
+  const subjectDashboardImage = normalizeSubjectImageUrl(activeSubject?.dashboard_image_url);
 
   return (
     <div
@@ -1874,7 +1872,15 @@ export default function DashboardPage() {
                 {heroDescription}
               </p>
             </div>
-            {currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
+            {isSubjectWorkspaceMode && subjectDashboardImage ? (
+              <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
+                <img
+                  src={subjectDashboardImage}
+                  alt={`${subjectDashboardName} dashboard`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : currentUser?.role !== "SUPER_ADMIN" && schoolLogo ? (
               <div className={`${isStudentDashboard ? "h-12 w-12 md:h-14 md:w-14" : "h-14 w-14 md:h-16 md:w-16"} overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm`}>
                 <img
                   src={`${IMG_BASE_URL}/storage/${schoolLogo}`}
@@ -1883,25 +1889,6 @@ export default function DashboardPage() {
                 />
               </div>
             ) : (
-              isSubjectWorkspaceMode &&
-              /islam|islamiat|islamic/i.test(String(activeSubject?.name || "")) ? (
-                <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
-                  <img
-                    src={ISLAMIC_DASHBOARD_IMAGE}
-                    alt="Al-Masjid an-Nabawi"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : isSubjectWorkspaceMode &&
-                /arabic|arab/i.test(String(activeSubject?.name || "")) ? (
-                <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
-                  <img
-                    src={ARABIC_DASHBOARD_IMAGE}
-                    alt="Arabic alphabet calligraphy"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
                 <div
                   className={`hidden rounded-2xl border border-[var(--theme-border)] shadow-sm md:block ${isStudentDashboard ? "p-2" : "p-2.5"}`}
                   style={{ backgroundColor: THEME_COLOR_LIGHT }}
@@ -1922,7 +1909,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
               )
-            )}
+            }
           </div>
         </div>
       </Card>

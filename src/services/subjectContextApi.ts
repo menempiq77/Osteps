@@ -3,6 +3,7 @@ import { fetchSubjects } from "@/services/subjectsApi";
 import { fetchSubjectClasses, fetchStaffSubjectAssignments } from "@/services/subjectWorkspaceApi";
 import { fetchAssignYears } from "@/services/yearsApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
 import type { SubjectBrief, SubjectContextResponse } from "@/types/subjectContext";
 
 const normalizeSubjects = (raw: any): SubjectBrief[] => {
@@ -13,6 +14,7 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
       name: String(item?.name ?? ""),
       code: item?.code ?? null,
       class_label: item?.class_label ?? null,
+      dashboard_image_url: normalizeSubjectImageUrl(item?.dashboard_image_url),
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
@@ -34,6 +36,9 @@ const normalizeStaffAssignmentSubjects = (raw: any): SubjectBrief[] => {
       name: String(item?.subject_name ?? item?.subject?.name ?? ""),
       code: item?.subject_code ?? item?.subject?.code ?? null,
       class_label: null,
+      dashboard_image_url: normalizeSubjectImageUrl(
+        item?.dashboard_image_url ?? item?.subject?.dashboard_image_url
+      ),
     }))
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
@@ -212,7 +217,12 @@ const fetchStudentSubjectsFromBaseClass = async (studentClassId: number): Promis
 
 export const fetchMySubjectContext = async (options?: {
   role?: string;
-  knownSubjects?: Array<{ id: number; name: string; code?: string | null }>;
+  knownSubjects?: Array<{
+    id: number;
+    name: string;
+    code?: string | null;
+    dashboard_image_url?: string | null;
+  }>;
   knownSubjectRoles?: Array<{ subject_id: number; role_scope: string }>;
   studentId?: number | null;
   studentClassId?: number | null;

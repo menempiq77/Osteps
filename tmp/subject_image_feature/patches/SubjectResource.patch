@@ -1,0 +1,4 @@
+--- a/app/Http/Resources/SubjectResource.php
++++ b/app/Http/Resources/SubjectResource.php
+@@ -21,0 +22 @@
++            'dashboard_image_url' => $this->dashboard_image_url,

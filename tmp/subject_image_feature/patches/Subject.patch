@@ -1,0 +1,6 @@
+--- a/app/Models/Subject.php
++++ b/app/Models/Subject.php
+@@ -12 +12,2 @@
+-        'school_id'
++        'school_id',
++        'dashboard_image_url',

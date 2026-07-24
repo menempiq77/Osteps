@@ -1431,14 +1431,71 @@ export default function StudentList() {
   const seatingApiReady = !!seatingScopeId && canArrangeSeats && !seatingQuery.isError;
   const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
+  const createStudentInCurrentClass = async (payload: any) => {
+    const added = await apiAddStudent(payload, scopedSubjectId);
+    const subjectId = Number(scopedSubjectId ?? 0);
+    const subjectClassId = Number(effectiveSubjectClassId || 0);
+
+    if (subjectId <= 0 || subjectClassId <= 0) {
+      return { added, assignmentPending: false };
+    }
+
+    let createdStudentId = Number(extractStudentCandidateIds(added)[0] || 0);
+    if (createdStudentId <= 0) {
+      const classStudents = await fetchStudents(payload.class_id, 0, undefined);
+      const normalizedUserName = String(payload.user_name || "").trim().toLowerCase();
+      const normalizedEmail = String(payload.email || "").trim().toLowerCase();
+      const normalizedName = String(payload.student_name || "").trim().toLowerCase();
+      const createdStudent = (Array.isArray(classStudents) ? classStudents : []).find(
+        (student: Record<string, any>) =>
+          (normalizedUserName &&
+            String(student?.user_name || "").trim().toLowerCase() === normalizedUserName) ||
+          (normalizedEmail &&
+            String(student?.email || "").trim().toLowerCase() === normalizedEmail) ||
+          (normalizedName &&
+            String(student?.student_name || "").trim().toLowerCase() === normalizedName)
+      );
+      createdStudentId = Number(extractStudentCandidateIds(createdStudent)[0] || 0);
+    }
+
+    if (createdStudentId <= 0) {
+      return { added, assignmentPending: true };
+    }
+
+    try {
+      await assignStudentsToSubjects({
+        subjectIds: [subjectId],
+        studentIds: [createdStudentId],
+        subjects: editSubjectOptions.map((option) => ({
+          id: Number(option.value),
+          name: option.label,
+        })),
+        subjectClassIds: [subjectClassId],
+        forceReassign: false,
+        allowCrossClass: true,
+      });
+      return { added, assignmentPending: false };
+    } catch {
+      return { added, assignmentPending: true };
+    }
+  };
+
   const addStudentMutation = useMutation({
-    mutationFn: (payload: any) => apiAddStudent(payload, scopedSubjectId),
-    onSuccess: (data: any, variables: any) => {
-      rememberRecentAddedStudent(data, variables);
-      queryClient.refetchQueries({ queryKey: studentsQueryKey });
-      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
+    mutationFn: createStudentInCurrentClass,
+    onSuccess: async (result, variables: any) => {
+      rememberRecentAddedStudent(result.added, variables);
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.refetchQueries({ queryKey: studentsQueryKey, type: "active" });
+      await queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey, type: "active" });
       setIsAddStudentModalOpen(false);
-      messageApi.success("Student added successfully.");
+      if (result.assignmentPending) {
+        messageApi.warning(
+          "Student created, but subject assignment is pending. Use Assign Existing to finish the class assignment."
+        );
+      } else {
+        messageApi.success("Student added successfully.");
+      }
     },
     onError: (error: unknown) => {
       const backendMessage =
@@ -2192,26 +2249,36 @@ export default function StudentList() {
 
     let successCount = 0;
     let failedCount = 0;
+    let assignmentWarningCount = 0;
 
     for (const payload of payloads) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const added = await apiAddStudent(payload, scopedSubjectId);
-        rememberRecentAddedStudent(added, payload);
+        const result = await createStudentInCurrentClass(payload);
+        rememberRecentAddedStudent(result.added, payload);
         successCount += 1;
+        if (result.assignmentPending) {
+          assignmentWarningCount += 1;
+        }
       } catch {
         failedCount += 1;
       }
     }
 
     if (successCount > 0) {
-      queryClient.refetchQueries({ queryKey: studentsQueryKey });
-      queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.refetchQueries({ queryKey: studentsQueryKey, type: "active" });
+      await queryClient.refetchQueries({ queryKey: behaviorSummaryQueryKey, type: "active" });
       setIsAddStudentModalOpen(false);
     }
 
-    if (failedCount === 0) {
+    if (failedCount === 0 && assignmentWarningCount === 0) {
       messageApi.success(`Added ${successCount} students successfully.`);
+    } else if (failedCount === 0) {
+      messageApi.warning(
+        `Added ${successCount} students; subject assignment is pending for ${assignmentWarningCount}.`
+      );
     } else if (successCount > 0) {
       messageApi.warning(`Added ${successCount} students, ${failedCount} failed.`);
     } else {
