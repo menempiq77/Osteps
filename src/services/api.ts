@@ -144,6 +144,38 @@ export const fetchSchoolAssessment = async (schoolId: number, subjectId?: number
   return response.data.data ?? [];
 };
 
+export type ArchivedAssessmentImportResult = {
+  id: number;
+  source_assessment_id: number;
+  subject_id: number;
+  name: string;
+  type: string;
+  task_count: number;
+  quiz_task_count: number;
+  assignment_count: number;
+};
+
+export const importArchivedAssessments = async (payload: {
+  source_subject_id: number;
+  target_subject_id: number;
+  assessment_ids: number[];
+  request_token: string;
+}) => {
+  const response = await api.post('/import-archived-assessments', payload);
+  throwOnEmbeddedFailure(response.data, {
+    fallbackStatus: response.status,
+    fallbackMessage: 'Failed to import archived assessments',
+  });
+  return response.data as {
+    status_code: number;
+    msg: string;
+    data: {
+      imported_count: number;
+      assessments: ArchivedAssessmentImportResult[];
+    };
+  };
+};
+
 // reorder Assessment
 export const reorderAssessments = async (orders: { id: number; position: number }[]) => {
   const response = await api.post('/reorder-assessment', {

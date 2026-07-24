@@ -10,6 +10,7 @@ import { Spin, Modal, Button, Breadcrumb, message, Tooltip } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
+  ImportOutlined,
   PlusOutlined,
   TeamOutlined,
   CalendarOutlined,
@@ -21,10 +22,22 @@ import {
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
   fetchAllTrackers,
+  importArchivedTrackers,
 } from "@/services/trackersApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import ArchivedContentImportModal, {
+  type ArchivedImportSource,
+} from "@/components/dashboard/ArchivedContentImportModal";
+import {
+  clearArchivedImportRequestToken,
+  getArchivedImportRequestToken,
+  isArchivedSubjectClasses,
+  resolveArchivedImportError,
+} from "@/lib/archivedContentImport";
 
 // ─── Subject isolation helpers ───────────────────────────────────────────────
 const TRACKER_SUBJECT_MAP_KEY = "osteps_tracker_subject_map";
@@ -92,6 +105,8 @@ type Tracker = {
   type: string;
   status: string;
   progress: string[];
+  subject_id?: number | string | null;
+  is_topic?: number | boolean | null;
   deadline?: string | null;
 };
 
@@ -111,12 +126,23 @@ export default function AllTrackerList() {
   const router = useRouter();
   
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, activeSubject, loading: subjectContextLoading } = useSubjectContext();
+  const {
+    activeSubjectId,
+    canUseSubjectContext,
+    activeSubject,
+    loading: subjectContextLoading,
+    subjects,
+  } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
+  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
   const canDeleteTrackers =
     currentUser?.role === "SCHOOL_ADMIN" || currentUser?.role === "HOD";
+  const canImportArchivedTrackers =
+    currentUser?.role === "SCHOOL_ADMIN" &&
+    inSubjectContext &&
+    !isReadOnlyArchivedWorkspace;
 
   const [editTracker, setEditTracker] = useState<Tracker | null>(null);
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
@@ -124,6 +150,16 @@ export default function AllTrackerList() {
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [archivedSources, setArchivedSources] = useState<
+    ArchivedImportSource[]
+  >([]);
+  const [selectedSourceSubjectId, setSelectedSourceSubjectId] = useState<
+    number | null
+  >(null);
+  const [selectedTrackerIds, setSelectedTrackerIds] = useState<string[]>([]);
+  const [loadingArchivedSources, setLoadingArchivedSources] = useState(false);
+  const [importingTrackers, setImportingTrackers] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const queryClient = useQueryClient();
@@ -131,22 +167,17 @@ export default function AllTrackerList() {
   const {
     data: rawTrackers = [],
     isLoading,
-    isError,
-  } = useQuery({
+  } = useQuery<Tracker[]>({
     queryKey: ["trackers", schoolId],
     queryFn: async () => {
       const data = await fetchAllTrackers(Number(schoolId));
-      return data.map((tracker: any) => ({
+      return (Array.isArray(data) ? data : []).map((tracker: Tracker) => ({
         ...tracker,
         id: tracker.id.toString(),
         deadline: normalizeDeadline(tracker),
       }));
     },
     enabled: !!schoolId,
-    onError: (err) => {
-      console.error(err);
-      messageApi.error("Failed to fetch trackers");
-    },
   });
 
   // Filter: only show trackers tagged to this subject.
@@ -329,6 +360,153 @@ export default function AllTrackerList() {
     setAssignTracker(tracker);
   };
 
+  const loadArchivedTrackerSources = async () => {
+    if (!schoolId || !activeSubjectId) return;
+    setLoadingArchivedSources(true);
+    try {
+      const sourceRows = await Promise.all(
+        subjects
+          .filter(
+            (subject) => Number(subject.id) !== Number(activeSubjectId),
+          )
+          .map(async (subject) => {
+            const [classRows, sourceTrackers] = await Promise.all([
+              fetchSubjectClasses({
+                subject_id: Number(subject.id),
+                include_inactive: true,
+              }),
+              fetchAllTrackers(Number(schoolId), Number(subject.id)),
+            ]);
+            return {
+              subject,
+              classRows: Array.isArray(classRows) ? classRows : [],
+              sourceTrackers: Array.isArray(sourceTrackers)
+                ? sourceTrackers
+                : [],
+            };
+          }),
+      );
+
+      const sources = sourceRows
+        .filter(
+          ({ classRows, sourceTrackers }) =>
+            isArchivedSubjectClasses(classRows) &&
+            sourceTrackers.length > 0,
+        )
+        .map(({ subject, sourceTrackers }) => ({
+          subjectId: Number(subject.id),
+          subjectName: String(subject.name),
+          items: sourceTrackers.map((tracker: Tracker) => ({
+            id: String(tracker.id),
+            name: String(tracker.name),
+          })),
+        }));
+
+      setArchivedSources(sources);
+      setSelectedSourceSubjectId(sources[0]?.subjectId ?? null);
+      setSelectedTrackerIds([]);
+    } catch (error) {
+      messageApi.error(
+        resolveArchivedImportError(
+          error,
+          "Failed to load trackers from archived subjects.",
+        ),
+      );
+    } finally {
+      setLoadingArchivedSources(false);
+    }
+  };
+
+  const openArchivedTrackerImport = () => {
+    setImportOpen(true);
+    setSelectedSourceSubjectId(null);
+    setSelectedTrackerIds([]);
+    void loadArchivedTrackerSources();
+  };
+
+  const handleImportArchivedTrackers = async () => {
+    if (
+      !schoolId ||
+      !activeSubjectId ||
+      !selectedSourceSubjectId ||
+      selectedTrackerIds.length === 0
+    ) {
+      messageApi.warning(
+        "Choose an archived subject and at least one tracker.",
+      );
+      return;
+    }
+
+    const numericTrackerIds = selectedTrackerIds
+      .map(Number)
+      .filter((id) => Number.isFinite(id) && id > 0)
+      .sort((a, b) => a - b);
+    const requestSignature = [
+      "tracker",
+      selectedSourceSubjectId,
+      activeSubjectId,
+      numericTrackerIds.join(","),
+    ].join(":");
+
+    setImportingTrackers(true);
+    try {
+      const response = await importArchivedTrackers({
+        source_subject_id: selectedSourceSubjectId,
+        target_subject_id: Number(activeSubjectId),
+        tracker_ids: numericTrackerIds,
+        request_token: getArchivedImportRequestToken(requestSignature),
+      });
+      const imported = response.data.trackers;
+
+      if (
+        response.data.imported_count !== numericTrackerIds.length ||
+        imported.length !== numericTrackerIds.length
+      ) {
+        throw new Error("The server did not import every selected tracker.");
+      }
+      if (
+        imported.some(
+          (tracker) =>
+            Number(tracker.subject_id) !== Number(activeSubjectId) ||
+            Number(tracker.source_tracker_id) ===
+              Number(tracker.imported_tracker_id) ||
+            tracker.assignment_count !== 0 ||
+            tracker.progress_count !== 0 ||
+            tracker.certificate_count !== 0,
+        )
+      ) {
+        throw new Error(
+          "Imported trackers did not pass the subject or history safety check.",
+        );
+      }
+
+      imported.forEach((tracker) =>
+        tagTrackerWithSubject(
+          Number(tracker.imported_tracker_id),
+          Number(activeSubjectId),
+        ),
+      );
+      clearArchivedImportRequestToken(requestSignature);
+      await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
+      setImportOpen(false);
+      setSelectedTrackerIds([]);
+      messageApi.success(
+        `${imported.length} ${
+          imported.length === 1 ? "tracker was" : "trackers were"
+        } imported without student progress.`,
+      );
+    } catch (error) {
+      messageApi.error(
+        resolveArchivedImportError(
+          error,
+          "Failed to import archived trackers.",
+        ),
+      );
+    } finally {
+      setImportingTrackers(false);
+    }
+  };
+
   if (isLoading || subjectContextLoading)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -350,15 +528,26 @@ export default function AllTrackerList() {
         ]}
         className="!mb-2"
       />
-      <div className="premium-hero flex items-center justify-between mb-6 px-4 py-3 rounded-xl">
+      <div className="premium-hero mb-6 flex flex-col gap-3 rounded-xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">
           {activeSubject?.name ? `${activeSubject.name} - ` : ""}All Trackers
         </h1>
         {currentUser?.role !== "STUDENT" && (
-          <>
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            {canImportArchivedTrackers && (
+              <Button
+                size="large"
+                className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
+                icon={<ImportOutlined />}
+                onClick={openArchivedTrackerImport}
+              >
+                Import from Archive
+              </Button>
+            )}
             <Button
               type="primary"
-              className="premium-pill-btn cursor-pointer !bg-primary !text-white hover:!bg-primary/90 !border-0"
+              size="large"
+              className="premium-pill-btn !h-11 w-full cursor-pointer justify-center !border-0 !bg-primary !text-white hover:!bg-primary/90 sm:w-auto"
               icon={<PlusOutlined />}
               onClick={() => setIsAddTrackerModalOpen(true)}
             >
@@ -369,7 +558,7 @@ export default function AllTrackerList() {
               onOpenChange={setIsAddTrackerModalOpen}
               onAddTracker={handleAddNewTracker}
             />
-          </>
+          </div>
         )}
       </div>
 
@@ -412,7 +601,7 @@ export default function AllTrackerList() {
                     {/* Left Section: Tracker Info */}
                     <div className="flex-1 min-w-0">
                       <h3
-                        onClick={() => handleTrackerClick(tracker?.id, tracker?.type)}
+                        onClick={() => handleTrackerClick(tracker?.id)}
                         className="mb-2 cursor-pointer text-base font-bold text-[var(--theme-dark)] transition-colors group-hover:underline hover:text-[var(--primary)] md:text-lg"
                       >
                         {tracker?.name}
@@ -529,6 +718,28 @@ export default function AllTrackerList() {
           Are you sure you want to delete this tracker? <br /> This action cannot be undone.
         </p>
       </Modal>
+
+      <ArchivedContentImportModal
+        open={importOpen}
+        loading={loadingArchivedSources}
+        importing={importingTrackers}
+        noun="tracker"
+        activeSubjectName={activeSubject?.name}
+        sources={archivedSources}
+        selectedSourceSubjectId={selectedSourceSubjectId}
+        selectedItemIds={selectedTrackerIds}
+        onSourceChange={(subjectId) => {
+          setSelectedSourceSubjectId(subjectId);
+          setSelectedTrackerIds([]);
+        }}
+        onItemsChange={setSelectedTrackerIds}
+        onCancel={() => {
+          if (importingTrackers) return;
+          setImportOpen(false);
+          setSelectedTrackerIds([]);
+        }}
+        onImport={handleImportArchivedTrackers}
+      />
 
       <TrackerAssignDrawer
         tracker={assignTracker ? { id: assignTracker.id, name: assignTracker.name } : null}
