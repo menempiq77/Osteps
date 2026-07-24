@@ -14,6 +14,7 @@ import { getStoredSubjectName } from "@/lib/subjectScope";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { IMPERSONATION_STORAGE_KEY, isImpersonating, logout, setCurrentUser } from "@/features/auth/authSlice";
 import { User } from "@/features/auth/types";
+import { normalizeUserRole } from "@/lib/userRole";
 
 const QuickLauncher = dynamic(() => import("@/components/ui/QuickLauncher"));
 const FavoriteSidebar = dynamic(() => import("@/components/ui/FavoriteSidebar"));
@@ -339,7 +340,7 @@ export default function DashboardLayout({
     : "pt-[100px] md:pl-[72px] md:pt-[66px]";
 
   const userRoleLabel = (() => {
-    const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
+    const role = normalizeUserRole(currentUser?.role);
     if (role === "STUDENT") return (currentUser as any)?.studentClassName || "Student";
     if (role === "SCHOOL_ADMIN") return "School Admin";
     if (role === "HOD") return "HOD";
@@ -356,10 +357,12 @@ export default function DashboardLayout({
       .map((part) => part.charAt(0).toUpperCase())
       .join("") || "O";
   const userFirstName = userDisplayName.trim().split(/\s+/)[0] || "there";
-  const normalizedRole = String(currentUser?.role || "").trim().toUpperCase();
+  const normalizedRole = normalizeUserRole(currentUser?.role);
+  const isPlatformAdmin = normalizedRole === "SUPER_ADMIN";
   const workspaceLabel = `${userRoleLabel} Workspace`.toUpperCase();
   const settingsHref =
-    normalizedRole === "STUDENT" ? "/dashboard/students/settings"
+    isPlatformAdmin ? "/dashboard/admins/settings"
+    : normalizedRole === "STUDENT" ? "/dashboard/students/settings"
     : normalizedRole === "TEACHER" ? "/dashboard/teachers/settings"
     : "/dashboard/school-admin/settings";
 
@@ -391,7 +394,7 @@ export default function DashboardLayout({
     <div className="flex shrink-0 items-center justify-start gap-1 lg:justify-end">
       <button
         type="button"
-        onClick={() => router.push("/dashboard/subject-cards")}
+        onClick={() => router.push(isPlatformAdmin ? "/dashboard" : "/dashboard/subject-cards")}
         className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08] text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 sm:h-9 sm:w-9 sm:rounded-xl"
         aria-label="Home"
         title="Home"

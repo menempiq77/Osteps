@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { normalizeUserRole } from "@/lib/userRole";
 import {
   Input,
   Select,
@@ -24,7 +25,6 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 
 const { TextArea } = Input;
 const { Option } = Select;
-const PRIMARY_ADMIN_EMAIL = "abdelmonem@gmail.com";
 
 type Announcement = {
   id: string;
@@ -62,12 +62,7 @@ export default function AnnouncementsPage() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, activeSubject } = useSubjectContext();
   const scopedSubjectName = String(activeSubject?.name || "").replace(/islamiat/gi, "Islamic").trim();
-  const isPrimaryPlatformAdmin =
-    String(currentUser?.email ?? "").trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
-  const effectiveRole =
-    currentUser?.role === "SUPER_ADMIN" || isPrimaryPlatformAdmin
-      ? "SUPER_ADMIN"
-      : String(currentUser?.role ?? "").trim().toUpperCase();
+  const effectiveRole = normalizeUserRole(currentUser?.role);
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<

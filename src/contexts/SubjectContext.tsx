@@ -9,6 +9,7 @@ import type { SubjectBrief } from "@/types/subjectContext";
 import { extractSubjectIdFromPath, isSubjectScopedPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { getStoredSubjectId, isSubjectContextEnabled, storeSubjectId } from "@/lib/subjectScope";
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
+import { normalizeUserRole } from "@/lib/userRole";
 
 type SubjectContextValue = {
   subjects: SubjectBrief[];
@@ -24,8 +25,8 @@ type SubjectContextValue = {
 const SubjectContext = createContext<SubjectContextValue | null>(null);
 
 const isRoleEligible = (role: string | undefined): boolean => {
-  const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
-  return ["SCHOOL_ADMIN", "ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
+  const roleKey = normalizeUserRole(role);
+  return ["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey);
 };
 
 const normalizeSeedSubjects = (
@@ -74,7 +75,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const { currentUser } = useSelector((state: RootState) => state.auth);
 
   const role = currentUser?.role;
-  const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const roleKey = normalizeUserRole(role);
   const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
   const subjectIdParam = searchParams.get("subject_id") ?? "";
@@ -83,7 +84,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const seedSubjects =
     roleKey === "HOD" && seedSubjectRoles.length === 0
       ? []
-      : ["ADMIN", "HOD", "TEACHER"].includes(roleKey) && seedSubjectRoles.length > 0
+      : ["HOD", "TEACHER"].includes(roleKey) && seedSubjectRoles.length > 0
       ? rawSeedSubjects.filter((subject) =>
           seedSubjectRoles.some((subjectRole) => subjectRole.subject_id === Number(subject.id))
         )
