@@ -213,5 +213,21 @@ export const ADHKAR_TOTAL_ENTRIES = ADHKAR_CATEGORIES.reduce(
   0,
 );
 
-export const isIslamicSubjectName = (value?: string | null) =>
-  /islam|islamiat|islamic/i.test(String(value || ""));
+const LATIN_ISLAMIC_SUBJECT_KEYWORD =
+  /(^|[^a-z])(?:islam(?:ic|i(?:a|at|yat|yah|yyah)?)?|religious)(?=$|[^a-z])/i;
+const ARABIC_ISLAMIC_SUBJECT_KEYWORD =
+  /(^|[^\u0621-\u064a])(?:ال)?(?:اسلام(?:ي(?:ة|ه|ك|ات)?)?|دين(?:ي(?:ة|ه)?)?)(?=$|[^\u0621-\u064a])/;
+
+export const isIslamicSubjectName = (value?: string | null) => {
+  const normalized = String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0640\u064b-\u065f\u0670\u06d6-\u06ed]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .toLowerCase();
+
+  return (
+    LATIN_ISLAMIC_SUBJECT_KEYWORD.test(normalized) ||
+    ARABIC_ISLAMIC_SUBJECT_KEYWORD.test(normalized)
+  );
+};
