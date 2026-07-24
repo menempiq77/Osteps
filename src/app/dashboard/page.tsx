@@ -51,6 +51,8 @@ import { IMPERSONATION_STORAGE_KEY } from "@/features/auth/authSlice";
 import ClassStoryPanel from "@/components/dashboard/ClassStoryPanel";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { normalizeUserRole } from "@/lib/userRole";
+import PrayerBeadsIcon from "@/components/icons/PrayerBeadsIcon";
+import { isIslamicSubjectName } from "@/lib/adhkarData";
 
 const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCharts"), {
   ssr: false,
@@ -1824,6 +1826,10 @@ export default function DashboardPage() {
     : "Let's get started. Explore your dashboard to manage your activities.";
   const isStudentDashboard = currentUser?.role === "STUDENT";
   const subjectDashboardImage = normalizeSubjectImageUrl(activeSubject?.dashboard_image_url);
+  const showAdhkarShortcut =
+    isSubjectWorkspaceMode &&
+    !!activeSubjectId &&
+    isIslamicSubjectName(activeSubject?.name);
 
   return (
     <div
@@ -1874,6 +1880,21 @@ export default function DashboardPage() {
               <p className={`${isStudentDashboard ? "mt-2 text-xs leading-5 md:text-sm" : "mt-3 text-sm leading-6 md:text-base"} max-w-2xl text-slate-500`}>
                 {heroDescription}
               </p>
+              {showAdhkarShortcut ? (
+                <Link
+                  href={toSubjectScopedPath(
+                    "/dashboard/adhkar",
+                    Number(activeSubjectId),
+                    activeSubject?.name
+                  )}
+                  title="Open Adhkar"
+                  aria-label="Open Adhkar"
+                  className="mt-2.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow"
+                >
+                  <PrayerBeadsIcon className="h-[18px] w-[18px]" />
+                  <span className="sr-only">Open Adhkar</span>
+                </Link>
+              ) : null}
             </div>
             {isSubjectWorkspaceMode && subjectDashboardImage ? (
               <div className={`hidden overflow-hidden rounded-2xl border border-[var(--theme-border)] bg-white shadow-sm md:block ${isStudentDashboard ? "h-16 w-16 md:h-20 md:w-20" : "h-20 w-20 md:h-24 md:w-24"}`}>
