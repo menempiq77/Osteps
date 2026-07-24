@@ -34,9 +34,9 @@ export default function GamesPage() {
             </h2>
           </div>
           <p className="max-w-md text-sm leading-6 text-slate-500">
-            Games use spendable coins only. Between levels, students answer
-            five questions from completed tracker topics; leaderboard points
-            never decrease.
+            Every student entry has a positive spendable-coin price. Between
+            levels, students answer five questions from completed tracker
+            topics; leaderboard points never decrease.
           </p>
         </div>
 

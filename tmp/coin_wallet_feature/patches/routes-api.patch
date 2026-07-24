@@ -3,7 +3,11 @@
 @@ -50,1 +50,2 @@
  use App\Http\Controllers\Api\SeatingLayoutController;
 +use App\Http\Controllers\Api\StudentCoinWalletController;
-@@ -378,1 +379,3 @@
+@@ -378,1 +379,7 @@
  Route::get('leaderboard/school-self', [LeaderBoardController::class, 'schoolSelf'])->name('leaderboard-school-self');
 +    Route::get('student-wallet/balance', [StudentCoinWalletController::class, 'balance'])->name('student-wallet-balance');
 +    Route::post('student-wallet/spend', [StudentCoinWalletController::class, 'spend'])->name('student-wallet-spend');
++    Route::post('student-wallet/game-pass', [StudentCoinWalletController::class, 'purchaseGamePass'])->name('student-wallet-game-pass');
++    Route::post('student-wallet/game-pass/status', [StudentCoinWalletController::class, 'gamePassStatus'])->name('student-wallet-game-pass-status');
++    Route::get('student-wallet/adhkar-rewards', [StudentCoinWalletController::class, 'adhkarRewards'])->name('student-wallet-adhkar-rewards');
++    Route::post('student-wallet/adhkar-rewards', [StudentCoinWalletController::class, 'awardAdhkar'])->name('student-wallet-award-adhkar');
