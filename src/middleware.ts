@@ -74,6 +74,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "shared_materials",
   "students",
   "behavior",
+  "adhkar",
   "mind-upgrade",
   "subjects",
   "subject-cards",
