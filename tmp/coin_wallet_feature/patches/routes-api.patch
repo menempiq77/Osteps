@@ -3,7 +3,7 @@
 @@ -50,1 +50,2 @@
  use App\Http\Controllers\Api\SeatingLayoutController;
 +use App\Http\Controllers\Api\StudentCoinWalletController;
-@@ -378,1 +379,9 @@
+@@ -378,1 +379,10 @@
  Route::get('leaderboard/school-self', [LeaderBoardController::class, 'schoolSelf'])->name('leaderboard-school-self');
 +    Route::get('student-wallet/balance', [StudentCoinWalletController::class, 'balance'])->name('student-wallet-balance');
 +    Route::post('student-wallet/spend', [StudentCoinWalletController::class, 'spend'])->name('student-wallet-spend');
@@ -13,3 +13,4 @@
 +    Route::post('student-wallet/adhkar-rewards', [StudentCoinWalletController::class, 'awardAdhkar'])->name('student-wallet-award-adhkar');
 +    Route::get('student-wallet/prayer-rewards', [StudentCoinWalletController::class, 'prayerRewards'])->name('student-wallet-prayer-rewards');
 +    Route::post('student-wallet/prayer-rewards', [StudentCoinWalletController::class, 'awardPrayer'])->name('student-wallet-award-prayer');
++    Route::get('student-wallet/prayer-history', [StudentCoinWalletController::class, 'prayerHistory'])->name('student-wallet-prayer-history');

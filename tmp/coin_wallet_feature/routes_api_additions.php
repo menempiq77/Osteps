@@ -18,3 +18,5 @@ Route::get('student-wallet/prayer-rewards', [StudentCoinWalletController::class,
     ->name('student-wallet-prayer-rewards');
 Route::post('student-wallet/prayer-rewards', [StudentCoinWalletController::class, 'awardPrayer'])
     ->name('student-wallet-award-prayer');
+Route::get('student-wallet/prayer-history', [StudentCoinWalletController::class, 'prayerHistory'])
+    ->name('student-wallet-prayer-history');

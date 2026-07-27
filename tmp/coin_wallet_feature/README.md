@@ -32,6 +32,7 @@ GET  /api/student-wallet/adhkar-rewards
 POST /api/student-wallet/adhkar-rewards
 GET  /api/student-wallet/prayer-rewards
 POST /api/student-wallet/prayer-rewards
+GET  /api/student-wallet/prayer-history
 ```
 
 Spend request:
@@ -79,6 +80,17 @@ not changed.
 Prayer rewards are also server-dated and idempotent. Fajr, Dhuhr, Asr, Maghrib,
 and Isha each award 10 coins once per student/day. The server owns the five
 eligible prayer IDs and stores `prayer:{prayerId}:{date}` transaction keys.
+The read-only prayer history groups those transactions by UAE calendar date for
+student and authorized staff reports.
+
+Configure the server-owned daily boundary in `config/app.php`:
+
+```php
+'daily_reward_timezone' => env('DAILY_REWARD_TIMEZONE', 'Asia/Dubai'),
+```
+
+Set `DAILY_REWARD_TIMEZONE=Asia/Dubai` in the Laravel environment before
+clearing the config cache.
 
 ## Apply to a Laravel checkout
 

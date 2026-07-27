@@ -179,7 +179,7 @@ class StudentCoinWalletService
     public function adhkarRewardsForToday(int $studentId): array
     {
         $wallet = $this->balanceForStudent($studentId);
-        $rewardDate = now()->toDateString();
+        $rewardDate = $this->rewardDate();
         $transactions = StudentCoinTransaction::where([
             'student_id' => $studentId,
             'source_type' => 'adhkar_reward',
@@ -264,7 +264,7 @@ class StudentCoinWalletService
     public function prayerRewardsForToday(int $studentId): array
     {
         $wallet = $this->balanceForStudent($studentId);
-        $rewardDate = now()->toDateString();
+        $rewardDate = $this->rewardDate();
         $prefix = 'prayer:';
         $suffix = ":{$rewardDate}";
         $prayerIds = StudentCoinTransaction::where([
@@ -301,7 +301,7 @@ class StudentCoinWalletService
         }
 
         $amount = 10;
-        $rewardDate = now()->toDateString();
+        $rewardDate = $this->rewardDate();
         $sourceKey = "prayer:{$prayerId}:{$rewardDate}";
         $this->balanceForStudent($studentId);
         $awarded = DB::transaction(function () use (
@@ -342,6 +342,54 @@ class StudentCoinWalletService
             'reward_amount' => $amount,
             'awarded' => $awarded,
         ];
+    }
+
+    public function prayerRewardHistory(
+        int $studentId,
+        int $dayLimit = 31
+    ): array {
+        $sourceKeys = StudentCoinTransaction::where([
+            'student_id' => $studentId,
+            'source_type' => 'prayer_reward',
+        ])
+            ->where('source_key', 'like', 'prayer:%')
+            ->orderByDesc('id')
+            ->limit(max(1, $dayLimit) * count(self::DAILY_PRAYERS))
+            ->pluck('source_key');
+        $days = [];
+
+        foreach ($sourceKeys as $sourceKey) {
+            if (
+                preg_match(
+                    '/^prayer:(fajr|dhuhr|asr|maghrib|isha):(\d{4}-\d{2}-\d{2})$/',
+                    $sourceKey,
+                    $matches
+                ) !== 1
+            ) {
+                continue;
+            }
+
+            $days[$matches[2]][$matches[1]] = true;
+        }
+
+        krsort($days);
+
+        return collect(array_slice($days, 0, max(1, $dayLimit), true))
+            ->map(function (array $prayers, string $rewardDate) {
+                $prayerIds = collect(array_keys(self::DAILY_PRAYERS))
+                    ->filter(fn ($prayerId) => isset($prayers[$prayerId]))
+                    ->values()
+                    ->all();
+
+                return [
+                    'reward_date' => $rewardDate,
+                    'prayer_ids' => $prayerIds,
+                    'completed_count' => count($prayerIds),
+                    'coins_earned' => count($prayerIds) * 10,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function spend(
@@ -453,7 +501,7 @@ class StudentCoinWalletService
         string $rewardType,
         ?string $adhkarId
     ): array {
-        $rewardDate = now()->toDateString();
+        $rewardDate = $this->rewardDate();
         if ($rewardType === 'morning' || $rewardType === 'evening') {
             return [
                 10,
@@ -476,5 +524,12 @@ class StudentCoinWalletService
             "adhkar:dua:{$adhkarId}:{$rewardDate}",
             "Adhkar invocation {$adhkarId} completed",
         ];
+    }
+
+    private function rewardDate(): string
+    {
+        return now(
+            config('app.daily_reward_timezone', 'Asia/Dubai')
+        )->toDateString();
     }
 }

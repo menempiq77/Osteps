@@ -55,6 +55,13 @@ export type PrayerRewardClaim = PrayerRewardStatus & {
   awarded: boolean;
 };
 
+export type PrayerHistoryDay = {
+  reward_date: string;
+  prayer_ids: PrayerId[];
+  completed_count: number;
+  coins_earned: number;
+};
+
 const PRAYER_IDS: PrayerId[] = [
   "fajr",
   "dhuhr",
@@ -225,6 +232,44 @@ const normalizePrayerRewardClaim = (
   };
 };
 
+const normalizePrayerHistory = (value: unknown): PrayerHistoryDay[] => {
+  if (!isRecord(value) || !Array.isArray(value.days)) {
+    throw new Error("The prayer history service returned an invalid response.");
+  }
+
+  return value.days.map((day) => {
+    if (!isRecord(day)) {
+      throw new Error("The prayer history service returned an invalid day.");
+    }
+
+    const rewardDate = String(day.reward_date ?? "");
+    const prayerIds = Array.isArray(day.prayer_ids)
+      ? day.prayer_ids.filter(isPrayerId)
+      : [];
+    const completedCount = Number(day.completed_count);
+    const coinsEarned = Number(day.coins_earned);
+
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(rewardDate) ||
+      !Number.isInteger(completedCount) ||
+      completedCount !== prayerIds.length ||
+      completedCount < 1 ||
+      completedCount > PRAYER_IDS.length ||
+      !Number.isInteger(coinsEarned) ||
+      coinsEarned !== completedCount * 10
+    ) {
+      throw new Error("The prayer history service returned invalid totals.");
+    }
+
+    return {
+      reward_date: rewardDate,
+      prayer_ids: prayerIds,
+      completed_count: completedCount,
+      coins_earned: coinsEarned,
+    };
+  });
+};
+
 export const fetchStudentWalletBalance = async (): Promise<StudentWalletBalance> => {
   const studentId = activeStudentId();
   const response = await api.get("/student-wallet/balance", {
@@ -322,4 +367,19 @@ export const claimPrayerReward = async (payload: {
   return normalizePrayerRewardClaim(
     response?.data?.data ?? response?.data,
   );
+};
+
+export const fetchPrayerHistory = async (
+  studentId?: string | number,
+): Promise<PrayerHistoryDay[]> => {
+  const requestedStudentId = Number(studentId);
+  const resolvedStudentId =
+    Number.isInteger(requestedStudentId) && requestedStudentId > 0
+      ? requestedStudentId
+      : activeStudentId();
+  const response = await api.get("/student-wallet/prayer-history", {
+    params: resolvedStudentId ? { student_id: resolvedStudentId } : undefined,
+  });
+
+  return normalizePrayerHistory(response?.data?.data ?? response?.data);
 };

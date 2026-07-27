@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssignTeacher;
 use App\Models\School;
 use App\Models\Student;
 use App\Services\StudentCoinWalletService;
@@ -192,6 +193,22 @@ class StudentCoinWalletController extends Controller
         ]);
     }
 
+    public function prayerHistory(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $studentId = $this->studentIdForReport($request);
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Prayer history fetched successfully',
+            'data' => [
+                'student_id' => $studentId,
+                'days' => $wallets->prayerRewardHistory($studentId),
+            ],
+        ]);
+    }
+
     private function gamePassData(array $pass): array
     {
         return [
@@ -260,6 +277,59 @@ class StudentCoinWalletController extends Controller
             'id' => $requestedStudentId,
             'school_id' => $schoolId,
         ])->exists();
+
+        abort_unless($studentExists, 404, 'Student profile not found');
+
+        return $requestedStudentId;
+    }
+
+    private function studentIdForReport(Request $request): int
+    {
+        $user = $request->user();
+        $role = strtoupper(str_replace(' ', '_', (string) $user->role));
+        $requestedStudentId = (int) $request->input('student_id', 0);
+        $authenticatedStudentId = (int) Student::where('user_id', $user->id)
+            ->value('id');
+
+        if ($role === 'STUDENT') {
+            abort_if($authenticatedStudentId <= 0, 404, 'Student profile not found');
+            abort_if(
+                $requestedStudentId > 0 &&
+                    $requestedStudentId !== $authenticatedStudentId,
+                403,
+                'Students can only access their own prayer history'
+            );
+
+            return $authenticatedStudentId;
+        }
+
+        abort_if($requestedStudentId <= 0, 422, 'A student profile is required');
+
+        if ($role === 'SCHOOL_ADMIN') {
+            $schoolId = (int) School::where('user_id', $user->id)->value('id');
+            $studentExists = $schoolId > 0 && Student::where([
+                'id' => $requestedStudentId,
+                'school_id' => $schoolId,
+            ])->exists();
+
+            abort_unless($studentExists, 404, 'Student profile not found');
+
+            return $requestedStudentId;
+        }
+
+        abort_unless(
+            in_array($role, ['TEACHER', 'HOD'], true),
+            403,
+            'This account cannot access prayer history'
+        );
+        $teacherId = optional($user->teacherUser)->id;
+        $classIds = $teacherId
+            ? AssignTeacher::where('teacher_id', $teacherId)->pluck('class_id')
+            : collect();
+        $studentExists = $classIds->isNotEmpty() &&
+            Student::where('id', $requestedStudentId)
+                ->whereIn('class_id', $classIds)
+                ->exists();
 
         abort_unless($studentExists, 404, 'Student profile not found');
 
