@@ -14,6 +14,7 @@ import {
   CheckCircle,
   LayoutDashboard,
   ChevronRight,
+  MoonStar,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -1823,7 +1824,7 @@ export default function DashboardPage() {
     : "Let's get started. Explore your dashboard to manage your activities.";
   const isStudentDashboard = currentUser?.role === "STUDENT";
   const subjectDashboardImage = normalizeSubjectImageUrl(activeSubject?.dashboard_image_url);
-  const showAdhkarShortcut =
+  const showIslamicShortcuts =
     isSubjectWorkspaceMode &&
     !!activeSubjectId &&
     isIslamicSubjectName(activeSubject?.name);
@@ -1877,20 +1878,35 @@ export default function DashboardPage() {
               <p className={`${isStudentDashboard ? "mt-2 text-xs leading-5 md:text-sm" : "mt-3 text-sm leading-6 md:text-base"} max-w-2xl text-slate-500`}>
                 {heroDescription}
               </p>
-              {showAdhkarShortcut ? (
-                <Link
-                  href={toSubjectScopedPath(
-                    "/dashboard/adhkar",
-                    Number(activeSubjectId),
-                    activeSubject?.name
-                  )}
-                  title="Open Adhkar"
-                  aria-label="Open Adhkar"
-                  className="mt-2.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow"
-                >
-                  <PrayerBeadsIcon className="h-[18px] w-[18px]" />
-                  <span className="sr-only">Open Adhkar</span>
-                </Link>
+              {showIslamicShortcuts ? (
+                <div className="mt-2.5 flex items-center gap-2">
+                  <Link
+                    href={toSubjectScopedPath(
+                      "/dashboard/adhkar",
+                      Number(activeSubjectId),
+                      activeSubject?.name
+                    )}
+                    title="Open Adhkar"
+                    aria-label="Open Adhkar"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow"
+                  >
+                    <PrayerBeadsIcon className="h-[18px] w-[18px]" />
+                    <span className="sr-only">Open Adhkar</span>
+                  </Link>
+                  <Link
+                    href={toSubjectScopedPath(
+                      "/dashboard/prayers",
+                      Number(activeSubjectId),
+                      activeSubject?.name
+                    )}
+                    title="Open five daily prayers"
+                    aria-label="Open five daily prayers"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-100 hover:shadow"
+                  >
+                    <MoonStar className="h-[18px] w-[18px]" />
+                    <span className="sr-only">Open five daily prayers</span>
+                  </Link>
+                </div>
               ) : null}
             </div>
             {isSubjectWorkspaceMode && subjectDashboardImage ? (

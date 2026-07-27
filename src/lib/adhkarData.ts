@@ -214,7 +214,7 @@ export const ADHKAR_TOTAL_ENTRIES = ADHKAR_CATEGORIES.reduce(
 );
 
 const LATIN_ISLAMIC_SUBJECT_KEYWORD =
-  /(^|[^a-z])(?:islam(?:ic|i(?:a|at|yat|yah|yyah)?)?|religious)(?=$|[^a-z])/i;
+  /(^|[^a-z])(?:isalm|islam(?:ic|i(?:a|at|yat|yah|yyah)?)?|religious)(?=$|[^a-z])/i;
 const ARABIC_ISLAMIC_SUBJECT_KEYWORD =
   /(^|[^\u0621-\u064a])(?:ال)?(?:اسلام(?:ي(?:ة|ه|ك|ات)?)?|دين(?:ي(?:ة|ه)?)?)(?=$|[^\u0621-\u064a])/;
 

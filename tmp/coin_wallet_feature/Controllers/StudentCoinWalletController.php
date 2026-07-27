@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssignTeacher;
 use App\Models\School;
 use App\Models\Student;
 use App\Services\StudentCoinWalletService;
@@ -57,6 +58,193 @@ class StudentCoinWalletController extends Controller
         ]);
     }
 
+    public function purchaseGamePass(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $validated = $request->validate([
+            'game_id' => ['required', 'string', 'max:64'],
+            'run_id' => ['required', 'uuid'],
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $studentId = $this->studentIdFor($request);
+        $pass = $wallets->purchaseGamePass(
+            $studentId,
+            $validated['game_id'],
+            $validated['run_id']
+        );
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => $pass['charged']
+                ? 'Paid game pass activated successfully'
+                : 'Paid game pass restored successfully',
+            'data' => $this->gamePassData($pass),
+        ]);
+    }
+
+    public function gamePassStatus(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $validated = $request->validate([
+            'game_id' => ['required', 'string', 'max:64'],
+            'run_id' => ['required', 'uuid'],
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $studentId = $this->studentIdFor($request);
+        $pass = $wallets->gamePassStatus(
+            $studentId,
+            $validated['game_id'],
+            $validated['run_id']
+        );
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Paid game pass status fetched successfully',
+            'data' => $this->gamePassData($pass),
+        ]);
+    }
+
+    public function adhkarRewards(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $studentId = $this->studentIdFor($request);
+        $status = $wallets->adhkarRewardsForToday($studentId);
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Adhkar reward status fetched successfully',
+            'data' => $this->adhkarRewardData($status),
+        ]);
+    }
+
+    public function awardAdhkar(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $validated = $request->validate([
+            'reward_type' => ['required', 'in:morning,evening,dua'],
+            'adhkar_id' => ['nullable', 'string', 'max:32'],
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $studentId = $this->studentIdFor($request);
+        $result = $wallets->awardAdhkarReward(
+            $studentId,
+            $validated['reward_type'],
+            $validated['adhkar_id'] ?? null
+        );
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => $result['awarded']
+                ? 'Adhkar coins awarded successfully'
+                : 'Adhkar reward was already collected today',
+            'data' => [
+                ...$this->adhkarRewardData($result),
+                'reward_type' => $result['reward_type'],
+                'adhkar_id' => $result['adhkar_id'],
+                'reward_amount' => $result['reward_amount'],
+                'awarded' => $result['awarded'],
+            ],
+        ]);
+    }
+
+    public function prayerRewards(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $studentId = $this->studentIdFor($request);
+        $status = $wallets->prayerRewardsForToday($studentId);
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Prayer reward status fetched successfully',
+            'data' => $this->prayerRewardData($status),
+        ]);
+    }
+
+    public function awardPrayer(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $validated = $request->validate([
+            'prayer_id' => ['required', 'in:fajr,dhuhr,asr,maghrib,isha'],
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $studentId = $this->studentIdFor($request);
+        $result = $wallets->awardPrayerReward(
+            $studentId,
+            $validated['prayer_id']
+        );
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => $result['awarded']
+                ? 'Prayer coins awarded successfully'
+                : 'Prayer reward was already collected today',
+            'data' => [
+                ...$this->prayerRewardData($result),
+                'prayer_id' => $result['prayer_id'],
+                'reward_amount' => $result['reward_amount'],
+                'awarded' => $result['awarded'],
+            ],
+        ]);
+    }
+
+    public function prayerHistory(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $studentId = $this->studentIdForReport($request);
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Prayer history fetched successfully',
+            'data' => [
+                'student_id' => $studentId,
+                'days' => $wallets->prayerRewardHistory($studentId),
+            ],
+        ]);
+    }
+
+    private function gamePassData(array $pass): array
+    {
+        return [
+            'student_id' => (int) $pass['wallet']->student_id,
+            'coin_balance' => (int) $pass['wallet']->balance,
+            'game_id' => $pass['game_id'],
+            'run_id' => $pass['run_id'],
+            'entry_cost' => (int) $pass['entry_cost'],
+            'active' => $pass['active'],
+            'charged' => $pass['charged'],
+            'expires_at' => $pass['expires_at'],
+        ];
+    }
+
+    private function adhkarRewardData(array $status): array
+    {
+        return [
+            'student_id' => (int) $status['wallet']->student_id,
+            'coin_balance' => (int) $status['wallet']->balance,
+            'reward_date' => $status['reward_date'],
+            'morning_claimed' => $status['morning_claimed'],
+            'evening_claimed' => $status['evening_claimed'],
+            'dua_ids' => $status['dua_ids'],
+        ];
+    }
+
+    private function prayerRewardData(array $status): array
+    {
+        return [
+            'student_id' => (int) $status['wallet']->student_id,
+            'coin_balance' => (int) $status['wallet']->balance,
+            'reward_date' => $status['reward_date'],
+            'prayer_ids' => $status['prayer_ids'],
+        ];
+    }
+
     private function studentIdFor(Request $request): int
     {
         $user = $request->user();
@@ -89,6 +277,59 @@ class StudentCoinWalletController extends Controller
             'id' => $requestedStudentId,
             'school_id' => $schoolId,
         ])->exists();
+
+        abort_unless($studentExists, 404, 'Student profile not found');
+
+        return $requestedStudentId;
+    }
+
+    private function studentIdForReport(Request $request): int
+    {
+        $user = $request->user();
+        $role = strtoupper(str_replace(' ', '_', (string) $user->role));
+        $requestedStudentId = (int) $request->input('student_id', 0);
+        $authenticatedStudentId = (int) Student::where('user_id', $user->id)
+            ->value('id');
+
+        if ($role === 'STUDENT') {
+            abort_if($authenticatedStudentId <= 0, 404, 'Student profile not found');
+            abort_if(
+                $requestedStudentId > 0 &&
+                    $requestedStudentId !== $authenticatedStudentId,
+                403,
+                'Students can only access their own prayer history'
+            );
+
+            return $authenticatedStudentId;
+        }
+
+        abort_if($requestedStudentId <= 0, 422, 'A student profile is required');
+
+        if ($role === 'SCHOOL_ADMIN') {
+            $schoolId = (int) School::where('user_id', $user->id)->value('id');
+            $studentExists = $schoolId > 0 && Student::where([
+                'id' => $requestedStudentId,
+                'school_id' => $schoolId,
+            ])->exists();
+
+            abort_unless($studentExists, 404, 'Student profile not found');
+
+            return $requestedStudentId;
+        }
+
+        abort_unless(
+            in_array($role, ['TEACHER', 'HOD'], true),
+            403,
+            'This account cannot access prayer history'
+        );
+        $teacherId = optional($user->teacherUser)->id;
+        $classIds = $teacherId
+            ? AssignTeacher::where('teacher_id', $teacherId)->pluck('class_id')
+            : collect();
+        $studentExists = $classIds->isNotEmpty() &&
+            Student::where('id', $requestedStudentId)
+                ->whereIn('class_id', $classIds)
+                ->exists();
 
         abort_unless($studentExists, 404, 'Student profile not found');
 
