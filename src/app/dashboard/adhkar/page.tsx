@@ -26,7 +26,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import PrayerBeadsIcon from "@/components/icons/PrayerBeadsIcon";
@@ -65,6 +65,18 @@ type ReadingPosition = {
 };
 
 const READING_POSITION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+const findVerticalScrollContainer = (element: HTMLElement) => {
+  let parent = element.parentElement;
+
+  while (parent) {
+    const overflowY = window.getComputedStyle(parent).overflowY;
+    if (overflowY === "auto" || overflowY === "scroll") return parent;
+    parent = parent.parentElement;
+  }
+
+  return null;
+};
 
 const rewardTypeForCategory = (
   category: AdhkarCategory,
@@ -192,6 +204,7 @@ export default function AdhkarPage() {
   const [clientDate, setClientDate] = useState(getDailyRewardDate);
   const [pendingRewardKey, setPendingRewardKey] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<RewardNotice | null>(null);
+  const pageRootRef = useRef<HTMLDivElement>(null);
   const categoryId = searchParams.get("category");
   const selectedCategory =
     ALL_ADHKAR_CATEGORIES.find((category) => category.id === categoryId) ??
@@ -271,14 +284,27 @@ export default function AdhkarPage() {
 
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
+    const scrollContainer = pageRootRef.current
+      ? findVerticalScrollContainer(pageRootRef.current)
+      : null;
+    const scrollTarget = scrollContainer ?? window;
     let scrollSaveFrame = 0;
     let restoreTimers: number[] = [];
     let restoreCancelled = false;
+    const readScrollPosition = () =>
+      scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+    const writeScrollPosition = (scrollY: number) => {
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: scrollY });
+        return;
+      }
+      window.scrollTo(0, scrollY);
+    };
 
     const savePosition = () => {
       writeReadingPosition(readingPositionKey, {
         page: readingPage,
-        scrollY: window.scrollY,
+        scrollY: readScrollPosition(),
         savedAt: Date.now(),
       });
     };
@@ -303,7 +329,7 @@ export default function AdhkarPage() {
 
       const restore = () => {
         if (restoreCancelled) return;
-        window.scrollTo(0, saved.scrollY);
+        writeScrollPosition(saved.scrollY);
       };
 
       restore();
@@ -324,7 +350,7 @@ export default function AdhkarPage() {
       restoreTimers = [];
     };
 
-    window.addEventListener("scroll", scheduleSave, { passive: true });
+    scrollTarget.addEventListener("scroll", scheduleSave, { passive: true });
     window.addEventListener("pagehide", savePosition);
     window.addEventListener("pageshow", restorePosition);
     window.addEventListener("pointerdown", cancelDelayedRestore, {
@@ -341,7 +367,7 @@ export default function AdhkarPage() {
       if (scrollSaveFrame) {
         window.cancelAnimationFrame(scrollSaveFrame);
       }
-      window.removeEventListener("scroll", scheduleSave);
+      scrollTarget.removeEventListener("scroll", scheduleSave);
       window.removeEventListener("pagehide", savePosition);
       window.removeEventListener("pageshow", restorePosition);
       window.removeEventListener("pointerdown", cancelDelayedRestore);
@@ -586,7 +612,10 @@ export default function AdhkarPage() {
       categoryRewardType !== null && pendingRewardKey === categoryRewardType;
 
     return (
-      <div className="mx-auto min-w-0 max-w-4xl space-y-4 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-6 md:px-6 md:pt-6">
+      <div
+        ref={pageRootRef}
+        className="mx-auto min-w-0 max-w-4xl space-y-4 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-6 md:px-6 md:pt-6"
+      >
         <section
           className="relative min-w-0 overflow-hidden rounded-3xl border p-4 shadow-sm md:p-7"
           style={{
@@ -927,7 +956,10 @@ export default function AdhkarPage() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-5 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-7 md:px-6 md:pt-6">
+    <div
+      ref={pageRootRef}
+      className="mx-auto min-w-0 max-w-6xl space-y-5 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-7 md:px-6 md:pt-6"
+    >
       <section className="relative min-w-0 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 p-5 text-white shadow-xl md:p-8">
         <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-emerald-300/10 blur-2xl" />
         <div className="relative">
