@@ -333,7 +333,7 @@ export default function AdhkarPage() {
       };
 
       restore();
-      restoreTimers = [250, 750].map((delay) =>
+      restoreTimers = [250, 750, 1500, 3000, 5000, 8000].map((delay) =>
         window.setTimeout(restore, delay),
       );
     };
