@@ -30,6 +30,8 @@ POST /api/student-wallet/game-pass
 POST /api/student-wallet/game-pass/status
 GET  /api/student-wallet/adhkar-rewards
 POST /api/student-wallet/adhkar-rewards
+GET  /api/student-wallet/prayer-rewards
+POST /api/student-wallet/prayer-rewards
 ```
 
 Spend request:
@@ -74,14 +76,19 @@ Adhkar rewards are server-dated and idempotent:
 Reward transactions only update `student_coin_wallets`; leaderboard points are
 not changed.
 
+Prayer rewards are also server-dated and idempotent. Fajr, Dhuhr, Asr, Maghrib,
+and Isha each award 10 coins once per student/day. The server owns the five
+eligible prayer IDs and stores `prayer:{prayerId}:{date}` transaction keys.
+
 ## Apply to a Laravel checkout
 
 Review the checkout and patches before applying them. Do not overwrite unrelated
 live changes.
 
 If the coin-wallet feature is already installed, keep the existing migration and
-models, replace only the service/controller, and add the four game-pass/Adhkar
-routes from `routes_api_additions.php`. No new migration is required.
+models, replace only the service/controller, and add the game-pass, Adhkar, and
+prayer reward routes from `routes_api_additions.php`. No new migration is
+required.
 
 ```bash
 BACKEND=/path/to/laravel

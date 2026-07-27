@@ -150,6 +150,48 @@ class StudentCoinWalletController extends Controller
         ]);
     }
 
+    public function prayerRewards(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $studentId = $this->studentIdFor($request);
+        $status = $wallets->prayerRewardsForToday($studentId);
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => 'Prayer reward status fetched successfully',
+            'data' => $this->prayerRewardData($status),
+        ]);
+    }
+
+    public function awardPrayer(
+        Request $request,
+        StudentCoinWalletService $wallets
+    ): JsonResponse {
+        $validated = $request->validate([
+            'prayer_id' => ['required', 'in:fajr,dhuhr,asr,maghrib,isha'],
+            'student_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $studentId = $this->studentIdFor($request);
+        $result = $wallets->awardPrayerReward(
+            $studentId,
+            $validated['prayer_id']
+        );
+
+        return response()->json([
+            'status_code' => 200,
+            'msg' => $result['awarded']
+                ? 'Prayer coins awarded successfully'
+                : 'Prayer reward was already collected today',
+            'data' => [
+                ...$this->prayerRewardData($result),
+                'prayer_id' => $result['prayer_id'],
+                'reward_amount' => $result['reward_amount'],
+                'awarded' => $result['awarded'],
+            ],
+        ]);
+    }
+
     private function gamePassData(array $pass): array
     {
         return [
@@ -173,6 +215,16 @@ class StudentCoinWalletController extends Controller
             'morning_claimed' => $status['morning_claimed'],
             'evening_claimed' => $status['evening_claimed'],
             'dua_ids' => $status['dua_ids'],
+        ];
+    }
+
+    private function prayerRewardData(array $status): array
+    {
+        return [
+            'student_id' => (int) $status['wallet']->student_id,
+            'coin_balance' => (int) $status['wallet']->balance,
+            'reward_date' => $status['reward_date'],
+            'prayer_ids' => $status['prayer_ids'],
         ];
     }
 

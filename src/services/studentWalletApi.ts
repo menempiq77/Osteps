@@ -42,6 +42,27 @@ export type AdhkarRewardClaim = AdhkarRewardStatus & {
   awarded: boolean;
 };
 
+export type PrayerId = "fajr" | "dhuhr" | "asr" | "maghrib" | "isha";
+
+export type PrayerRewardStatus = StudentWalletBalance & {
+  reward_date: string;
+  prayer_ids: PrayerId[];
+};
+
+export type PrayerRewardClaim = PrayerRewardStatus & {
+  prayer_id: PrayerId;
+  reward_amount: number;
+  awarded: boolean;
+};
+
+const PRAYER_IDS: PrayerId[] = [
+  "fajr",
+  "dhuhr",
+  "asr",
+  "maghrib",
+  "isha",
+];
+
 const activeStudentId = () => {
   const studentId = Number(store.getState().auth.currentUser?.student);
   return Number.isInteger(studentId) && studentId > 0 ? studentId : null;
@@ -156,6 +177,54 @@ const normalizeAdhkarRewardClaim = (
   };
 };
 
+const isPrayerId = (value: unknown): value is PrayerId =>
+  typeof value === "string" && PRAYER_IDS.includes(value as PrayerId);
+
+const normalizePrayerRewardStatus = (
+  value: unknown,
+): PrayerRewardStatus => {
+  const wallet = normalizeWalletBalance(value);
+  const record = isRecord(value) ? value : {};
+  const rewardDate = String(record.reward_date ?? "");
+  const prayerIds = Array.isArray(record.prayer_ids)
+    ? record.prayer_ids.filter(isPrayerId)
+    : [];
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rewardDate)) {
+    throw new Error("The prayer reward service returned an invalid response.");
+  }
+
+  return {
+    ...wallet,
+    reward_date: rewardDate,
+    prayer_ids: prayerIds,
+  };
+};
+
+const normalizePrayerRewardClaim = (
+  value: unknown,
+): PrayerRewardClaim => {
+  const status = normalizePrayerRewardStatus(value);
+  const record = isRecord(value) ? value : {};
+  const prayerId = record.prayer_id;
+  const rewardAmount = Number(record.reward_amount);
+
+  if (
+    !isPrayerId(prayerId) ||
+    !Number.isInteger(rewardAmount) ||
+    rewardAmount <= 0
+  ) {
+    throw new Error("The prayer reward service returned an invalid response.");
+  }
+
+  return {
+    ...status,
+    prayer_id: prayerId,
+    reward_amount: rewardAmount,
+    awarded: record.awarded === true,
+  };
+};
+
 export const fetchStudentWalletBalance = async (): Promise<StudentWalletBalance> => {
   const studentId = activeStudentId();
   const response = await api.get("/student-wallet/balance", {
@@ -227,6 +296,30 @@ export const claimAdhkarReward = async (payload: {
   });
 
   return normalizeAdhkarRewardClaim(
+    response?.data?.data ?? response?.data,
+  );
+};
+
+export const fetchPrayerRewardStatus =
+  async (): Promise<PrayerRewardStatus> => {
+    const response = await api.get("/student-wallet/prayer-rewards", {
+      params: studentPayload(),
+    });
+
+    return normalizePrayerRewardStatus(
+      response?.data?.data ?? response?.data,
+    );
+  };
+
+export const claimPrayerReward = async (payload: {
+  prayer_id: PrayerId;
+}): Promise<PrayerRewardClaim> => {
+  const response = await api.post("/student-wallet/prayer-rewards", {
+    ...payload,
+    ...studentPayload(),
+  });
+
+  return normalizePrayerRewardClaim(
     response?.data?.data ?? response?.data,
   );
 };

@@ -14,3 +14,7 @@ Route::get('student-wallet/adhkar-rewards', [StudentCoinWalletController::class,
     ->name('student-wallet-adhkar-rewards');
 Route::post('student-wallet/adhkar-rewards', [StudentCoinWalletController::class, 'awardAdhkar'])
     ->name('student-wallet-award-adhkar');
+Route::get('student-wallet/prayer-rewards', [StudentCoinWalletController::class, 'prayerRewards'])
+    ->name('student-wallet-prayer-rewards');
+Route::post('student-wallet/prayer-rewards', [StudentCoinWalletController::class, 'awardPrayer'])
+    ->name('student-wallet-award-prayer');

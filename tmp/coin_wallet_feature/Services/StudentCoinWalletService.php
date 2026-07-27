@@ -27,6 +27,14 @@ class StudentCoinWalletService
         ],
     ];
 
+    private const DAILY_PRAYERS = [
+        'fajr' => 'Fajr',
+        'dhuhr' => 'Dhuhr',
+        'asr' => 'Asr',
+        'maghrib' => 'Maghrib',
+        'isha' => 'Isha',
+    ];
+
     public function balanceForStudent(int $studentId): StudentCoinWallet
     {
         return StudentCoinWallet::firstOrCreate(
@@ -248,6 +256,89 @@ class StudentCoinWalletService
             ...$status,
             'reward_type' => $rewardType,
             'adhkar_id' => $adhkarId,
+            'reward_amount' => $amount,
+            'awarded' => $awarded,
+        ];
+    }
+
+    public function prayerRewardsForToday(int $studentId): array
+    {
+        $wallet = $this->balanceForStudent($studentId);
+        $rewardDate = now()->toDateString();
+        $prefix = 'prayer:';
+        $suffix = ":{$rewardDate}";
+        $prayerIds = StudentCoinTransaction::where([
+            'student_id' => $studentId,
+            'source_type' => 'prayer_reward',
+        ])
+            ->where('source_key', 'like', "prayer:%:{$rewardDate}")
+            ->pluck('source_key')
+            ->map(fn ($key) => substr(
+                $key,
+                strlen($prefix),
+                -strlen($suffix)
+            ))
+            ->filter(fn ($prayerId) => isset(self::DAILY_PRAYERS[$prayerId]))
+            ->values()
+            ->all();
+
+        return [
+            'wallet' => $wallet,
+            'reward_date' => $rewardDate,
+            'prayer_ids' => $prayerIds,
+        ];
+    }
+
+    public function awardPrayerReward(
+        int $studentId,
+        string $prayerId
+    ): array {
+        $prayerName = self::DAILY_PRAYERS[$prayerId] ?? null;
+        if (!$prayerName) {
+            throw ValidationException::withMessages([
+                'prayer_id' => ['This prayer is not eligible for a daily reward.'],
+            ]);
+        }
+
+        $amount = 10;
+        $rewardDate = now()->toDateString();
+        $sourceKey = "prayer:{$prayerId}:{$rewardDate}";
+        $this->balanceForStudent($studentId);
+        $awarded = DB::transaction(function () use (
+            $studentId,
+            $amount,
+            $sourceKey,
+            $prayerName
+        ) {
+            $wallet = StudentCoinWallet::where('student_id', $studentId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $alreadyAwarded = StudentCoinTransaction::where([
+                'student_id' => $studentId,
+                'source_type' => 'prayer_reward',
+                'source_key' => $sourceKey,
+            ])->exists();
+
+            if ($alreadyAwarded) {
+                return false;
+            }
+
+            StudentCoinTransaction::create([
+                'student_id' => $studentId,
+                'amount' => $amount,
+                'source_type' => 'prayer_reward',
+                'source_key' => $sourceKey,
+                'description' => "{$prayerName} prayer completed",
+            ]);
+            $wallet->increment('balance', $amount);
+
+            return true;
+        });
+        $status = $this->prayerRewardsForToday($studentId);
+
+        return [
+            ...$status,
+            'prayer_id' => $prayerId,
             'reward_amount' => $amount,
             'awarded' => $awarded,
         ];
