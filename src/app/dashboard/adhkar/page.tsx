@@ -54,6 +54,15 @@ type RewardNotice = {
   tone: "success" | "info" | "error";
   message: string;
 };
+type ReadingPosition = {
+  page: string;
+  scrollY: number;
+  savedAt: number;
+};
+
+const READING_POSITION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const DAILY_REWARD_TIME_ZONE = "Asia/Dubai";
+const DAILY_REWARD_UTC_OFFSET_MS = 4 * 60 * 60 * 1000;
 
 const rewardTypeForCategory = (
   category: AdhkarCategory,
@@ -85,11 +94,23 @@ const FEATURED_ICONS: Record<string, LucideIcon> = {
   "featured-evening": Sunset,
 };
 
-const getTodayKey = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate(),
-  ).padStart(2, "0")}`;
+const getTodayKey = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: DAILY_REWARD_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: "year" | "month" | "day") =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+
+const millisecondsUntilNextRewardDay = () => {
+  const [year, month, day] = getTodayKey().split("-").map(Number);
+  const nextMidnight =
+    Date.UTC(year, month - 1, day + 1) - DAILY_REWARD_UTC_OFFSET_MS;
+  return Math.max(1000, nextMidnight - Date.now() + 1000);
 };
 
 const readProgress = (key: string): Progress => {
@@ -107,6 +128,33 @@ const readProgress = (key: string): Progress => {
 const writeProgress = (key: string, progress: Progress) => {
   try {
     localStorage.setItem(key, JSON.stringify(progress));
+  } catch {
+    return;
+  }
+};
+
+const readReadingPosition = (key: string): ReadingPosition | null => {
+  try {
+    const value = localStorage.getItem(key);
+    const parsed = value ? JSON.parse(value) : null;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      typeof parsed.page !== "string" ||
+      typeof parsed.scrollY !== "number" ||
+      typeof parsed.savedAt !== "number"
+    ) {
+      return null;
+    }
+    return parsed as ReadingPosition;
+  } catch {
+    return null;
+  }
+};
+
+const writeReadingPosition = (key: string, position: ReadingPosition) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(position));
   } catch {
     return;
   }
@@ -149,13 +197,16 @@ export default function AdhkarPage() {
     useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const queryClient = useQueryClient();
-  const role = String(currentUser?.role ?? "").trim().toUpperCase();
+  const role = String(currentUser?.role ?? "")
+    .trim()
+    .toUpperCase();
   const isStudent = role === "STUDENT";
   const studentId = String(currentUser?.student ?? "");
   const [progress, setProgress] = useState<Progress>({});
   const [loadedStorageKey, setLoadedStorageKey] = useState("");
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [activeGroup, setActiveGroup] = useState("daily");
+  const [clientDate, setClientDate] = useState(getTodayKey);
   const [pendingRewardKey, setPendingRewardKey] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<RewardNotice | null>(null);
   const categoryId = searchParams.get("category");
@@ -173,13 +224,53 @@ export default function AdhkarPage() {
     queryFn: fetchAdhkarRewardStatus,
     enabled: isStudent && Boolean(studentId) && isIslamicSubject,
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
+  const progressDate =
+    isStudent && rewardStatus?.reward_date
+      ? rewardStatus.reward_date
+      : clientDate;
   const storageKey = useMemo(
     () =>
-      `osteps-adhkar-progress-v1:${activeSubjectId ?? "unknown"}:${getTodayKey()}`,
+      `osteps-adhkar-progress-v1:${activeSubjectId ?? "unknown"}:${progressDate}`,
+    [activeSubjectId, progressDate],
+  );
+  const readingPositionKey = useMemo(
+    () => `osteps-adhkar-reading-position-v1:${activeSubjectId ?? "unknown"}`,
     [activeSubjectId],
   );
+  const readingPage = `${pathname}?${searchParams.toString()}`;
+
+  useEffect(() => {
+    let midnightTimer = 0;
+
+    const scheduleMidnightRefresh = () => {
+      window.clearTimeout(midnightTimer);
+      midnightTimer = window.setTimeout(() => {
+        setClientDate(getTodayKey());
+        if (isStudent && studentId && isIslamicSubject) {
+          void refetchRewardStatus();
+        }
+        scheduleMidnightRefresh();
+      }, millisecondsUntilNextRewardDay());
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      setClientDate(getTodayKey());
+      if (isStudent && studentId && isIslamicSubject) {
+        void refetchRewardStatus();
+      }
+      scheduleMidnightRefresh();
+    };
+
+    scheduleMidnightRefresh();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [isIslamicSubject, isStudent, refetchRewardStatus, studentId]);
 
   useEffect(() => {
     if (!activeSubjectId) return;
@@ -192,14 +283,90 @@ export default function AdhkarPage() {
     writeProgress(storageKey, progress);
   }, [loadedStorageKey, progress, storageKey]);
 
-  const completedEntries = ADHKAR_CATEGORIES.reduce(
-    (total, category) =>
-      total +
-      category.entries.filter(
-        (entry) => (progress[entry.id] ?? 0) >= entry.target,
-      ).length,
-    0,
-  );
+  useEffect(() => {
+    if (!activeSubjectId || loading) return;
+
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    let scrollSaveFrame = 0;
+    let restoreTimers: number[] = [];
+    let restoreCancelled = false;
+
+    const savePosition = () => {
+      writeReadingPosition(readingPositionKey, {
+        page: readingPage,
+        scrollY: window.scrollY,
+        savedAt: Date.now(),
+      });
+    };
+    const scheduleSave = () => {
+      if (scrollSaveFrame) return;
+      scrollSaveFrame = window.requestAnimationFrame(() => {
+        scrollSaveFrame = 0;
+        savePosition();
+      });
+    };
+    const restorePosition = () => {
+      restoreCancelled = false;
+      restoreTimers.forEach((timer) => window.clearTimeout(timer));
+      const saved = readReadingPosition(readingPositionKey);
+      if (
+        !saved ||
+        saved.page !== readingPage ||
+        Date.now() - saved.savedAt > READING_POSITION_MAX_AGE_MS
+      ) {
+        return;
+      }
+
+      const restore = () => {
+        if (restoreCancelled) return;
+        window.scrollTo(0, saved.scrollY);
+      };
+
+      restore();
+      restoreTimers = [250, 750].map((delay) =>
+        window.setTimeout(restore, delay),
+      );
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        savePosition();
+      } else {
+        restorePosition();
+      }
+    };
+    const cancelDelayedRestore = () => {
+      restoreCancelled = true;
+      restoreTimers.forEach((timer) => window.clearTimeout(timer));
+      restoreTimers = [];
+    };
+
+    window.addEventListener("scroll", scheduleSave, { passive: true });
+    window.addEventListener("pagehide", savePosition);
+    window.addEventListener("pageshow", restorePosition);
+    window.addEventListener("pointerdown", cancelDelayedRestore, {
+      passive: true,
+    });
+    window.addEventListener("wheel", cancelDelayedRestore, { passive: true });
+    window.addEventListener("keydown", cancelDelayedRestore);
+    document.addEventListener("visibilitychange", handleVisibility);
+    restorePosition();
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+      restoreTimers.forEach((timer) => window.clearTimeout(timer));
+      if (scrollSaveFrame) {
+        window.cancelAnimationFrame(scrollSaveFrame);
+      }
+      window.removeEventListener("scroll", scheduleSave);
+      window.removeEventListener("pagehide", savePosition);
+      window.removeEventListener("pageshow", restorePosition);
+      window.removeEventListener("pointerdown", cancelDelayedRestore);
+      window.removeEventListener("wheel", cancelDelayedRestore);
+      window.removeEventListener("keydown", cancelDelayedRestore);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [activeSubjectId, loading, readingPage, readingPositionKey]);
 
   const filteredCategories = ADHKAR_CATEGORIES.filter(
     (category) => matchingEntries(category, query).length > 0,
@@ -240,10 +407,33 @@ export default function AdhkarPage() {
     return Boolean(adhkarId && rewardStatus.dua_ids.includes(adhkarId));
   };
 
-  const claimReward = async (
-    rewardType: RewardType,
-    adhkarId?: string,
+  const isEntryRewardLocked = (
+    category: AdhkarCategory,
+    entry: AdhkarEntry,
   ) => {
+    const categoryRewardType = rewardTypeForCategory(category);
+    if (categoryRewardType) return isRewardClaimed(categoryRewardType);
+    return isDuaRewardCategory(category) && isRewardClaimed("dua", entry.id);
+  };
+
+  const entryCount = (category: AdhkarCategory, entry: AdhkarEntry) =>
+    isEntryRewardLocked(category, entry)
+      ? entry.target
+      : Math.min(
+          progress[progressEntryId(category, entry.id)] ?? 0,
+          entry.target,
+        );
+
+  const completedEntries = ADHKAR_CATEGORIES.reduce(
+    (total, category) =>
+      total +
+      category.entries.filter(
+        (entry) => entryCount(category, entry) >= entry.target,
+      ).length,
+    0,
+  );
+
+  const claimReward = async (rewardType: RewardType, adhkarId?: string) => {
     if (!isStudent || !studentId) return;
     const rewardKey =
       rewardType === "dua" ? `dua:${adhkarId ?? ""}` : rewardType;
@@ -256,10 +446,7 @@ export default function AdhkarPage() {
         reward_type: rewardType,
         ...(adhkarId ? { adhkar_id: adhkarId } : {}),
       });
-      queryClient.setQueryData(
-        ["adhkar-reward-status", studentId],
-        result,
-      );
+      queryClient.setQueryData(["adhkar-reward-status", studentId], result);
       queryClient.setQueryData(["student-coin-wallet", studentId], {
         student_id: result.student_id,
         coin_balance: result.coin_balance,
@@ -291,11 +478,9 @@ export default function AdhkarPage() {
   };
 
   const increment = (category: AdhkarCategory, entry: AdhkarEntry) => {
+    if (isEntryRewardLocked(category, entry)) return;
     const entryProgressId = progressEntryId(category, entry.id);
-    const currentCount = Math.min(
-      progress[entryProgressId] ?? 0,
-      entry.target,
-    );
+    const currentCount = Math.min(progress[entryProgressId] ?? 0, entry.target);
     if (currentCount >= entry.target) return;
     const nextCount = currentCount + 1;
     setProgress((current) => ({
@@ -310,30 +495,25 @@ export default function AdhkarPage() {
         (candidate) =>
           (candidate.id === entry.id
             ? nextCount
-            : progress[progressEntryId(category, candidate.id)] ?? 0) >=
-              candidate.target,
+            : (progress[progressEntryId(category, candidate.id)] ?? 0)) >=
+          candidate.target,
       );
-      if (
-        categoryComplete &&
-        !isRewardClaimed(categoryRewardType)
-      ) {
+      if (categoryComplete && !isRewardClaimed(categoryRewardType)) {
         void claimReward(categoryRewardType);
       }
       return;
     }
 
-    if (
-      isDuaRewardCategory(category) &&
-      !isRewardClaimed("dua", entry.id)
-    ) {
+    if (isDuaRewardCategory(category) && !isRewardClaimed("dua", entry.id)) {
       void claimReward("dua", entry.id);
     }
   };
 
-  const resetEntry = (category: AdhkarCategory, entryId: string) => {
+  const resetEntry = (category: AdhkarCategory, entry: AdhkarEntry) => {
+    if (isEntryRewardLocked(category, entry)) return;
     setProgress((current) => ({
       ...current,
-      [progressEntryId(category, entryId)]: 0,
+      [progressEntryId(category, entry.id)]: 0,
     }));
   };
 
@@ -411,9 +591,7 @@ export default function AdhkarPage() {
   if (selectedCategory) {
     const visibleEntries = matchingEntries(selectedCategory, query);
     const completedInCategory = selectedCategory.entries.filter(
-      (entry) =>
-        (progress[progressEntryId(selectedCategory, entry.id)] ?? 0) >=
-        entry.target,
+      (entry) => entryCount(selectedCategory, entry) >= entry.target,
     ).length;
     const categoryRewardType = rewardTypeForCategory(selectedCategory);
     const categoryComplete =
@@ -422,8 +600,7 @@ export default function AdhkarPage() {
       ? isRewardClaimed(categoryRewardType)
       : false;
     const categoryRewardPending =
-      categoryRewardType !== null &&
-      pendingRewardKey === categoryRewardType;
+      categoryRewardType !== null && pendingRewardKey === categoryRewardType;
 
     return (
       <div className="mx-auto min-w-0 max-w-4xl space-y-4 overflow-x-hidden px-3 pb-12 pt-3 md:space-y-6 md:px-6 md:pt-6">
@@ -586,18 +763,15 @@ export default function AdhkarPage() {
             const index = selectedCategory.entries.findIndex(
               (candidate) => candidate.id === entry.id,
             );
-            const count = Math.min(
-              progress[progressEntryId(selectedCategory, entry.id)] ?? 0,
-              entry.target,
-            );
+            const count = entryCount(selectedCategory, entry);
             const complete = count >= entry.target;
             const percentage = entry.target ? (count / entry.target) * 100 : 0;
             const duaRewardEligible =
               isStudent && isDuaRewardCategory(selectedCategory);
             const duaRewardClaimed =
               duaRewardEligible && isRewardClaimed("dua", entry.id);
-            const duaRewardPending =
-              pendingRewardKey === `dua:${entry.id}`;
+            const duaRewardPending = pendingRewardKey === `dua:${entry.id}`;
+            const rewardLocked = isEntryRewardLocked(selectedCategory, entry);
 
             return (
               <article
@@ -710,8 +884,8 @@ export default function AdhkarPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => resetEntry(selectedCategory, entry.id)}
-                      disabled={count === 0}
+                      onClick={() => resetEntry(selectedCategory, entry)}
+                      disabled={count === 0 || rewardLocked}
                       className="flex w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-35 md:w-14"
                       aria-label={`Reset ${entry.title}`}
                     >
@@ -860,9 +1034,7 @@ export default function AdhkarPage() {
           {FEATURED_ADHKAR_CATEGORIES.map((category) => {
             const Icon = FEATURED_ICONS[category.id] ?? PrayerBeadsIcon;
             const completed = category.entries.filter(
-              (entry) =>
-                (progress[progressEntryId(category, entry.id)] ?? 0) >=
-                entry.target,
+              (entry) => entryCount(category, entry) >= entry.target,
             ).length;
             const rewardType = rewardTypeForCategory(category);
             const rewardClaimed = rewardType
@@ -905,9 +1077,7 @@ export default function AdhkarPage() {
                   {isStudent ? (
                     <p
                       className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${
-                        rewardClaimed
-                          ? "text-emerald-700"
-                          : "text-amber-700"
+                        rewardClaimed ? "text-emerald-700" : "text-amber-700"
                       }`}
                     >
                       <Coins className="h-3.5 w-3.5" />
@@ -1021,7 +1191,7 @@ export default function AdhkarPage() {
               ) ?? currentGroup;
             const Icon = GROUP_ICONS[category.group] ?? PrayerBeadsIcon;
             const completed = category.entries.filter(
-              (entry) => (progress[entry.id] ?? 0) >= entry.target,
+              (entry) => entryCount(category, entry) >= entry.target,
             ).length;
             const matches = matchingEntries(category, query).length;
 
