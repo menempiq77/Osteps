@@ -26,6 +26,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "students",
   "behavior",
   "adhkar",
+  "prayers",
   "mind-upgrade",
   "subjects",
   "subject-cards",
