@@ -22,6 +22,7 @@ import { useSelector } from "react-redux";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { isIslamicSubjectName } from "@/lib/adhkarData";
+import { millisecondsUntilNextDailyRewardDay } from "@/lib/dailyRewardDate";
 import {
   claimPrayerReward,
   fetchPrayerRewardStatus,
@@ -184,8 +185,34 @@ export default function DailyPrayersPage() {
     queryFn: fetchPrayerRewardStatus,
     enabled: isStudent && Boolean(studentId) && isIslamicSubject,
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
+
+  useEffect(() => {
+    if (!isStudent || !studentId || !isIslamicSubject) return;
+    let midnightTimer = 0;
+
+    const scheduleMidnightRefresh = () => {
+      window.clearTimeout(midnightTimer);
+      midnightTimer = window.setTimeout(() => {
+        void refetchRewardStatus();
+        scheduleMidnightRefresh();
+      }, millisecondsUntilNextDailyRewardDay());
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void refetchRewardStatus();
+      scheduleMidnightRefresh();
+    };
+
+    scheduleMidnightRefresh();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [isIslamicSubject, isStudent, refetchRewardStatus, studentId]);
 
   useEffect(() => {
     if (!celebration) return;

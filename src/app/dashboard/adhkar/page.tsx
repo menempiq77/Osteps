@@ -43,6 +43,10 @@ import {
   type AdhkarEntry,
 } from "@/lib/adhkarData";
 import {
+  getDailyRewardDate,
+  millisecondsUntilNextDailyRewardDay,
+} from "@/lib/dailyRewardDate";
+import {
   claimAdhkarReward,
   fetchAdhkarRewardStatus,
 } from "@/services/studentWalletApi";
@@ -61,8 +65,6 @@ type ReadingPosition = {
 };
 
 const READING_POSITION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const DAILY_REWARD_TIME_ZONE = "Asia/Dubai";
-const DAILY_REWARD_UTC_OFFSET_MS = 4 * 60 * 60 * 1000;
 
 const rewardTypeForCategory = (
   category: AdhkarCategory,
@@ -92,25 +94,6 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
 const FEATURED_ICONS: Record<string, LucideIcon> = {
   "featured-morning": Sunrise,
   "featured-evening": Sunset,
-};
-
-const getTodayKey = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: DAILY_REWARD_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const part = (type: "year" | "month" | "day") =>
-    parts.find((candidate) => candidate.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-};
-
-const millisecondsUntilNextRewardDay = () => {
-  const [year, month, day] = getTodayKey().split("-").map(Number);
-  const nextMidnight =
-    Date.UTC(year, month - 1, day + 1) - DAILY_REWARD_UTC_OFFSET_MS;
-  return Math.max(1000, nextMidnight - Date.now() + 1000);
 };
 
 const readProgress = (key: string): Progress => {
@@ -206,7 +189,7 @@ export default function AdhkarPage() {
   const [loadedStorageKey, setLoadedStorageKey] = useState("");
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [activeGroup, setActiveGroup] = useState("daily");
-  const [clientDate, setClientDate] = useState(getTodayKey);
+  const [clientDate, setClientDate] = useState(getDailyRewardDate);
   const [pendingRewardKey, setPendingRewardKey] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<RewardNotice | null>(null);
   const categoryId = searchParams.get("category");
@@ -248,16 +231,16 @@ export default function AdhkarPage() {
     const scheduleMidnightRefresh = () => {
       window.clearTimeout(midnightTimer);
       midnightTimer = window.setTimeout(() => {
-        setClientDate(getTodayKey());
+        setClientDate(getDailyRewardDate());
         if (isStudent && studentId && isIslamicSubject) {
           void refetchRewardStatus();
         }
         scheduleMidnightRefresh();
-      }, millisecondsUntilNextRewardDay());
+      }, millisecondsUntilNextDailyRewardDay());
     };
     const refreshWhenVisible = () => {
       if (document.visibilityState !== "visible") return;
-      setClientDate(getTodayKey());
+      setClientDate(getDailyRewardDate());
       if (isStudent && studentId && isIslamicSubject) {
         void refetchRewardStatus();
       }
