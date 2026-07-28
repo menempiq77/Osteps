@@ -58,6 +58,10 @@ type RewardNotice = {
   tone: "success" | "info" | "error";
   message: string;
 };
+type AdhkarCelebration = {
+  name: string;
+  amount: number;
+};
 type ReadingPosition = {
   page: string;
   scrollY: number;
@@ -65,6 +69,69 @@ type ReadingPosition = {
 };
 
 const READING_POSITION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const BALLOON_POSITIONS = [6, 15, 25, 37, 49, 61, 73, 84, 94];
+const CONFETTI_COLORS = [
+  "#f59e0b",
+  "#10b981",
+  "#6366f1",
+  "#ec4899",
+  "#06b6d4",
+];
+
+const playApplause = () => {
+  if (typeof window === "undefined") return;
+  const AudioContextConstructor =
+    window.AudioContext ||
+    (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext;
+    }).webkitAudioContext;
+  if (!AudioContextConstructor) return;
+
+  try {
+    const context = new AudioContextConstructor();
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.22, context.currentTime);
+    master.gain.exponentialRampToValueAtTime(
+      0.0001,
+      context.currentTime + 1.45,
+    );
+    master.connect(context.destination);
+
+    for (let clap = 0; clap < 18; clap += 1) {
+      const start =
+        context.currentTime + 0.04 + clap * 0.068 + (clap % 3) * 0.012;
+      const sampleCount = Math.floor(context.sampleRate * 0.045);
+      const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        channel[sample] = Math.random() * 2 - 1;
+      }
+
+      const source = context.createBufferSource();
+      const filter = context.createBiquadFilter();
+      const gain = context.createGain();
+      filter.type = "bandpass";
+      filter.frequency.value = 1100 + (clap % 5) * 170;
+      filter.Q.value = 0.7;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(
+        0.32 + (clap % 4) * 0.035,
+        start + 0.004,
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.043);
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      source.start(start);
+      source.stop(start + 0.05);
+    }
+
+    window.setTimeout(() => void context.close(), 1700);
+  } catch {
+    return;
+  }
+};
 
 const findVerticalScrollContainer = (element: HTMLElement) => {
   let parent = element.parentElement;
@@ -204,6 +271,9 @@ export default function AdhkarPage() {
   const [clientDate, setClientDate] = useState(getDailyRewardDate);
   const [pendingRewardKey, setPendingRewardKey] = useState<string | null>(null);
   const [rewardNotice, setRewardNotice] = useState<RewardNotice | null>(null);
+  const [celebration, setCelebration] = useState<AdhkarCelebration | null>(
+    null,
+  );
   const pageRootRef = useRef<HTMLDivElement>(null);
   const categoryId = searchParams.get("category");
   const selectedCategory =
@@ -278,6 +348,12 @@ export default function AdhkarPage() {
     if (loadedStorageKey !== storageKey) return;
     writeProgress(storageKey, progress);
   }, [loadedStorageKey, progress, storageKey]);
+
+  useEffect(() => {
+    if (!celebration) return;
+    const timer = window.setTimeout(() => setCelebration(null), 4200);
+    return () => window.clearTimeout(timer);
+  }, [celebration]);
 
   useEffect(() => {
     if (!activeSubjectId || loading) return;
@@ -433,11 +509,18 @@ export default function AdhkarPage() {
           entry.target,
         );
 
+  const completedCanonicalEntryIds = new Set(
+    ALL_ADHKAR_CATEGORIES.flatMap((category) =>
+      category.entries
+        .filter((entry) => entryCount(category, entry) >= entry.target)
+        .map((entry) => entry.id),
+    ),
+  );
   const completedEntries = ADHKAR_CATEGORIES.reduce(
     (total, category) =>
       total +
-      category.entries.filter(
-        (entry) => entryCount(category, entry) >= entry.target,
+      category.entries.filter((entry) =>
+        completedCanonicalEntryIds.has(entry.id),
       ).length,
     0,
   );
@@ -466,6 +549,14 @@ export default function AdhkarPage() {
             detail: { amount: result.reward_amount },
           }),
         );
+        if (rewardType !== "dua") {
+          setCelebration((current) => ({
+            name:
+              current?.name ??
+              `${rewardType === "morning" ? "Morning" : "Evening"} Adhkar`,
+            amount: result.reward_amount,
+          }));
+        }
       }
       setRewardNotice({
         tone: result.awarded ? "success" : "info",
@@ -497,7 +588,7 @@ export default function AdhkarPage() {
       [entryProgressId]: nextCount,
     }));
 
-    if (!isStudent || nextCount < entry.target) return;
+    if (nextCount < entry.target) return;
     const categoryRewardType = rewardTypeForCategory(category);
     if (categoryRewardType) {
       const categoryComplete = category.entries.every(
@@ -507,13 +598,23 @@ export default function AdhkarPage() {
             : (progress[progressEntryId(category, candidate.id)] ?? 0)) >=
           candidate.target,
       );
-      if (categoryComplete && !isRewardClaimed(categoryRewardType)) {
+      if (!categoryComplete) return;
+      setCelebration({
+        name: category.name,
+        amount: 0,
+      });
+      playApplause();
+      if (isStudent && !isRewardClaimed(categoryRewardType)) {
         void claimReward(categoryRewardType);
       }
       return;
     }
 
-    if (isDuaRewardCategory(category) && !isRewardClaimed("dua", entry.id)) {
+    if (
+      isStudent &&
+      isDuaRewardCategory(category) &&
+      !isRewardClaimed("dua", entry.id)
+    ) {
       void claimReward("dua", entry.id);
     }
   };
@@ -566,6 +667,92 @@ export default function AdhkarPage() {
         </button>
       </div>
     ) : null;
+
+  const celebrationOverlay = celebration ? (
+    <div
+      className="pointer-events-none fixed inset-0 z-[100] overflow-hidden"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="absolute left-1/2 top-[18%] z-10 -translate-x-1/2 animate-bounce rounded-3xl border border-amber-200 bg-white/95 px-6 py-4 text-center shadow-2xl backdrop-blur">
+        <p className="text-2xl font-black text-slate-900">
+          Masha&apos;Allah!
+        </p>
+        <p className="mt-1 text-sm font-bold text-emerald-700">
+          {celebration.name} complete
+          {celebration.amount ? ` · +${celebration.amount} coins` : ""}
+        </p>
+      </div>
+      {BALLOON_POSITIONS.map((left, index) => (
+        <span
+          key={left}
+          className="adhkar-balloon absolute bottom-[-90px] text-5xl drop-shadow-lg"
+          style={{
+            left: `${left}%`,
+            animationDelay: `${index * 90}ms`,
+            animationDuration: `${2.5 + (index % 3) * 0.35}s`,
+          }}
+        >
+          🎈
+        </span>
+      ))}
+      {Array.from({ length: 35 }, (_, index) => (
+        <span
+          key={index}
+          className="adhkar-confetti absolute -top-5 h-3 w-2 rounded-sm"
+          style={{
+            left: `${(index * 29) % 100}%`,
+            backgroundColor:
+              CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+            animationDelay: `${(index % 9) * 80}ms`,
+            animationDuration: `${1.9 + (index % 5) * 0.22}s`,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes adhkar-balloon-rise {
+          0% {
+            transform: translateY(0) rotate(-5deg);
+            opacity: 0;
+          }
+          12% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-115vh) rotate(8deg);
+            opacity: 0;
+          }
+        }
+        @keyframes adhkar-confetti-fall {
+          0% {
+            transform: translateY(-10vh) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(110vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+        .adhkar-balloon {
+          animation-name: adhkar-balloon-rise;
+          animation-timing-function: ease-in;
+          animation-fill-mode: forwards;
+        }
+        .adhkar-confetti {
+          animation-name: adhkar-confetti-fall;
+          animation-timing-function: linear;
+          animation-fill-mode: forwards;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .adhkar-balloon,
+          .adhkar-confetti {
+            animation: none;
+            display: none;
+          }
+        }
+      `}</style>
+    </div>
+  ) : null;
 
   if (loading) {
     return (
@@ -951,6 +1138,7 @@ export default function AdhkarPage() {
             </p>
           </div>
         ) : null}
+        {celebrationOverlay}
       </div>
     );
   }
@@ -1284,6 +1472,7 @@ export default function AdhkarPage() {
       <p className="px-2 text-center text-xs leading-5 text-slate-400">
         {ADHKAR_ATTRIBUTION}
       </p>
+      {celebrationOverlay}
     </div>
   );
 }
