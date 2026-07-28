@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, unlink, readdir } from "fs/promises";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
+import { resolveWithinDir, safePathSegment } from "@/lib/server/safePath";
 
 const TEXTBOOK_DIR = path.join(DATA_DIR, "textbooks");
 
@@ -37,7 +38,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
+    const safeGrade = safePathSegment(gradeSlug);
+    const gradeDir = resolveWithinDir(TEXTBOOK_DIR, safeGrade);
+    if (!gradeDir) {
+      return NextResponse.json({ error: "Invalid gradeSlug" }, { status: 400 });
+    }
     await mkdir(gradeDir, { recursive: true });
 
     const uploaded: { name: string; size: number; url: string }[] = [];
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
       uploaded.push({
         name: finalName,
         size: file.size,
-        url: `/api/textbook/${gradeSlug}/${encodeURIComponent(finalName)}`,
+        url: `/api/textbook/${safeGrade}/${encodeURIComponent(finalName)}`,
       });
     }
 
@@ -89,10 +94,16 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (fileName) {
-      const filePath = path.join(TEXTBOOK_DIR, gradeSlug, fileName);
+      const filePath = resolveWithinDir(TEXTBOOK_DIR, gradeSlug, fileName);
+      if (!filePath) {
+        return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+      }
       await unlink(filePath);
     } else {
-      const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
+      const gradeDir = resolveWithinDir(TEXTBOOK_DIR, gradeSlug);
+      if (!gradeDir) {
+        return NextResponse.json({ error: "Invalid gradeSlug" }, { status: 400 });
+      }
       const files = await readdir(gradeDir).catch(() => [] as string[]);
       for (const f of files) {
         await unlink(path.join(gradeDir, f)).catch(() => {});
