@@ -738,6 +738,7 @@ export default function SubjectCardsPage() {
   }
 
   const studentQuickLinks: QLProps[] = [
+    { name: "Games",          href: "/dashboard/games",                         desc: "Use your coins to unlock and play arcade games.",                  Icon: PlayCircleOutlined },
     { name: "Library",        href: "/dashboard/library",                       desc: "Open your shared reading and learning resources.",                 Icon: BookOutlined },
     { name: "Timetable",      href: "/dashboard/time_table?view=calendar",      desc: "Check your schedule for classes and activities.",                  Icon: CalendarOutlined },
     { name: "Announcements",  href: "/dashboard/announcements",                 desc: "Read the latest updates sent to students.",                        Icon: NotificationOutlined },
@@ -1048,7 +1049,7 @@ export default function SubjectCardsPage() {
               subtitle="Quick access to the pages you use most"
             />
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
             {studentQuickLinks.map((item) => (
               <QuickLinkCard key={item.name} {...item} />
             ))}
