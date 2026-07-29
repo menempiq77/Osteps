@@ -46,7 +46,8 @@ export function ImportFromSimilarSubjectModal({
   useEffect(() => {
     if (!open) {
       setSourceSubjectId(null);
-      setSelectedIds([]);
+      // Keep the identity when already empty, so this never re-renders in a loop.
+      setSelectedIds((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     if (sourceSubjectId || similarSubjects.length === 0) return;
