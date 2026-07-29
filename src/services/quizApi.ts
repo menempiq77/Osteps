@@ -73,7 +73,11 @@ export const fetchQuizQuestions = async (quizId: number, subjectId?: number) => 
   return response.data.data;
 };
 // add QuizQuestions
-export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: string }, subjectId?: number) => {
+export const addQuizQuestion = async (
+  quizId: number,
+  quizQuestionData: Record<string, unknown>,
+  subjectId?: number
+) => {
   const response = await api.post('/add-quiz-question', withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };
@@ -133,6 +137,66 @@ export const assignTrackerQuiz = async (trackerId: number, quizId: number, subje
     quiz_id: quizId, 
   }, subjectId));
   return response.data;
+};
+
+type QuizQuestionOption = { option_text?: string | null; is_correct?: number | null };
+type QuizQuestionRow = {
+  question_text?: string | null;
+  type?: string | null;
+  marks?: number | string | null;
+  correct_answer?: unknown;
+  options?: QuizQuestionOption[] | null;
+};
+
+// Options are stored as rows with an is_correct flag but created from a plain
+// string list plus the index (or indexes) of the correct option.
+const toQuestionPayload = (question: QuizQuestionRow) => {
+  const options = (question.options ?? [])
+    .map((option) => String(option?.option_text ?? ""))
+    .filter((text) => text.length > 0);
+  const correctIndexes = (question.options ?? []).reduce<number[]>((indexes, option, index) => {
+    if (Number(option?.is_correct) === 1) indexes.push(index);
+    return indexes;
+  }, []);
+
+  let correctAnswer: unknown = question.correct_answer ?? null;
+  if (options.length > 0) {
+    correctAnswer =
+      question.type === "check_boxes"
+        ? correctIndexes
+        : correctIndexes.length > 0
+          ? correctIndexes[0]
+          : null;
+  }
+
+  return {
+    question_text: String(question.question_text ?? "").trim(),
+    type: question.type ?? "short_answer",
+    correct_answer: correctAnswer,
+    marks: Math.max(1, Number(question.marks ?? 1)),
+    ...(options.length > 0 ? { options } : {}),
+  };
+};
+
+/** Recreates a quiz (with its questions) under another subject. */
+export const copyQuizToSubject = async (
+  sourceQuizId: number,
+  quizData: { name: string; description?: string | null },
+  targetSubjectId?: number
+): Promise<number | null> => {
+  const created = await addQuize(
+    { name: quizData.name, description: quizData.description ?? "" },
+    targetSubjectId
+  );
+  const newQuizId = Number(created?.data?.id ?? created?.id ?? 0);
+  if (!newQuizId) throw new Error("Quiz copy returned no id");
+
+  const source = await fetchQuizQuestions(sourceQuizId);
+  const questions: QuizQuestionRow[] = source?.quiz_queston ?? source?.questions ?? [];
+  for (const question of questions) {
+    await addQuizQuestion(newQuizId, toQuestionPayload(question), targetSubjectId);
+  }
+  return newQuizId;
 };
 
 // Fetch quiz approval requests

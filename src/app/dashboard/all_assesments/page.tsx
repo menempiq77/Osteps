@@ -11,7 +11,7 @@ import {
   updateAssessment,
 } from "@/services/api";
 import { Breadcrumb, Button, message, Modal, Spin } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
@@ -19,6 +19,10 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 interface Assessment {
   id: string;
@@ -96,6 +100,7 @@ export default function Page() {
     null
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
@@ -258,6 +263,38 @@ export default function Page() {
     }
   };
 
+  const loadAssessmentsForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    const rows = await fetchSchoolAssessment(schoolIdNum, sourceSubjectId);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row: any) => {
+        const rowSubjectId = Number(row?.subject_id ?? row?.subject?.id ?? 0);
+        return rowSubjectId === 0 || rowSubjectId === sourceSubjectId;
+      })
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name ?? row?.quiz?.name ?? "Untitled",
+        description: row.type === "quiz" ? "Quiz" : undefined,
+      }));
+  };
+
+  // Duplicating server-side keeps the tasks (and their uploaded files); the copy
+  // is then re-pointed at the current subject.
+  const importAssessment = async (item: ImportableItem) => {
+    const duplicated = await duplicateAssessment(item.id);
+    const newId = duplicated?.data?.id ?? duplicated?.id;
+    if (!newId) throw new Error("Duplicate assessment returned no id");
+    await updateAssessment(String(newId), {
+      name: item.name,
+      school_id: schoolIdNum,
+      subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
+    });
+    if (inSubjectContext) {
+      tagAssessmentWithSubject(newId, Number(activeSubjectId));
+    }
+  };
+
   const confirmDelete = (id: string) => {
     setAssessmentToDelete(id);
     setDeleteOpen(true);
@@ -322,6 +359,17 @@ export default function Page() {
           </p>
         </div>
         {!isTeacher && (
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {inSubjectContext && (
+            <Button
+              size="large"
+              className="premium-pill-btn"
+              icon={<ImportOutlined />}
+              onClick={() => setImportOpen(true)}
+            >
+              Import Assessments
+            </Button>
+          )}
           <Button
             type="primary"
             size="large"
@@ -335,8 +383,19 @@ export default function Page() {
           >
             Add Assessment
           </Button>
+          </div>
         )}
       </div>
+
+      <ImportFromSimilarSubjectModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        itemLabel="assessment"
+        itemLabelPlural="assessments"
+        loadItems={loadAssessmentsForSubject}
+        importItem={importAssessment}
+        onImported={refreshAssessments}
+      />
 
       {/* Add/Edit Assessment Modal */}
       <Modal
