@@ -383,3 +383,142 @@ export const fetchPrayerHistory = async (
 
   return normalizePrayerHistory(response?.data?.data ?? response?.data);
 };
+
+export type BuiltInLessonProgress = {
+  lesson_id: string;
+  best_score: number;
+  total_questions: number;
+  attempts: number;
+  passed: boolean;
+  coins_awarded: number;
+};
+
+export type BuiltInTrackerProgress = StudentWalletBalance & {
+  tracker_id: string;
+  pass_mark: number;
+  reward_amount: number;
+  lessons: BuiltInLessonProgress[];
+};
+
+export type BuiltInLessonAttemptResult = BuiltInTrackerProgress & {
+  lesson_id: string;
+  score: number;
+  passed: boolean;
+  awarded: boolean;
+  coins_earned: number;
+};
+
+const normalizeBuiltInLessonProgress = (
+  value: unknown,
+): BuiltInLessonProgress | null => {
+  if (!isRecord(value)) return null;
+
+  const lessonId = String(value.lesson_id ?? "");
+  if (!lessonId) return null;
+
+  const bestScore = Number(value.best_score);
+  const totalQuestions = Number(value.total_questions);
+  const attempts = Number(value.attempts);
+  const coinsAwarded = Number(value.coins_awarded);
+
+  return {
+    lesson_id: lessonId,
+    best_score: Number.isFinite(bestScore) && bestScore > 0 ? bestScore : 0,
+    total_questions:
+      Number.isFinite(totalQuestions) && totalQuestions > 0
+        ? totalQuestions
+        : 0,
+    attempts: Number.isFinite(attempts) && attempts > 0 ? attempts : 0,
+    passed: value.passed === true,
+    coins_awarded:
+      Number.isFinite(coinsAwarded) && coinsAwarded > 0 ? coinsAwarded : 0,
+  };
+};
+
+const normalizeBuiltInTrackerProgress = (
+  value: unknown,
+): BuiltInTrackerProgress => {
+  const wallet = normalizeWalletBalance(value);
+  const record = isRecord(value) ? value : {};
+  const trackerId = String(record.tracker_id ?? "");
+  const passMark = Number(record.pass_mark);
+  const rewardAmount = Number(record.reward_amount);
+
+  if (
+    !trackerId ||
+    !Number.isInteger(passMark) ||
+    passMark <= 0 ||
+    !Number.isInteger(rewardAmount) ||
+    rewardAmount <= 0
+  ) {
+    throw new Error(
+      "The built-in tracker service returned an invalid response.",
+    );
+  }
+
+  const lessons = Array.isArray(record.lessons)
+    ? record.lessons
+        .map(normalizeBuiltInLessonProgress)
+        .filter((lesson): lesson is BuiltInLessonProgress => lesson !== null)
+    : [];
+
+  return {
+    ...wallet,
+    tracker_id: trackerId,
+    pass_mark: passMark,
+    reward_amount: rewardAmount,
+    lessons,
+  };
+};
+
+const normalizeBuiltInLessonAttempt = (
+  value: unknown,
+): BuiltInLessonAttemptResult => {
+  const progress = normalizeBuiltInTrackerProgress(value);
+  const record = isRecord(value) ? value : {};
+  const lessonId = String(record.lesson_id ?? "");
+  const score = Number(record.score);
+  const coinsEarned = Number(record.coins_earned);
+
+  if (!lessonId || !Number.isFinite(score) || score < 0) {
+    throw new Error(
+      "The built-in tracker service returned an invalid attempt result.",
+    );
+  }
+
+  return {
+    ...progress,
+    lesson_id: lessonId,
+    score,
+    passed: record.passed === true,
+    awarded: record.awarded === true,
+    coins_earned:
+      Number.isFinite(coinsEarned) && coinsEarned > 0 ? coinsEarned : 0,
+  };
+};
+
+export const fetchBuiltInTrackerProgress = async (
+  trackerId: string,
+): Promise<BuiltInTrackerProgress> => {
+  const response = await api.get("/student-wallet/builtin-tracker", {
+    params: { tracker_id: trackerId, ...studentPayload() },
+  });
+
+  return normalizeBuiltInTrackerProgress(
+    response?.data?.data ?? response?.data,
+  );
+};
+
+export const submitBuiltInLessonAttempt = async (payload: {
+  tracker_id: string;
+  lesson_id: string;
+  score: number;
+  total_questions: number;
+}): Promise<BuiltInLessonAttemptResult> => {
+  const response = await api.post("/student-wallet/builtin-tracker", {
+    ...payload,
+    ...studentPayload(),
+  });
+
+  return normalizeBuiltInLessonAttempt(response?.data?.data ?? response?.data);
+};
