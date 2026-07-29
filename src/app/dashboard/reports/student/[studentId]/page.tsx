@@ -37,6 +37,8 @@ import { fetchStudentNarrativeReports } from "@/services/studentNarrativeReportA
 import TeacherReportEditor from "@/components/reports/TeacherReportEditor";
 import SupportWellbeingEditor from "@/components/reports/SupportWellbeingEditor";
 import BehaviourHistoryEditor from "@/components/reports/BehaviourHistoryEditor";
+import PrayerHistoryCard from "@/components/reports/PrayerHistoryCard";
+import { fetchPrayerHistory } from "@/services/studentWalletApi";
 import {
   resolveCoinBalance,
   type LeaderboardRawEntry,
@@ -212,6 +214,16 @@ export default function StudentReportPage() {
     },
     enabled: Boolean(studentId),
     staleTime: 60 * 1000,
+  });
+
+  const {
+    data: prayerHistory = [],
+    isLoading: prayerHistoryLoading,
+    isError: prayerHistoryError,
+  } = useQuery({
+    queryKey: ["student-report-prayer-history", studentId],
+    queryFn: () => fetchPrayerHistory(studentId),
+    enabled: Boolean(studentId) && !isArchivedView,
   });
 
   const normalizedRole = String(currentUser?.role ?? "")
@@ -721,6 +733,14 @@ export default function StudentReportPage() {
           tone="blue"
         />
       </div>
+
+      {!isArchivedView ? (
+        <PrayerHistoryCard
+          days={prayerHistory}
+          isLoading={prayerHistoryLoading}
+          isError={prayerHistoryError}
+        />
+      ) : null}
 
       {/* Attendance + Behaviour charts */}
       <div className="grid gap-4 lg:grid-cols-2">

@@ -1,7 +1,9 @@
 // src/services/trackersApi.ts
 import { createApiClient } from "@/lib/apiClient";
-import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
 import { withSubjectPayload, withSubjectQuery } from "@/lib/subjectScope";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
+import { addTrackerTopic, fetchTrackerTopics } from "@/services/api";
+import { assignTrackerQuiz } from "@/services/quizApi";
 
 const api = createApiClient();
 
@@ -13,40 +15,6 @@ export const fetchAllTrackers = async (schoolId: number, subjectId?: number) => 
   return response.data.data;
 };
 
-export type ArchivedTrackerImportResult = {
-  source_tracker_id: number;
-  imported_tracker_id: number;
-  name: string;
-  subject_id: number;
-  topic_count: number;
-  status_count: number;
-  quiz_count: number;
-  assignment_count: number;
-  progress_count: number;
-  certificate_count: number;
-};
-
-export const importArchivedTrackers = async (payload: {
-  source_subject_id: number;
-  target_subject_id: number;
-  tracker_ids: number[];
-  request_token: string;
-}) => {
-  const response = await api.post("/import-archived-trackers", payload);
-  throwOnEmbeddedFailure(response.data, {
-    fallbackStatus: response.status,
-    fallbackMessage: "Failed to import archived trackers",
-  });
-  return response.data as {
-    status_code: number;
-    msg: string;
-    data: {
-      imported_count: number;
-      trackers: ArchivedTrackerImportResult[];
-    };
-  };
-};
-
 
 // fetch trackers
 export const fetchTrackers = async (classId: number, subjectId?: number) => {
@@ -54,6 +22,92 @@ export const fetchTrackers = async (classId: number, subjectId?: number) => {
     params: withSubjectQuery({}, subjectId),
   });
   return response.data.data;
+};
+
+type TrackerTopicRow = {
+  title?: string | null;
+  type?: string | null;
+  quiz_id?: number | string | null;
+  quiz?: { id?: number | string | null } | null;
+  marks?: number | string | null;
+  position?: number | null;
+};
+
+/**
+ * Recreates a tracker (with its topics and assigned quizzes) under another
+ * subject. The tracker list endpoint omits `progress`, so the progress options
+ * are read from the tracker detail's `status_progress` — `/add-trackers`
+ * rejects an empty list.
+ */
+export const copyTrackerToSubject = async (
+  sourceTrackerId: number,
+  trackerData: {
+    school_id: number;
+    name: string;
+    type?: string;
+    claim_certificate?: boolean;
+    deadline?: string | null;
+  },
+  targetSubjectId?: number
+): Promise<number> => {
+  const source = await fetchTrackerTopics(sourceTrackerId);
+  const topics: TrackerTopicRow[] = Array.isArray(source?.topics) ? source.topics : [];
+
+  const statuses: Array<{ name?: string | null }> = Array.isArray(source?.status_progress)
+    ? source.status_progress
+    : [];
+  const progress = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(source?.progress) ? source.progress : []),
+        ...statuses.map((status) => status?.name ?? ""),
+      ]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean)
+    )
+  );
+  if (progress.length === 0) {
+    throw new Error("the source tracker has no progress options to copy");
+  }
+
+  const created = await addTracker(
+    {
+      school_id: trackerData.school_id,
+      name: trackerData.name,
+      type: trackerData.type ?? String(source?.type ?? "topic"),
+      progress,
+      claim_certificate: Boolean(trackerData.claim_certificate),
+      deadline: trackerData.deadline ?? null,
+    },
+    targetSubjectId
+  );
+  throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the tracker" });
+  const newTrackerId = Number(created?.data?.id ?? created?.id ?? 0);
+  if (!newTrackerId) throw new Error("Tracker copy returned no id");
+
+  const orderedTopics = [...topics].sort(
+    (a, b) => Number(a.position ?? 0) - Number(b.position ?? 0)
+  );
+  for (const topic of orderedTopics) {
+    const quizId = Number(topic.quiz_id ?? topic.quiz?.id ?? 0);
+    if (topic.type === "quiz" || quizId > 0) {
+      if (quizId > 0) {
+        const response = await assignTrackerQuiz(newTrackerId, quizId, targetSubjectId);
+        throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a quiz" });
+      }
+      continue;
+    }
+
+    const title = String(topic.title ?? "").trim();
+    if (!title) continue;
+    const response = await addTrackerTopic(newTrackerId, {
+      title,
+      marks: Number(topic.marks ?? 0) || 0,
+    });
+    throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a topic" });
+  }
+
+  return newTrackerId;
 };
 
 // add tracker

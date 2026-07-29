@@ -24,6 +24,8 @@ import { fetchGrades } from "@/services/gradesApi";
 import { fetchSchoolSelfLeaderBoardData } from "@/services/leaderboardApi";
 import { fetchWholeAssessmentsReport } from "@/services/reportApi";
 import { fetchMyClaimedCertificates } from "@/services/trackersApi";
+import { fetchPrayerHistory } from "@/services/studentWalletApi";
+import PrayerHistoryCard from "@/components/reports/PrayerHistoryCard";
 import { IMG_BASE_URL } from "@/lib/config";
 import {
   resolveCoinBalance,
@@ -263,6 +265,15 @@ export default function StudentMyReportPage() {
     effectiveClassId > 0 && effectiveClassId !== currentClassId;
   const selectedClassName =
     classOptions.find((c) => c.id === effectiveClassId)?.name ?? "";
+  const {
+    data: prayerHistory = [],
+    isLoading: prayerHistoryLoading,
+    isError: prayerHistoryError,
+  } = useQuery({
+    queryKey: ["student-my-report-prayer-history", studentId],
+    queryFn: () => fetchPrayerHistory(studentId),
+    enabled: Boolean(studentId) && !isPreviousView,
+  });
 
   const profile = useMemo(() => {
     return {
@@ -707,6 +718,14 @@ export default function StudentMyReportPage() {
           tone="blue"
         />
       </div>
+      ) : null}
+
+      {!isPreviousView ? (
+        <PrayerHistoryCard
+          days={prayerHistory}
+          isLoading={prayerHistoryLoading}
+          isError={prayerHistoryError}
+        />
       ) : null}
 
       {/* Attendance + Behaviour charts — current-class only */}

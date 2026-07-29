@@ -8,6 +8,7 @@ import {
   CheckSquare,
   ClipboardList,
   FolderOpen,
+  Gamepad2,
   GraduationCap,
   HelpCircle,
   Home,
@@ -496,6 +497,14 @@ const buildBaseNavigation = ({
         description: "Review your tracker progress for the active subject.",
         section: "Teaching",
         keywords: ["progress", "tracker"],
+      },
+      {
+        name: "Games",
+        href: "/dashboard/games",
+        icon: Gamepad2,
+        description: "Use your coins to unlock and play arcade games.",
+        section: "Resources",
+        keywords: ["games", "arcade", "coins", "rewards"],
       },
       {
         name: "Leaderboard",

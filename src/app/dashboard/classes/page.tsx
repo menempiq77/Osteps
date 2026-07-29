@@ -24,6 +24,16 @@ import {
   resolveSubjectClassLinkedIdWithFallback,
   writeSubjectClassBaseEntry,
 } from "@/lib/subjectClassResolution";
+import {
+  importSubjectClassIntoSubject,
+  isSubjectClassActive,
+  resolveClassLabel,
+  resolveClassYearId,
+} from "@/lib/subjectClassImport";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -91,6 +101,8 @@ export default function Page() {
   const [isDeleteClassModalOpen, setIsDeleteClassModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(archivedParam);
+  const [importOpen, setImportOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
@@ -357,7 +369,7 @@ export default function Page() {
   };
 
   loadClasses();
-}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, showArchived]);
+}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, showArchived, reloadKey]);
 
 useEffect(() => {
   const loadClassStats = async () => {
@@ -708,6 +720,57 @@ useEffect(() => {
     }
   };
 
+  const loadClassesForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    const [rows, schoolYears] = await Promise.all([
+      fetchSubjectClasses({ subject_id: sourceSubjectId, include_inactive: true }),
+      fetchYearsBySchool(Number(currentUser?.school ?? 0)).catch(() => []),
+    ]);
+    const yearNameById = new Map(
+      (Array.isArray(schoolYears) ? schoolYears : []).map((year: any) => [
+        Number(year?.id),
+        String(year?.name ?? `Year ${year?.id ?? ""}`).trim(),
+      ])
+    );
+    const seen = new Set<string>();
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row: any) => {
+        const yearId = resolveClassYearId(row);
+        const label = resolveClassLabel(row);
+        if (!label || !yearId) return false;
+        if (year_id && Number(year_id) !== yearId) return false;
+        const key = `${yearId}:${label.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((row: any) => ({
+        id: String(row.id),
+        name: `${yearNameById.get(resolveClassYearId(row)) ?? `Year ${resolveClassYearId(row)}`} — ${resolveClassLabel(row)}`,
+        description: isSubjectClassActive(row) ? undefined : "Archived in source subject",
+      }));
+  };
+
+  const importClassFromSubject = async (
+    item: ImportableItem,
+    sourceSubjectId: number
+  ) => {
+    const rows = (await fetchSubjectClasses({
+      subject_id: sourceSubjectId,
+      include_inactive: true,
+    })) as SubjectClassRow[];
+    const sourceClass = (Array.isArray(rows) ? rows : []).find(
+      (row) => String(row.id) === String(item.id)
+    );
+    if (!sourceClass) throw new Error("The selected class no longer exists.");
+    await importSubjectClassIntoSubject({
+      sourceSubjectId,
+      targetSubjectId: Number(activeSubjectId),
+      sourceClass,
+    });
+  };
+
   if (loading && classes.length === 0)
     return (
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
@@ -768,6 +831,14 @@ useEffect(() => {
                 </button>
               </div>
             ) : null}
+            {hasAccess && isSubjectWorkspaceMode && !showArchived && (
+              <Button
+                className="!cursor-pointer"
+                onClick={() => setImportOpen(true)}
+              >
+                Import Classes
+              </Button>
+            )}
             {hasAccess && !!year_id && !showArchived && (
               <Button
                 type="primary"
@@ -780,6 +851,16 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      <ImportFromSimilarSubjectModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        itemLabel="class"
+        itemLabelPlural="classes"
+        loadItems={loadClassesForSubject}
+        importItem={importClassFromSubject}
+        onImported={() => setReloadKey((key) => key + 1)}
+      />
 
       <Modal
         title={currentClass ? "Edit Class" : "Add New Class"}

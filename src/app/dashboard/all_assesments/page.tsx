@@ -4,33 +4,28 @@ import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AllAssessmentList from "@/components/dashboard/AllAssessmentList";
 import {
   addAssessment,
+  addTask,
   deleteAssessment,
   deleteAssignTermQuiz,
   duplicateAssessment,
   fetchSchoolAssessment,
-  importArchivedAssessments,
+  fetchTasks,
   updateAssessment,
 } from "@/services/api";
-import {
-  Alert,
-  Breadcrumb,
-  Button,
-  Empty,
-  message,
-  Modal,
-  Select,
-  Spin,
-} from "antd";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
+import { Breadcrumb, Button, message, Modal, Spin } from "antd";
 import { ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
-import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
+import { assignAssesmentQuiz, assignTaskQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
-import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 interface Assessment {
   id: string;
@@ -38,26 +33,6 @@ interface Assessment {
   type: "assessment" | "quiz";
   term_id: string;
 }
-
-type ArchivedAssessmentSource = {
-  subjectId: number;
-  subjectName: string;
-  assessments: Assessment[];
-};
-
-type SubjectClassStatusRow = {
-  is_active?: number | string | null;
-};
-
-type RequestError = {
-  message?: unknown;
-  response?: {
-    data?: {
-      message?: unknown;
-      msg?: unknown;
-    };
-  };
-};
 
 const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
@@ -124,52 +99,6 @@ function filterAssessmentsBySubject(
   return assessments.filter((a) => map[String(a.id)] === subjectId);
 }
 
-const isSubjectClassActive = (row: SubjectClassStatusRow) =>
-  row.is_active === undefined ? true : Number(row.is_active) === 1;
-
-const resolveRequestError = (error: unknown, fallback: string): string => {
-  const requestError = error as RequestError;
-  return String(
-    requestError.response?.data?.msg ??
-      requestError.response?.data?.message ??
-      requestError.message ??
-      fallback,
-  );
-};
-
-const IMPORT_REQUEST_TOKEN_KEY = "osteps_archived_assessment_import_tokens";
-
-const readImportRequestTokens = (): Record<string, string> => {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(
-      sessionStorage.getItem(IMPORT_REQUEST_TOKEN_KEY) || "{}",
-    );
-  } catch {
-    return {};
-  }
-};
-
-const getImportRequestToken = (signature: string): string => {
-  const tokens = readImportRequestTokens();
-  if (tokens[signature]) return tokens[signature];
-
-  const token =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  tokens[signature] = token;
-  sessionStorage.setItem(IMPORT_REQUEST_TOKEN_KEY, JSON.stringify(tokens));
-  return token;
-};
-
-const clearImportRequestToken = (signature: string) => {
-  if (typeof window === "undefined") return;
-  const tokens = readImportRequestTokens();
-  delete tokens[signature];
-  sessionStorage.setItem(IMPORT_REQUEST_TOKEN_KEY, JSON.stringify(tokens));
-};
-
 export default function Page() {
   const { termId, classId } = useParams();
   const [open, setOpen] = useState(false);
@@ -187,24 +116,13 @@ export default function Page() {
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [archivedAssessmentSources, setArchivedAssessmentSources] = useState<
-    ArchivedAssessmentSource[]
-  >([]);
-  const [archivedAssessmentsLoading, setArchivedAssessmentsLoading] =
-    useState(false);
-  const [importingAssessments, setImportingAssessments] = useState(false);
-  const [selectedSourceSubjectId, setSelectedSourceSubjectId] = useState<
-    number | null
-  >(null);
-  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(
-    [],
-  );
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, activeSubject, subjects } =
+  const { activeSubjectId, canUseSubjectContext, activeSubject } =
     useSubjectContext();
-  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
+  // Assessments have no subject_id in the DB; show all school assessments
+  // (localStorage-based subject tagging is unreliable across browsers/devices)
   const assessments = rawAssessments;
   const quizzes = inSubjectContext
     ? filterQuizzesBySubject(rawQuizzes, Number(activeSubjectId))
@@ -214,14 +132,6 @@ export default function Page() {
   const schoolIdNum = Number(currentUser?.school ?? 0);
   const isContextReady =
     schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
-  const canImportArchivedAssessments =
-    currentUser?.role === "SCHOOL_ADMIN" &&
-    inSubjectContext &&
-    !isReadOnlyArchivedWorkspace;
-  const selectedArchivedSource =
-    archivedAssessmentSources.find(
-      (source) => source.subjectId === selectedSourceSubjectId,
-    ) ?? null;
 
   const refreshAssessments = async () => {
     const data = await fetchSchoolAssessment(
@@ -288,102 +198,6 @@ export default function Page() {
       cancelled = true;
     };
   }, [schoolIdNum, activeSubjectId, canUseSubjectContext, isContextReady]);
-
-  useEffect(() => {
-    if (
-      !importOpen ||
-      !canImportArchivedAssessments ||
-      !activeSubjectId ||
-      !schoolIdNum
-    ) {
-      setArchivedAssessmentSources([]);
-      setArchivedAssessmentsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setArchivedAssessmentsLoading(true);
-
-    const loadArchivedAssessments = async () => {
-      try {
-        const sourceSubjects = subjects.filter(
-          (subject) => Number(subject.id) !== Number(activeSubjectId),
-        );
-        const sourceRows = await Promise.all(
-          sourceSubjects.map(async (subject) => {
-            try {
-              const [classRows, sourceAssessments] = await Promise.all([
-                fetchSubjectClasses({
-                  subject_id: Number(subject.id),
-                  include_inactive: true,
-                }) as Promise<SubjectClassStatusRow[]>,
-                fetchSchoolAssessment(schoolIdNum, Number(subject.id)),
-              ]);
-              return {
-                subject,
-                classRows: Array.isArray(classRows) ? classRows : [],
-                assessments: (Array.isArray(sourceAssessments)
-                  ? sourceAssessments
-                  : []
-                ).filter(
-                  (assessment: Assessment) =>
-                    String(assessment.type).toLowerCase() === "assessment",
-                ),
-              };
-            } catch {
-              return {
-                subject,
-                classRows: [] as SubjectClassStatusRow[],
-                assessments: [] as Assessment[],
-              };
-            }
-          }),
-        );
-
-        if (cancelled) return;
-
-        const archivedSources = sourceRows
-          .filter(
-            ({ classRows, assessments: sourceAssessments }) =>
-              classRows.length > 0 &&
-              classRows.every((row) => !isSubjectClassActive(row)) &&
-              sourceAssessments.length > 0,
-          )
-          .map(({ subject, assessments: sourceAssessments }) => ({
-            subjectId: Number(subject.id),
-            subjectName: String(subject.name ?? `Subject ${subject.id}`),
-            assessments: sourceAssessments,
-          }))
-          .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-
-        setArchivedAssessmentSources(archivedSources);
-        setSelectedSourceSubjectId((current) =>
-          archivedSources.some((source) => source.subjectId === current)
-            ? current
-            : (archivedSources[0]?.subjectId ?? null),
-        );
-      } catch (loadError) {
-        console.error(loadError);
-        messageApi.error("Failed to load archived assessments.");
-        setArchivedAssessmentSources([]);
-      } finally {
-        if (!cancelled) setArchivedAssessmentsLoading(false);
-      }
-    };
-
-    loadArchivedAssessments();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    importOpen,
-    canImportArchivedAssessments,
-    activeSubjectId,
-    schoolIdNum,
-    subjects,
-    messageApi,
-  ]);
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -474,137 +288,76 @@ export default function Page() {
     }
   };
 
-  const handleImportArchivedAssessments = async () => {
-    if (
-      !canImportArchivedAssessments ||
-      !activeSubjectId ||
-      !selectedArchivedSource
-    ) {
-      messageApi.warning(
-        "Only School Admin can import assessments into an active subject.",
-      );
-      return;
+  const loadAssessmentsForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    const rows = await fetchSchoolAssessment(schoolIdNum, sourceSubjectId);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row: any) => {
+        const rowSubjectId = Number(row?.subject_id ?? row?.subject?.id ?? 0);
+        return rowSubjectId === 0 || rowSubjectId === sourceSubjectId;
+      })
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name ?? row?.quiz?.name ?? "Untitled",
+        description: row.type === "quiz" ? "Quiz" : undefined,
+      }));
+  };
+
+  // `duplicate-assessment` always copies into the source subject, so the copy is
+  // created through the normal create path and its tasks/quizzes are re-added.
+  // Uploaded task files are not re-uploaded and stay with the source.
+  const importAssessment = async (item: ImportableItem, sourceSubjectId: number) => {
+    const created = await addAssessment({
+      name: item.name,
+      school_id: schoolIdNum,
+      type: "assessment",
+      subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
+    });
+    throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the assessment" });
+    const newId = Number(created?.data?.id ?? created?.id ?? 0);
+    if (!newId) throw new Error("Assessment copy returned no id");
+    if (inSubjectContext) {
+      tagAssessmentWithSubject(newId, Number(activeSubjectId));
     }
 
-    if (selectedAssessmentIds.length === 0) {
-      messageApi.warning("Select at least one assessment to import.");
-      return;
-    }
-
-    setImportingAssessments(true);
-
-    try {
-      const latestSourceAssessments = (
-        await fetchSchoolAssessment(
-          schoolIdNum,
-          selectedArchivedSource.subjectId,
-        )
-      ).filter(
-        (assessment: Assessment) =>
-          String(assessment.type).toLowerCase() === "assessment",
-      );
-      const selectedIdSet = new Set(selectedAssessmentIds.map(String));
-      const assessmentsToImport = latestSourceAssessments.filter(
-        (assessment: Assessment) => selectedIdSet.has(String(assessment.id)),
-      );
-
-      if (assessmentsToImport.length !== selectedAssessmentIds.length) {
-        throw new Error(
-          "One or more selected assessments are no longer available.",
-        );
-      }
-
-      const sourceIdsBefore = latestSourceAssessments
-        .map((assessment: Assessment) => String(assessment.id))
-        .sort();
-      const selectedIds = selectedAssessmentIds.map(Number).sort((a, b) => a - b);
-      const requestSignature = [
-        schoolIdNum,
-        selectedArchivedSource.subjectId,
-        Number(activeSubjectId),
-        selectedIds.join(","),
-      ].join(":");
-      const importResponse = await importArchivedAssessments({
-        source_subject_id: selectedArchivedSource.subjectId,
-        target_subject_id: Number(activeSubjectId),
-        assessment_ids: selectedIds,
-        request_token: getImportRequestToken(requestSignature),
-      });
-      const importedRows = importResponse.data?.assessments ?? [];
-
-      if (
-        Number(importResponse.data?.imported_count ?? 0) !== selectedIds.length ||
-        importedRows.length !== selectedIds.length
-      ) {
-        throw new Error("The server did not confirm every selected assessment.");
-      }
-
-      const [targetAssessmentsAfter, sourceAssessmentsAfter] = await Promise.all([
-        fetchSchoolAssessment(schoolIdNum, Number(activeSubjectId)),
-        fetchSchoolAssessment(
-          schoolIdNum,
-          selectedArchivedSource.subjectId,
-        ),
-      ]);
-      const sourceIdsAfter = (Array.isArray(sourceAssessmentsAfter)
-        ? sourceAssessmentsAfter
-        : []
-      )
-        .filter(
-          (assessment: Assessment) =>
-            String(assessment.type).toLowerCase() === "assessment",
-        )
-        .map((assessment: Assessment) => String(assessment.id))
-        .sort();
-
-      if (sourceIdsBefore.join(",") !== sourceIdsAfter.join(",")) {
-        throw new Error("The archived source changed during the import.");
-      }
-
-      const targetRows = Array.isArray(targetAssessmentsAfter)
-        ? targetAssessmentsAfter
-        : [];
-      for (const importedRow of importedRows) {
-        const targetAssessment = targetRows.find(
-          (assessment: Assessment) =>
-            Number(assessment.id) === Number(importedRow.id),
-        ) as (Assessment & { subject_id?: number | string | null }) | undefined;
-        const sourceAssessment = assessmentsToImport.find(
-          (assessment: Assessment) =>
-            Number(assessment.id) === Number(importedRow.source_assessment_id),
-        );
-
-        if (
-          !targetAssessment ||
-          !sourceAssessment ||
-          Number(targetAssessment.id) === Number(sourceAssessment.id) ||
-          Number(targetAssessment.subject_id) !== Number(activeSubjectId) ||
-          targetAssessment.name !== sourceAssessment.name ||
-          String(targetAssessment.type).toLowerCase() !==
-            String(sourceAssessment.type).toLowerCase() ||
-          Number(importedRow.assignment_count) !== 0
-        ) {
-          throw new Error(
-            `The imported copy of "${sourceAssessment?.name ?? "an assessment"}" failed ownership verification.`,
+    const rows = await fetchTasks(Number(item.id), sourceSubjectId);
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (row?.type === "quiz") {
+        const quizId = Number(row?.quiz?.id ?? row?.quiz_id ?? 0);
+        if (quizId > 0) {
+          const weight = Number(row?.percentage_weight);
+          await assignTaskQuiz(
+            quizId,
+            newId,
+            inSubjectContext ? Number(activeSubjectId) : undefined,
+            Number.isFinite(weight) ? weight : undefined
           );
         }
+        continue;
       }
 
-      await refreshAssessments();
-      clearImportRequestToken(requestSignature);
-      messageApi.success(
-        `${importedRows.length} ${
-          importedRows.length === 1 ? "assessment" : "assessments"
-        } imported with all tasks.`,
-      );
-      setImportOpen(false);
-      setSelectedAssessmentIds([]);
-    } catch (importError) {
-      messageApi.error(
-        resolveRequestError(importError, "Failed to import assessments."),
-      );
-    } finally {
-      setImportingAssessments(false);
+      const formData = new FormData();
+      formData.append("assessment_id", String(newId));
+      formData.append("task_name", String(row?.task_name ?? row?.name ?? "").trim());
+      formData.append("description", String(row?.description ?? ""));
+      formData.append("due_date", String(row?.due_date ?? "").slice(0, 10));
+      formData.append("allocated_marks", String(row?.allocated_marks ?? 0));
+      formData.append("percentage_weight", String(row?.percentage_weight ?? 0));
+
+      const taskType = row?.task_type_config ?? row?.task_type;
+      if (taskType && typeof taskType === "object") {
+        Object.entries(taskType).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          formData.append(`task_type[${key}]`, String(value));
+        });
+      } else {
+        formData.append("task_type", taskType ? String(taskType) : "null");
+      }
+      if (row?.url) formData.append("url", String(row.url));
+
+      const response = await addTask(formData);
+      throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a task" });
     }
   };
 
@@ -671,24 +424,19 @@ export default function Page() {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Create a new assessment or import one from an archived subject.
-            Drag cards to reorder.
+            Create, organise and weight your assessments. Drag cards to reorder.
           </p>
         </div>
         {!isTeacher && (
           <div className="grid w-full grid-cols-1 gap-2 self-start sm:flex sm:w-auto sm:flex-wrap sm:self-auto">
-            {canImportArchivedAssessments && (
+            {inSubjectContext && (
               <Button
                 size="large"
                 className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
                 icon={<ImportOutlined />}
-                onClick={() => {
-                  setSelectedSourceSubjectId(null);
-                  setSelectedAssessmentIds([]);
-                  setImportOpen(true);
-                }}
+                onClick={() => setImportOpen(true)}
               >
-                Import from Archive
+                Import Assessments
               </Button>
             )}
             <Button
@@ -707,6 +455,16 @@ export default function Page() {
           </div>
         )}
       </div>
+
+      <ImportFromSimilarSubjectModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        itemLabel="assessment"
+        itemLabelPlural="assessments"
+        loadItems={loadAssessmentsForSubject}
+        importItem={importAssessment}
+        onImported={refreshAssessments}
+      />
 
       {/* Add/Edit Assessment Modal */}
       <Modal
@@ -748,118 +506,6 @@ export default function Page() {
             quizzes={quizzes}
           />
         )}
-      </Modal>
-
-      <Modal
-        title="Import assessments from an archived subject"
-        open={importOpen}
-        onCancel={() => {
-          if (importingAssessments) return;
-          setImportOpen(false);
-          setSelectedAssessmentIds([]);
-        }}
-        onOk={handleImportArchivedAssessments}
-        okText={`Import ${
-          selectedAssessmentIds.length > 0 ? selectedAssessmentIds.length : ""
-        } ${
-          selectedAssessmentIds.length === 1 ? "Assessment" : "Assessments"
-        }`.replace("  ", " ")}
-        okButtonProps={{
-          disabled:
-            archivedAssessmentsLoading ||
-            !selectedSourceSubjectId ||
-            selectedAssessmentIds.length === 0,
-          loading: importingAssessments,
-          className: "!bg-primary !border-primary",
-        }}
-        cancelButtonProps={{ disabled: importingAssessments }}
-        maskClosable={!importingAssessments}
-        closable={!importingAssessments}
-        centered
-      >
-        <div className="space-y-4">
-          <Alert
-            type="info"
-            showIcon
-            message="Copy assessment content, not historical results"
-            description={`The selected assessments and all tasks will be copied into ${
-              activeSubject?.name ?? "this active subject"
-            }. Imported copies start unassigned. The archived originals, student submissions, marks, and previous assignments remain unchanged.`}
-          />
-
-          {archivedAssessmentsLoading ? (
-            <div className="flex min-h-40 items-center justify-center">
-              <Spin />
-            </div>
-          ) : archivedAssessmentSources.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No assessments were found in archived subjects."
-            />
-          ) : (
-            <>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Archived subject
-                </label>
-                <Select
-                  className="w-full"
-                  value={selectedSourceSubjectId}
-                  onChange={(value) => {
-                    setSelectedSourceSubjectId(value);
-                    setSelectedAssessmentIds([]);
-                  }}
-                  options={archivedAssessmentSources.map((source) => ({
-                    value: source.subjectId,
-                    label: `${source.subjectName} (${source.assessments.length} ${
-                      source.assessments.length === 1
-                        ? "assessment"
-                        : "assessments"
-                    })`,
-                  }))}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Assessments to import
-                </label>
-                <Select
-                  mode="multiple"
-                  allowClear
-                  className="w-full"
-                  value={selectedAssessmentIds}
-                  placeholder="Choose one or more assessments"
-                  onChange={setSelectedAssessmentIds}
-                  maxTagCount="responsive"
-                  options={(selectedArchivedSource?.assessments ?? []).map(
-                    (assessment) => ({
-                      value: String(assessment.id),
-                      label: assessment.name,
-                    }),
-                  )}
-                />
-                {selectedArchivedSource &&
-                  selectedAssessmentIds.length <
-                    selectedArchivedSource.assessments.length && (
-                    <Button
-                      type="link"
-                      className="!px-0"
-                      onClick={() =>
-                        setSelectedAssessmentIds(
-                          selectedArchivedSource.assessments.map((assessment) =>
-                            String(assessment.id),
-                          ),
-                        )
-                      }
-                    >
-                      Select all {selectedArchivedSource.assessments.length}
-                    </Button>
-                  )}
-              </div>
-            </>
-          )}
-        </div>
       </Modal>
 
       <AllAssessmentList

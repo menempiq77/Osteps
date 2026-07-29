@@ -2,35 +2,28 @@
 import React, { useState } from "react";
 import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
 import {
-  DeleteOutlined,
   EditOutlined,
-  ImportOutlined,
+  DeleteOutlined,
   PlusOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   addQuize,
+  copyQuizToSubject,
   deleteQuize,
   fetchQuizes,
-  importArchivedQuizzes,
   updateQuize,
 } from "@/services/quizApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
-import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
-import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
-import ArchivedContentImportModal, {
-  type ArchivedImportSource,
-} from "@/components/dashboard/ArchivedContentImportModal";
 import {
-  clearArchivedImportRequestToken,
-  getArchivedImportRequestToken,
-  isArchivedSubjectClasses,
-  resolveArchivedImportError,
-} from "@/lib/archivedContentImport";
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 type Quiz = {
   id: string;
@@ -98,33 +91,17 @@ export default function QuizPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [archivedSources, setArchivedSources] = useState<
-    ArchivedImportSource[]
-  >([]);
-  const [selectedSourceSubjectId, setSelectedSourceSubjectId] = useState<
-    number | null
-  >(null);
-  const [selectedQuizIds, setSelectedQuizIds] = useState<string[]>([]);
-  const [loadingArchivedSources, setLoadingArchivedSources] = useState(false);
-  const [importingQuizzes, setImportingQuizzes] = useState(false);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const {
-    activeSubject,
     activeSubjectId,
     canUseSubjectContext,
     loading: subjectContextLoading,
-    subjects,
   } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const isTeacher = currentUser?.role === "TEACHER";
-  const isReadOnlyArchivedWorkspace = useReadOnlyWorkspace();
-  const canImportArchivedQuizzes =
-    currentUser?.role === "SCHOOL_ADMIN" &&
-    inSubjectContext &&
-    !isReadOnlyArchivedWorkspace;
 
   const schoolId = currentUser?.school;
 
@@ -269,162 +246,34 @@ export default function QuizPage() {
     setDeleteConfirmVisible(true);
   };
 
+  const loadQuizzesForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    if (!schoolId) return [];
+    const rows = await fetchQuizes(String(schoolId), sourceSubjectId);
+    return filterQuizzesBySubject(Array.isArray(rows) ? rows : [], sourceSubjectId).map(
+      (quiz: any) => ({
+        id: quiz.id,
+        name: quiz.name,
+        description: quiz.description ?? undefined,
+      })
+    );
+  };
+
+  const importQuiz = async (item: ImportableItem) => {
+    if (!schoolId) throw new Error("Missing school");
+    const newQuizId = await copyQuizToSubject(
+      Number(item.id),
+      { name: item.name, description: item.description, school_id: schoolId },
+      activeSubjectId ?? undefined
+    );
+    if (inSubjectContext && newQuizId) {
+      tagQuizWithSubject(Number(newQuizId), Number(activeSubjectId));
+    }
+  };
+
   const handleViewQuiz = (quizId: string) => {
     router.push(`/dashboard/quiz/${quizId}`);
-  };
-
-  const loadArchivedQuizSources = async () => {
-    if (!schoolId || !activeSubjectId) return;
-    setLoadingArchivedSources(true);
-    try {
-      const sourceRows = await Promise.all(
-        subjects
-          .filter(
-            (subject) => Number(subject.id) !== Number(activeSubjectId),
-          )
-          .map(async (subject) => {
-            const [classRows, sourceQuizzes] = await Promise.all([
-              fetchSubjectClasses({
-                subject_id: Number(subject.id),
-                include_inactive: true,
-              }),
-              fetchQuizes(String(schoolId), Number(subject.id)),
-            ]);
-            return {
-              subject,
-              classRows: Array.isArray(classRows) ? classRows : [],
-              sourceQuizzes: Array.isArray(sourceQuizzes)
-                ? sourceQuizzes
-                : [],
-            };
-          }),
-      );
-
-      const sources = sourceRows
-        .filter(
-          ({ classRows, sourceQuizzes }) =>
-            isArchivedSubjectClasses(classRows) &&
-            sourceQuizzes.length > 0,
-        )
-        .map(({ subject, sourceQuizzes }) => ({
-          subjectId: Number(subject.id),
-          subjectName: String(subject.name),
-          items: sourceQuizzes.map((quiz: Quiz) => ({
-            id: String(quiz.id),
-            name: String(quiz.name),
-          })),
-        }));
-
-      setArchivedSources(sources);
-      setSelectedSourceSubjectId(sources[0]?.subjectId ?? null);
-      setSelectedQuizIds([]);
-    } catch (error) {
-      messageApi.error(
-        resolveArchivedImportError(
-          error,
-          "Failed to load quizzes from archived subjects.",
-        ),
-      );
-    } finally {
-      setLoadingArchivedSources(false);
-    }
-  };
-
-  const openArchivedQuizImport = () => {
-    setImportOpen(true);
-    setSelectedSourceSubjectId(null);
-    setSelectedQuizIds([]);
-    void loadArchivedQuizSources();
-  };
-
-  const handleImportArchivedQuizzes = async () => {
-    if (
-      !schoolId ||
-      !activeSubjectId ||
-      !selectedSourceSubjectId ||
-      selectedQuizIds.length === 0
-    ) {
-      messageApi.warning("Choose an archived subject and at least one quiz.");
-      return;
-    }
-
-    const selectedSource = archivedSources.find(
-      (source) => source.subjectId === selectedSourceSubjectId,
-    );
-    if (!selectedSource) {
-      messageApi.error("The archived subject is no longer available.");
-      return;
-    }
-
-    const numericQuizIds = selectedQuizIds
-      .map(Number)
-      .filter((id) => Number.isFinite(id) && id > 0)
-      .sort((a, b) => a - b);
-    const requestSignature = [
-      "quiz",
-      selectedSourceSubjectId,
-      activeSubjectId,
-      numericQuizIds.join(","),
-    ].join(":");
-
-    setImportingQuizzes(true);
-    try {
-      const response = await importArchivedQuizzes({
-        source_subject_id: selectedSourceSubjectId,
-        target_subject_id: Number(activeSubjectId),
-        quiz_ids: numericQuizIds,
-        request_token: getArchivedImportRequestToken(requestSignature),
-      });
-      const imported = response.data.quizzes;
-
-      if (
-        response.data.imported_count !== numericQuizIds.length ||
-        imported.length !== numericQuizIds.length
-      ) {
-        throw new Error("The server did not import every selected quiz.");
-      }
-      if (
-        imported.some(
-          (quiz) =>
-            Number(quiz.subject_id) !== Number(activeSubjectId) ||
-            Number(quiz.source_quiz_id) === Number(quiz.imported_quiz_id) ||
-            quiz.assignment_count !== 0 ||
-            quiz.submission_count !== 0,
-        )
-      ) {
-        throw new Error(
-          "Imported quizzes did not pass the subject or history safety check.",
-        );
-      }
-
-      imported.forEach((quiz) =>
-        tagQuizWithSubject(
-          Number(quiz.imported_quiz_id),
-          Number(activeSubjectId),
-        ),
-      );
-      clearArchivedImportRequestToken(requestSignature);
-      await queryClient.invalidateQueries({
-        queryKey: quizQueryKey,
-        exact: true,
-      });
-      setImportOpen(false);
-      setSelectedQuizIds([]);
-      messageApi.success(
-        `${imported.length} ${
-          imported.length === 1 ? "quiz was" : "quizzes were"
-        } imported without historical results.`,
-      );
-    } catch (error) {
-      messageApi.error(
-        resolveArchivedImportError(
-          error,
-          "Failed to import archived quizzes.",
-        ),
-      );
-    } finally {
-      setImportingQuizzes(false);
-    }
   };
 
   if (isLoading || subjectContextLoading) {
@@ -453,14 +302,14 @@ export default function QuizPage() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold">Quizzes</h2>
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-            {canImportArchivedQuizzes && (
+            {inSubjectContext && (
               <Button
                 size="large"
                 icon={<ImportOutlined />}
-                onClick={openArchivedQuizImport}
+                onClick={() => setImportOpen(true)}
                 className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
               >
-                Import from Archive
+                Import Quizzes
               </Button>
             )}
             <Button
@@ -474,6 +323,18 @@ export default function QuizPage() {
             </Button>
           </div>
         </div>
+
+        <ImportFromSimilarSubjectModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          itemLabel="quiz"
+          itemLabelPlural="quizzes"
+          loadItems={loadQuizzesForSubject}
+          importItem={importQuiz}
+          onImported={() =>
+            queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true })
+          }
+        />
 
         <div className="relative overflow-auto">
           <div className="overflow-x-auto rounded-lg">
@@ -592,28 +453,6 @@ export default function QuizPage() {
             </div>
           </Form>
         </Modal>
-
-        <ArchivedContentImportModal
-          open={importOpen}
-          loading={loadingArchivedSources}
-          importing={importingQuizzes}
-          noun="quiz"
-          activeSubjectName={activeSubject?.name}
-          sources={archivedSources}
-          selectedSourceSubjectId={selectedSourceSubjectId}
-          selectedItemIds={selectedQuizIds}
-          onSourceChange={(subjectId) => {
-            setSelectedSourceSubjectId(subjectId);
-            setSelectedQuizIds([]);
-          }}
-          onItemsChange={setSelectedQuizIds}
-          onCancel={() => {
-            if (importingQuizzes) return;
-            setImportOpen(false);
-            setSelectedQuizIds([]);
-          }}
-          onImport={handleImportArchivedQuizzes}
-        />
 
         <Modal
           title="Confirm Deletion"

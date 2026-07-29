@@ -33,6 +33,7 @@ import {
   writeSubjectClassBaseEntry,
 } from "@/lib/subjectClassResolution";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { areSubjectsSimilar } from "@/lib/subjectSimilarity";
 
 interface Year {
   id: number;
@@ -71,6 +72,7 @@ type ArchivedYearGroupImport = {
   key: string;
   sourceSubjectId: number;
   sourceSubjectName: string;
+  sourceSubjectArchived: boolean;
   yearId: number;
   yearName: string;
   classes: SubjectClassRow[];
@@ -305,8 +307,12 @@ export default function Page() {
             String(year.name ?? `Year ${year.id ?? ""}`).trim(),
           ])
         );
+        // Only subjects of the same family (e.g. "Islamic" ↔ "Islamiyat" ↔
+        // "التربية الإسلامية") can hand their year groups over.
         const sourceSubjects = subjects.filter(
-          (subject) => Number(subject.id) !== Number(activeSubjectId)
+          (subject) =>
+            Number(subject.id) !== Number(activeSubjectId) &&
+            areSubjectsSimilar(activeSubject?.name, subject.name)
         );
         const sourceRows = await Promise.all(
           sourceSubjects.map(async (subject) => {
@@ -323,9 +329,8 @@ export default function Page() {
         );
 
         const groups = sourceRows.flatMap(({ subject, rows }) => {
-          const isArchivedSubject =
-            rows.length > 0 && rows.every((row) => !isSubjectClassActive(row));
-          if (!isArchivedSubject) return [];
+          if (rows.length === 0) return [];
+          const isArchivedSubject = rows.every((row) => !isSubjectClassActive(row));
 
           const rowsByYear = new Map<number, SubjectClassRow[]>();
           rows.forEach((row) => {
@@ -346,6 +351,7 @@ export default function Page() {
             key: `${subject.id}:${yearId}`,
             sourceSubjectId: Number(subject.id),
             sourceSubjectName: String(subject.name ?? "").trim(),
+            sourceSubjectArchived: isArchivedSubject,
             yearId,
             yearName: yearNameById.get(yearId) || `Year ${yearId}`,
             classes,
@@ -376,6 +382,7 @@ export default function Page() {
       cancelled = true;
     };
   }, [
+    activeSubject?.name,
     activeSubjectId,
     currentYear,
     hasAccess,
@@ -765,13 +772,13 @@ export default function Page() {
 
   const handleImportArchivedYear = async (groupKey: string) => {
     if (!hasAccess || !isSubjectWorkspaceMode || !activeSubjectId) {
-      messageApi.warning("Only School Admin can import archived year groups.");
+      messageApi.warning("Only School Admin can import year groups.");
       return;
     }
 
     const sourceGroup = archivedYearGroups.find((group) => group.key === groupKey);
     if (!sourceGroup) {
-      messageApi.error("The selected archived year group is no longer available.");
+      messageApi.error("The selected year group is no longer available.");
       return;
     }
 
@@ -786,8 +793,8 @@ export default function Page() {
         include_inactive: true,
       })) as SubjectClassRow[];
       const sourceRows = Array.isArray(latestSourceRows) ? latestSourceRows : [];
-      if (sourceRows.length === 0 || sourceRows.some(isSubjectClassActive)) {
-        throw new Error("The source subject is no longer archived.");
+      if (sourceRows.length === 0) {
+        throw new Error("The source subject no longer has any classes.");
       }
       const sourceClassLabels = new Set<string>();
       const sourceClasses = sourceRows.filter((row) => {
@@ -798,7 +805,7 @@ export default function Page() {
         return true;
       });
       if (sourceClasses.length === 0) {
-        throw new Error("The selected year group no longer contains archived classes.");
+        throw new Error("The selected year group no longer contains classes.");
       }
 
       const targetRows = (await fetchSubjectClasses({
@@ -1254,6 +1261,7 @@ export default function Page() {
           archivedYearGroups={archivedYearGroups.map((group) => ({
             key: group.key,
             sourceSubjectName: group.sourceSubjectName,
+            sourceSubjectArchived: group.sourceSubjectArchived,
             yearName: group.yearName,
             classCount: group.classes.length,
           }))}
