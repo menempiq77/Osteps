@@ -4,17 +4,20 @@ import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AllAssessmentList from "@/components/dashboard/AllAssessmentList";
 import {
   addAssessment,
+  addTask,
   deleteAssessment,
   deleteAssignTermQuiz,
   duplicateAssessment,
   fetchSchoolAssessment,
+  fetchTasks,
   updateAssessment,
 } from "@/services/api";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
 import { Breadcrumb, Button, message, Modal, Spin } from "antd";
 import { ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
-import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
+import { assignAssesmentQuiz, assignTaskQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -279,19 +282,59 @@ export default function Page() {
       }));
   };
 
-  // Duplicating server-side keeps the tasks (and their uploaded files); the copy
-  // is then re-pointed at the current subject.
-  const importAssessment = async (item: ImportableItem) => {
-    const duplicated = await duplicateAssessment(item.id);
-    const newId = duplicated?.data?.id ?? duplicated?.id;
-    if (!newId) throw new Error("Duplicate assessment returned no id");
-    await updateAssessment(String(newId), {
+  // `duplicate-assessment` always copies into the source subject, so the copy is
+  // created through the normal create path and its tasks/quizzes are re-added.
+  // Uploaded task files are not re-uploaded and stay with the source.
+  const importAssessment = async (item: ImportableItem, sourceSubjectId: number) => {
+    const created = await addAssessment({
       name: item.name,
       school_id: schoolIdNum,
+      type: "assessment",
       subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
     });
+    throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the assessment" });
+    const newId = Number(created?.data?.id ?? created?.id ?? 0);
+    if (!newId) throw new Error("Assessment copy returned no id");
     if (inSubjectContext) {
       tagAssessmentWithSubject(newId, Number(activeSubjectId));
+    }
+
+    const rows = await fetchTasks(Number(item.id), sourceSubjectId);
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (row?.type === "quiz") {
+        const quizId = Number(row?.quiz?.id ?? row?.quiz_id ?? 0);
+        if (quizId > 0) {
+          await assignTaskQuiz(
+            quizId,
+            newId,
+            inSubjectContext ? Number(activeSubjectId) : undefined,
+            Number(row?.percentage_weight ?? 0) || undefined
+          );
+        }
+        continue;
+      }
+
+      const formData = new FormData();
+      formData.append("assessment_id", String(newId));
+      formData.append("task_name", String(row?.task_name ?? row?.name ?? "").trim());
+      formData.append("description", String(row?.description ?? ""));
+      formData.append("due_date", String(row?.due_date ?? "").slice(0, 10));
+      formData.append("allocated_marks", String(row?.allocated_marks ?? 0));
+      formData.append("percentage_weight", String(row?.percentage_weight ?? 0));
+
+      const taskType = row?.task_type_config ?? row?.task_type;
+      if (taskType && typeof taskType === "object") {
+        Object.entries(taskType).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          formData.append(`task_type[${key}]`, String(value));
+        });
+      } else {
+        formData.append("task_type", taskType ? String(taskType) : "null");
+      }
+      if (row?.url) formData.append("url", String(row.url));
+
+      const response = await addTask(formData);
+      throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a task" });
     }
   };
 

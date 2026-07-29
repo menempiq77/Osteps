@@ -8,7 +8,10 @@
 /** Extract the backend's numeric status code from a response body. */
 export const getEmbeddedStatusCode = (payload: unknown, fallback = 200): number => {
   const body = payload as Record<string, unknown> | null | undefined;
-  return Number(body?.status_code ?? body?.statusCode ?? body?.code ?? fallback);
+  // `staus_code` is a real (misspelled) key returned by some backend routes.
+  return Number(
+    body?.status_code ?? body?.staus_code ?? body?.statusCode ?? body?.code ?? fallback
+  );
 };
 
 /** True when a (possibly HTTP-200) response body signals a failure. */

@@ -1,6 +1,7 @@
 // src/services/quizApi.ts
 import { createApiClient } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
+import { throwOnEmbeddedFailure } from '@/lib/apiResponse';
 
 const api = createApiClient();
 
@@ -181,20 +182,30 @@ const toQuestionPayload = (question: QuizQuestionRow) => {
 /** Recreates a quiz (with its questions) under another subject. */
 export const copyQuizToSubject = async (
   sourceQuizId: number,
-  quizData: { name: string; description?: string | null },
+  quizData: { name: string; description?: string | null; school_id: string | number },
   targetSubjectId?: number
-): Promise<number | null> => {
+): Promise<number> => {
   const created = await addQuize(
-    { name: quizData.name, description: quizData.description ?? "" },
+    {
+      name: quizData.name,
+      description: quizData.description ?? "",
+      school_id: quizData.school_id,
+    },
     targetSubjectId
   );
+  throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the quiz" });
   const newQuizId = Number(created?.data?.id ?? created?.id ?? 0);
   if (!newQuizId) throw new Error("Quiz copy returned no id");
 
   const source = await fetchQuizQuestions(sourceQuizId);
   const questions: QuizQuestionRow[] = source?.quiz_queston ?? source?.questions ?? [];
   for (const question of questions) {
-    await addQuizQuestion(newQuizId, toQuestionPayload(question), targetSubjectId);
+    const response = await addQuizQuestion(
+      newQuizId,
+      toQuestionPayload(question),
+      targetSubjectId
+    );
+    throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a question" });
   }
   return newQuizId;
 };

@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import {
   addTracker as addTrackerAPI,
+  copyTrackerToSubject,
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
   fetchAllTrackers,
@@ -323,18 +324,16 @@ export default function AllTrackerList() {
     const source = (Array.isArray(rows) ? rows : []).find(
       (tracker: any) => String(tracker.id) === String(item.id)
     );
-    const result = await addTrackerAPI(
+    const newId = await copyTrackerToSubject(
+      Number(item.id),
       {
         school_id: Number(schoolId),
         name: source?.name ?? item.name,
-        type: "topic",
-        progress: Array.isArray(source?.progress) ? source.progress : [],
         claim_certificate: Boolean(source?.claim_certificate),
         deadline: normalizeDeadline(source ?? {}),
       },
       activeSubjectId ?? undefined
     );
-    const newId = result?.data?.id ?? result?.id;
     if (inSubjectContext && newId) {
       tagTrackerWithSubject(newId, Number(activeSubjectId));
     }

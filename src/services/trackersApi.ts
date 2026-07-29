@@ -1,6 +1,8 @@
 // src/services/trackersApi.ts
 import { createApiClient } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from "@/lib/subjectScope";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
+import { addTrackerTopic, fetchTrackerTopics } from "@/services/api";
 
 const api = createApiClient();
 
@@ -19,6 +21,79 @@ export const fetchTrackers = async (classId: number, subjectId?: number) => {
     params: withSubjectQuery({}, subjectId),
   });
   return response.data.data;
+};
+
+type TrackerTopicRow = {
+  title?: string | null;
+  marks?: number | string | null;
+  position?: number | null;
+  status_progress?: Array<{ status?: { name?: string | null } | null }> | null;
+};
+
+/**
+ * Recreates a tracker (with its topics) under another subject. The tracker list
+ * endpoint omits `progress`, so the progress options are rebuilt from the
+ * statuses attached to the source topics — `/add-trackers` rejects an empty list.
+ */
+export const copyTrackerToSubject = async (
+  sourceTrackerId: number,
+  trackerData: {
+    school_id: number;
+    name: string;
+    type?: string;
+    claim_certificate?: boolean;
+    deadline?: string | null;
+  },
+  targetSubjectId?: number
+): Promise<number> => {
+  const source = await fetchTrackerTopics(sourceTrackerId);
+  const topics: TrackerTopicRow[] = Array.isArray(source?.topics) ? source.topics : [];
+
+  const progress = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(source?.progress) ? source.progress : []),
+        ...topics.flatMap((topic) =>
+          (topic.status_progress ?? []).map((entry) => entry?.status?.name ?? "")
+        ),
+      ]
+        .map((value) => String(value ?? "").trim().toUpperCase())
+        .filter(Boolean)
+    )
+  );
+  if (progress.length === 0) {
+    throw new Error("the source tracker has no progress options to copy");
+  }
+
+  const created = await addTracker(
+    {
+      school_id: trackerData.school_id,
+      name: trackerData.name,
+      type: trackerData.type ?? String(source?.type ?? "topic"),
+      progress,
+      claim_certificate: Boolean(trackerData.claim_certificate),
+      deadline: trackerData.deadline ?? null,
+    },
+    targetSubjectId
+  );
+  throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the tracker" });
+  const newTrackerId = Number(created?.data?.id ?? created?.id ?? 0);
+  if (!newTrackerId) throw new Error("Tracker copy returned no id");
+
+  const orderedTopics = [...topics].sort(
+    (a, b) => Number(a.position ?? 0) - Number(b.position ?? 0)
+  );
+  for (const topic of orderedTopics) {
+    const title = String(topic.title ?? "").trim();
+    if (!title) continue;
+    const response = await addTrackerTopic(newTrackerId, {
+      title,
+      marks: Number(topic.marks ?? 0) || 0,
+    });
+    throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a topic" });
+  }
+
+  return newTrackerId;
 };
 
 // add tracker

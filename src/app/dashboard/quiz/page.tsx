@@ -253,9 +253,10 @@ export default function QuizPage() {
   };
 
   const importQuiz = async (item: ImportableItem) => {
+    if (!schoolId) throw new Error("Missing school");
     const newQuizId = await copyQuizToSubject(
       Number(item.id),
-      { name: item.name, description: item.description },
+      { name: item.name, description: item.description, school_id: schoolId },
       activeSubjectId ?? undefined
     );
     if (inSubjectContext && newQuizId) {
