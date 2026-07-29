@@ -45,8 +45,8 @@ export function ImportFromSimilarSubjectModal({
   // Archived twins hold the content worth importing, so preselect one.
   useEffect(() => {
     if (!open) {
-      setSourceSubjectId(null);
-      setSelectedIds([]);
+      if (sourceSubjectId !== null) setSourceSubjectId(null);
+      setSelectedIds((current) => (current.length === 0 ? current : []));
       return;
     }
     if (sourceSubjectId || similarSubjects.length === 0) return;
