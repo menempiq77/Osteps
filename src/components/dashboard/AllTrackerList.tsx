@@ -14,10 +14,12 @@ import {
   TeamOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import {
   addTracker as addTrackerAPI,
+  copyTrackerToSubject,
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
   fetchAllTrackers,
@@ -25,6 +27,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 // ─── Subject isolation helpers ───────────────────────────────────────────────
 const TRACKER_SUBJECT_MAP_KEY = "osteps_tracker_subject_map";
@@ -122,6 +128,7 @@ export default function AllTrackerList() {
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [assignTracker, setAssignTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
+  const [isImportTrackerModalOpen, setIsImportTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -301,6 +308,37 @@ export default function AllTrackerList() {
     deleteTrackerMutation.mutate(Number(deleteTracker.id));
   };
 
+  const loadTrackersForSubject = async (sourceSubjectId: number): Promise<ImportableItem[]> => {
+    const rows = await fetchAllTrackers(Number(schoolId), sourceSubjectId);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((tracker: any) => resolveTrackerSubjectId(tracker) === sourceSubjectId)
+      .map((tracker: any) => ({
+        id: tracker.id,
+        name: tracker.name,
+        description: normalizeDeadline(tracker) ? `Due ${normalizeDeadline(tracker)}` : undefined,
+      }));
+  };
+
+  const importTracker = async (item: ImportableItem, sourceSubjectId: number) => {
+    const rows = await fetchAllTrackers(Number(schoolId), sourceSubjectId);
+    const source = (Array.isArray(rows) ? rows : []).find(
+      (tracker: any) => String(tracker.id) === String(item.id)
+    );
+    const newId = await copyTrackerToSubject(
+      Number(item.id),
+      {
+        school_id: Number(schoolId),
+        name: source?.name ?? item.name,
+        claim_certificate: Boolean(source?.claim_certificate),
+        deadline: normalizeDeadline(source ?? {}),
+      },
+      activeSubjectId ?? undefined
+    );
+    if (inSubjectContext && newId) {
+      tagTrackerWithSubject(newId, Number(activeSubjectId));
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
@@ -355,7 +393,16 @@ export default function AllTrackerList() {
           {activeSubject?.name ? `${activeSubject.name} - ` : ""}All Trackers
         </h1>
         {currentUser?.role !== "STUDENT" && (
-          <>
+          <div className="flex items-center gap-2">
+            {inSubjectContext && (
+              <Button
+                className="premium-pill-btn cursor-pointer"
+                icon={<ImportOutlined />}
+                onClick={() => setIsImportTrackerModalOpen(true)}
+              >
+                Import Trackers
+              </Button>
+            )}
             <Button
               type="primary"
               className="premium-pill-btn cursor-pointer !bg-primary !text-white hover:!bg-primary/90 !border-0"
@@ -369,7 +416,18 @@ export default function AllTrackerList() {
               onOpenChange={setIsAddTrackerModalOpen}
               onAddTracker={handleAddNewTracker}
             />
-          </>
+            <ImportFromSimilarSubjectModal
+              open={isImportTrackerModalOpen}
+              onClose={() => setIsImportTrackerModalOpen(false)}
+              itemLabel="tracker"
+              itemLabelPlural="trackers"
+              loadItems={loadTrackersForSubject}
+              importItem={importTracker}
+              onImported={() =>
+                queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] })
+              }
+            />
+          </div>
         )}
       </div>
 

@@ -18,6 +18,7 @@ interface YearFormProps {
   archivedYearGroups?: Array<{
     key: string;
     sourceSubjectName: string;
+    sourceSubjectArchived?: boolean;
     yearName: string;
     classCount: number;
   }>;
@@ -130,15 +131,15 @@ export default function YearForm({
         },
         {
           key: "import",
-          label: "Import archived year group",
+          label: "Import from a similar subject",
           children: archivedYearGroupsLoading ? (
             <div className="py-10 text-center text-sm text-slate-500">
-              Loading archived year groups…
+              Loading year groups…
             </div>
           ) : archivedYearGroups.length === 0 ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No archived subjects contain year groups that can be imported."
+              description="No subject with a matching name has year groups that can be imported."
             />
           ) : (
             <Form
@@ -153,10 +154,10 @@ export default function YearForm({
                 type="info"
                 showIcon
                 message="Copy classes and student assignments"
-                description="The selected year group becomes active in this subject. The archived subject and all of its historical data remain unchanged and read-only."
+                description="The selected year group becomes active in this subject. The source subject and all of its data remain unchanged."
               />
               <Form.Item
-                label="Archived year group"
+                label="Year group"
                 name="archived_year_group_key"
                 rules={[
                   { required: true, message: "Choose a year group to import" },
@@ -165,10 +166,12 @@ export default function YearForm({
                 <Select
                   showSearch
                   optionFilterProp="label"
-                  placeholder="Choose an archived subject and year group"
+                  placeholder="Choose a similar subject and year group"
                   options={archivedYearGroups.map((group) => ({
                     value: group.key,
-                    label: `${group.sourceSubjectName} — ${group.yearName} (${group.classCount} ${
+                    label: `${group.sourceSubjectName}${
+                      group.sourceSubjectArchived ? " (archived)" : ""
+                    } — ${group.yearName} (${group.classCount} ${
                       group.classCount === 1 ? "class" : "classes"
                     })`,
                   }))}

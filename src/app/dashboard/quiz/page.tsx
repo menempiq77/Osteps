@@ -1,11 +1,17 @@
 "use client";
 import React, { useState } from "react";
 import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ImportOutlined,
+} from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   addQuize,
+  copyQuizToSubject,
   deleteQuize,
   fetchQuizes,
   updateQuize,
@@ -14,6 +20,10 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 type Quiz = {
   id: string;
@@ -80,6 +90,7 @@ export default function QuizPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
@@ -227,6 +238,32 @@ export default function QuizPage() {
     setDeleteConfirmVisible(true);
   };
 
+  const loadQuizzesForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    if (!schoolId) return [];
+    const rows = await fetchQuizes(schoolId, sourceSubjectId);
+    return filterQuizzesBySubject(Array.isArray(rows) ? rows : [], sourceSubjectId).map(
+      (quiz: any) => ({
+        id: quiz.id,
+        name: quiz.name,
+        description: quiz.description ?? undefined,
+      })
+    );
+  };
+
+  const importQuiz = async (item: ImportableItem) => {
+    if (!schoolId) throw new Error("Missing school");
+    const newQuizId = await copyQuizToSubject(
+      Number(item.id),
+      { name: item.name, description: item.description, school_id: schoolId },
+      activeSubjectId ?? undefined
+    );
+    if (inSubjectContext && newQuizId) {
+      tagQuizWithSubject(Number(newQuizId), Number(activeSubjectId));
+    }
+  };
+
   const handleViewQuiz = (quizId: string) => {
     router.push(`/dashboard/quiz/${quizId}`);
   };
@@ -256,15 +293,38 @@ export default function QuizPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Quizzes</h2>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={showModal}
-            className="flex items-center !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-          >
-            Add Quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            {inSubjectContext && (
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => setImportOpen(true)}
+                className="flex items-center"
+              >
+                Import Quizzes
+              </Button>
+            )}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={showModal}
+              className="flex items-center !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+            >
+              Add Quiz
+            </Button>
+          </div>
         </div>
+
+        <ImportFromSimilarSubjectModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          itemLabel="quiz"
+          itemLabelPlural="quizzes"
+          loadItems={loadQuizzesForSubject}
+          importItem={importQuiz}
+          onImported={() =>
+            queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true })
+          }
+        />
 
         <div className="relative overflow-auto">
           <div className="overflow-x-auto rounded-lg">

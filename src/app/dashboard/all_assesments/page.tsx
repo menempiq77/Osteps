@@ -4,21 +4,28 @@ import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
 import AllAssessmentList from "@/components/dashboard/AllAssessmentList";
 import {
   addAssessment,
+  addTask,
   deleteAssessment,
   deleteAssignTermQuiz,
   duplicateAssessment,
   fetchSchoolAssessment,
+  fetchTasks,
   updateAssessment,
 } from "@/services/api";
+import { throwOnEmbeddedFailure } from "@/lib/apiResponse";
 import { Breadcrumb, Button, message, Modal, Spin } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { ImportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
-import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
+import { assignAssesmentQuiz, assignTaskQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 interface Assessment {
   id: string;
@@ -96,6 +103,7 @@ export default function Page() {
     null
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
@@ -258,6 +266,79 @@ export default function Page() {
     }
   };
 
+  const loadAssessmentsForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    const rows = await fetchSchoolAssessment(schoolIdNum, sourceSubjectId);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row: any) => {
+        const rowSubjectId = Number(row?.subject_id ?? row?.subject?.id ?? 0);
+        return rowSubjectId === 0 || rowSubjectId === sourceSubjectId;
+      })
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name ?? row?.quiz?.name ?? "Untitled",
+        description: row.type === "quiz" ? "Quiz" : undefined,
+      }));
+  };
+
+  // `duplicate-assessment` always copies into the source subject, so the copy is
+  // created through the normal create path and its tasks/quizzes are re-added.
+  // Uploaded task files are not re-uploaded and stay with the source.
+  const importAssessment = async (item: ImportableItem, sourceSubjectId: number) => {
+    const created = await addAssessment({
+      name: item.name,
+      school_id: schoolIdNum,
+      type: "assessment",
+      subject_id: inSubjectContext ? Number(activeSubjectId) : undefined,
+    });
+    throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the assessment" });
+    const newId = Number(created?.data?.id ?? created?.id ?? 0);
+    if (!newId) throw new Error("Assessment copy returned no id");
+    if (inSubjectContext) {
+      tagAssessmentWithSubject(newId, Number(activeSubjectId));
+    }
+
+    const rows = await fetchTasks(Number(item.id), sourceSubjectId);
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (row?.type === "quiz") {
+        const quizId = Number(row?.quiz?.id ?? row?.quiz_id ?? 0);
+        if (quizId > 0) {
+          const weight = Number(row?.percentage_weight);
+          await assignTaskQuiz(
+            quizId,
+            newId,
+            inSubjectContext ? Number(activeSubjectId) : undefined,
+            Number.isFinite(weight) ? weight : undefined
+          );
+        }
+        continue;
+      }
+
+      const formData = new FormData();
+      formData.append("assessment_id", String(newId));
+      formData.append("task_name", String(row?.task_name ?? row?.name ?? "").trim());
+      formData.append("description", String(row?.description ?? ""));
+      formData.append("due_date", String(row?.due_date ?? "").slice(0, 10));
+      formData.append("allocated_marks", String(row?.allocated_marks ?? 0));
+      formData.append("percentage_weight", String(row?.percentage_weight ?? 0));
+
+      const taskType = row?.task_type_config ?? row?.task_type;
+      if (taskType && typeof taskType === "object") {
+        Object.entries(taskType).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          formData.append(`task_type[${key}]`, String(value));
+        });
+      } else {
+        formData.append("task_type", taskType ? String(taskType) : "null");
+      }
+      if (row?.url) formData.append("url", String(row.url));
+
+      const response = await addTask(formData);
+      throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a task" });
+    }
+  };
+
   const confirmDelete = (id: string) => {
     setAssessmentToDelete(id);
     setDeleteOpen(true);
@@ -322,6 +403,17 @@ export default function Page() {
           </p>
         </div>
         {!isTeacher && (
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {inSubjectContext && (
+            <Button
+              size="large"
+              className="premium-pill-btn"
+              icon={<ImportOutlined />}
+              onClick={() => setImportOpen(true)}
+            >
+              Import Assessments
+            </Button>
+          )}
           <Button
             type="primary"
             size="large"
@@ -335,8 +427,19 @@ export default function Page() {
           >
             Add Assessment
           </Button>
+          </div>
         )}
       </div>
+
+      <ImportFromSimilarSubjectModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        itemLabel="assessment"
+        itemLabelPlural="assessments"
+        loadItems={loadAssessmentsForSubject}
+        importItem={importAssessment}
+        onImported={refreshAssessments}
+      />
 
       {/* Add/Edit Assessment Modal */}
       <Modal
