@@ -304,11 +304,12 @@ export default function Page() {
       if (row?.type === "quiz") {
         const quizId = Number(row?.quiz?.id ?? row?.quiz_id ?? 0);
         if (quizId > 0) {
+          const weight = Number(row?.percentage_weight);
           await assignTaskQuiz(
             quizId,
             newId,
             inSubjectContext ? Number(activeSubjectId) : undefined,
-            Number(row?.percentage_weight ?? 0) || undefined
+            Number.isFinite(weight) ? weight : undefined
           );
         }
         continue;
