@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjects } from "@/services/subjectsApi";
@@ -22,6 +23,9 @@ const normalizeSubjects = (raw: any): SubjectBrief[] => {
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
+// Stable fallback: a fresh literal would change identity on every render.
+const EMPTY_SUBJECTS: SubjectBrief[] = [];
+
 const isActiveClass = (row: any) =>
   row?.is_active === undefined ? true : Number(row?.is_active) === 1;
 
@@ -38,7 +42,7 @@ export function useSimilarSubjects(enabled = true) {
 
   // The context list is scoped to the user's assignments and can omit archived
   // subjects; the school-wide list fills those in.
-  const { data: schoolSubjects = [], isLoading: loadingPool } = useQuery({
+  const { data: schoolSubjects = EMPTY_SUBJECTS, isLoading: loadingPool } = useQuery({
     queryKey: ["similar-subjects-pool"],
     queryFn: async () => {
       try {
@@ -51,10 +55,16 @@ export function useSimilarSubjects(enabled = true) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const pool = Array.from(
-    new Map([...subjects, ...schoolSubjects].map((subject) => [Number(subject.id), subject])).values()
-  );
-  const matches = findSimilarSubjects(activeSubject, pool);
+  // Memoised so consumers get a stable array identity — an unstable one loops
+  // any effect that depends on it.
+  const matches = useMemo(() => {
+    const pool = Array.from(
+      new Map(
+        [...subjects, ...schoolSubjects].map((subject) => [Number(subject.id), subject])
+      ).values()
+    );
+    return findSimilarSubjects(activeSubject, pool);
+  }, [subjects, schoolSubjects, activeSubject]);
   const matchIdsKey = matches.map((subject) => subject.id).join(",");
 
   const { data: archivedIds, isLoading: loadingArchived } = useQuery({
@@ -83,10 +93,14 @@ export function useSimilarSubjects(enabled = true) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const similarSubjects: SimilarSubject[] = matches.map((subject) => ({
-    ...subject,
-    archived: archivedIds?.has(Number(subject.id)) ?? false,
-  }));
+  const similarSubjects: SimilarSubject[] = useMemo(
+    () =>
+      matches.map((subject) => ({
+        ...subject,
+        archived: archivedIds?.has(Number(subject.id)) ?? false,
+      })),
+    [matches, archivedIds]
+  );
 
   return {
     similarSubjects,
