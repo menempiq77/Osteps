@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
-import { Check, ChevronDown, LoaderCircle, Users } from "lucide-react";
+import { Check, LoaderCircle, Users, X } from "lucide-react";
 import { Select } from "antd";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { RootState } from "@/store/store";
-import { fetchYearsBySchool } from "@/services/yearsApi";
 import { assignMindUpgradeCourses } from "@/services/mindUpgradeApi";
+import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { fetchYearsBySchool } from "@/services/yearsApi";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
+import { useSubjectContext } from "@/contexts/SubjectContext";
 
 type CurrentUser = {
   school?: string | number | { id?: string | number };
@@ -32,10 +37,20 @@ export function AssignTrackerButton({
   courseKey,
   trackerName,
 }: AssignTrackerButtonProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { activeSubjectId } = useSubjectContext();
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser?: CurrentUser;
   };
   const schoolId = resolveSchoolId(currentUser);
+  const pathSubjectId = extractSubjectIdFromPath(pathname);
+  const querySubjectId = Number(searchParams.get("subject_id"));
+  const subjectId =
+    pathSubjectId ??
+    (Number.isInteger(querySubjectId) && querySubjectId > 0
+      ? querySubjectId
+      : activeSubjectId);
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState<"all_students" | "year_groups">(
     "all_students"
@@ -50,20 +65,55 @@ export function AssignTrackerButton({
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!open || !schoolId) return;
+    if (!open) return;
     let cancelled = false;
     setYearError("");
     setYearsLoading(true);
-    fetchYearsBySchool(schoolId)
-      .then((rows) => {
+    setYears([]);
+    if (!subjectId) {
+      setYears([]);
+      setYearError("No subject is selected, so year groups are unavailable.");
+      setYearsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!schoolId) {
+      setYearError(
+        "Your school could not be identified, so year groups are unavailable."
+      );
+      setYearsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    Promise.all([
+      fetchSubjectClasses({ subject_id: subjectId, include_inactive: true }),
+      fetchYearsBySchool(schoolId),
+    ])
+      .then(([subjectClassRows, schoolYearRows]) => {
         if (cancelled) return;
-        const options = (Array.isArray(rows) ? rows : [])
-          .map((year: any) => ({
-            id: Number(year?.id),
-            name: String(year?.name ?? year?.year_name ?? `Year ${year?.id}`),
+        const subjectYearIds = new Set(
+          (Array.isArray(subjectClassRows) ? subjectClassRows : [])
+            .map((row: any) => Number(row?.year_id ?? row?.year?.id))
+            .filter((id) => id > 0)
+        );
+        const options = new Map<number, string>();
+        for (const year of Array.isArray(schoolYearRows) ? schoolYearRows : []) {
+          const id = Number(year?.id);
+          const name = String(year?.name ?? year?.year_name ?? "").trim();
+          if (id > 0 && subjectYearIds.has(id) && name) {
+            options.set(id, name);
+          }
+        }
+        setYears(
+          Array.from(options, ([id, name]) => ({
+            id,
+            name,
           }))
-          .filter((year) => year.id > 0);
-        setYears(options);
+        );
       })
       .catch(() => {
         if (!cancelled) setYearError("Could not load year groups.");
@@ -74,7 +124,7 @@ export function AssignTrackerButton({
     return () => {
       cancelled = true;
     };
-  }, [open, schoolId]);
+  }, [open, schoolId, subjectId]);
 
   const selectedYearNames = useMemo(
     () =>
@@ -118,24 +168,16 @@ export function AssignTrackerButton({
   };
 
   return (
-    <div className="rounded-3xl border border-sky-200 bg-sky-50 p-5">
-      <div className="flex items-center gap-2 text-sm font-bold text-sky-800">
-        <Users className="h-4 w-4" />
-        Teacher tools
-      </div>
-      <p className="mt-2 text-sm text-sky-700">
-        Make <span className="font-semibold">{trackerName}</span> available to
-        students in this subject.
-      </p>
+    <>
       <button
         type="button"
         onClick={() => {
-          setOpen((value) => !value);
+          setOpen(true);
           setStatus("idle");
           setMessage("");
         }}
         disabled={status === "loading"}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {status === "loading" ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -145,91 +187,128 @@ export function AssignTrackerButton({
           <Users className="h-4 w-4" />
         )}
         {status === "done" ? "Assigned" : "Assign tracker"}
-        <ChevronDown
-          className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`}
-        />
       </button>
-
-      {open && (
-        <div className="mt-4 rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap gap-2">
-            {(["all_students", "year_groups"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setTarget(value);
-                  setMessage("");
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  target === value
-                    ? "bg-sky-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {value === "all_students" ? "All students" : "Year groups"}
-              </button>
-            ))}
-          </div>
-
-          {target === "year_groups" && (
-            <div className="mt-3">
-              <Select
-                mode="multiple"
-                className="w-full"
-                value={selectedYearIds}
-                loading={yearsLoading}
-                disabled={yearsLoading || years.length === 0}
-                onChange={(values) =>
-                  setSelectedYearIds((values as number[]).map(Number))
-                }
-                options={years.map((year) => ({
-                  value: year.id,
-                  label: year.name,
-                }))}
-                placeholder={
-                  yearsLoading ? "Loading year groups..." : "Select year groups"
-                }
-              />
-              {yearError && (
-                <p className="mt-2 text-xs font-semibold text-rose-700">
-                  {yearError}
-                </p>
-              )}
-              {!yearError && !yearsLoading && years.length === 0 && (
-                <p className="mt-2 text-xs font-semibold text-rose-700">
-                  No year groups are available for this school.
-                </p>
-              )}
-            </div>
-          )}
-
-          {!schoolId && (
-            <p className="mt-3 text-xs font-semibold text-rose-700">
-              Your school could not be identified, so assignment is unavailable.
-            </p>
-          )}
-          {message && status === "error" && (
-            <p className="mt-3 text-xs font-semibold text-rose-700">{message}</p>
-          )}
-          <button
-            type="button"
-            onClick={handleAssign}
-            disabled={!canSubmit}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {status === "loading" && (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            )}
-            Assign{" "}
-            {target === "all_students" ? "to all students" : "to selected years"}
-          </button>
-        </div>
-      )}
 
       {message && status === "done" && (
         <p className="mt-2 text-xs font-semibold text-emerald-700">{message}</p>
       )}
-    </div>
+
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setOpen(false);
+            }}
+          >
+            <div
+              className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-sky-200 bg-sky-50 p-5 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="assign-tracker-title"
+            >
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-white hover:text-slate-700"
+                aria-label="Close assignment dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="flex items-center gap-2 text-sm font-bold text-sky-800">
+                <Users className="h-4 w-4" />
+                <span id="assign-tracker-title">Assign tracker</span>
+              </div>
+              <p className="mt-2 pr-8 text-sm text-sky-700">
+                Make <span className="font-semibold">{trackerName}</span>{" "}
+                available to students in this subject.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(["all_students", "year_groups"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setTarget(value);
+                      setMessage("");
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                      target === value
+                        ? "bg-sky-600 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {value === "all_students" ? "All students" : "Year groups"}
+                  </button>
+                ))}
+              </div>
+
+              {target === "year_groups" && (
+                <div className="mt-3">
+                  <Select
+                    mode="multiple"
+                    className="w-full"
+                    value={selectedYearIds}
+                    loading={yearsLoading}
+                    disabled={yearsLoading || years.length === 0}
+                    onChange={(values) =>
+                      setSelectedYearIds((values as number[]).map(Number))
+                    }
+                    options={years.map((year) => ({
+                      value: year.id,
+                      label: year.name,
+                    }))}
+                    placeholder={
+                      yearsLoading
+                        ? "Loading year groups..."
+                        : "Select year groups"
+                    }
+                  />
+                  {yearError && (
+                    <p className="mt-2 text-xs font-semibold text-rose-700">
+                      {yearError}
+                    </p>
+                  )}
+                  {!yearError && !yearsLoading && years.length === 0 && (
+                    <p className="mt-2 text-xs font-semibold text-rose-700">
+                      No year groups are available for this subject.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!schoolId && (
+                <p className="mt-3 text-xs font-semibold text-rose-700">
+                  Your school could not be identified, so assignment is
+                  unavailable.
+                </p>
+              )}
+              {message && status === "error" && (
+                <p className="mt-3 text-xs font-semibold text-rose-700">
+                  {message}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleAssign}
+                disabled={!canSubmit}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {status === "loading" && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
+                Assign{" "}
+                {target === "all_students"
+                  ? "to all students"
+                  : "to selected years"}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

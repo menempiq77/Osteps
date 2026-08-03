@@ -20,7 +20,6 @@ import {
 import { useBuiltInTrackerProgress } from "@/hooks/useBuiltInTrackerProgress";
 import { withHonorifics } from "@/lib/islamicHonorifics";
 import { TreeProgress } from "@/components/builtInTrackers/TreeProgress";
-import { AssignTrackerButton } from "@/components/builtInTrackers/AssignTrackerButton";
 
 export default function BuiltInTrackerPage() {
   const params = useParams<{ trackerId: string }>();
@@ -173,15 +172,6 @@ export default function BuiltInTrackerPage() {
           pass with {tracker.passMark}/{QUESTIONS_PER_LESSON} or more.
         </div>
       )}
-      {!isStudent && tracker.courseKey && (
-        <div className="mt-4 max-w-md">
-          <AssignTrackerButton
-            courseKey={tracker.courseKey}
-            trackerName={withHonorifics(tracker.name)}
-          />
-        </div>
-      )}
-
       <div className="mt-6 max-w-3xl">
         <TreeProgress
           completed={completed}
