@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpen,
   Check,
   CheckCircle2,
   Coins,
@@ -28,6 +27,8 @@ import {
   useBuiltInTrackerProgress,
   type BuiltInAttemptOutcome,
 } from "@/hooks/useBuiltInTrackerProgress";
+import { StoryStepper } from "@/components/builtInTrackers/StoryStepper";
+import { Celebration } from "@/components/builtInTrackers/Celebration";
 
 type ShuffledQuestion = {
   id: string;
@@ -70,6 +71,7 @@ export default function BuiltInLessonPage() {
   const [outcome, setOutcome] = useState<
     (BuiltInAttemptOutcome & { score: number }) | null
   >(null);
+  const [celebrate, setCelebrate] = useState(false);
 
   const { progress, isStudent, recordAttempt } = useBuiltInTrackerProgress(
     trackerId,
@@ -153,6 +155,9 @@ export default function BuiltInLessonPage() {
     try {
       const result = await recordAttempt(lesson.id, score);
       setOutcome({ ...result, score });
+      if (score >= (tracker?.passMark ?? 7)) {
+        setCelebrate(true);
+      }
       if (result.awarded && typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
@@ -215,39 +220,40 @@ export default function BuiltInLessonPage() {
 
       {stage === "story" && (
         <div className="mt-6 grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-              <BookOpen className="h-4 w-4" />
-              {lesson.title}
-            </div>
-            <div className="mt-4 space-y-4 text-[15px] leading-7 text-slate-700">
-              {lesson.story.map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
-            </div>
-
-            <label className="mt-6 flex cursor-pointer items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-              <input
-                type="checkbox"
-                checked={hasRead}
-                onChange={(event) => setHasRead(event.target.checked)}
-                className="h-4 w-4 accent-emerald-600"
-              />
-              I have read the whole story carefully.
-            </label>
-
-            <button
-              type="button"
-              disabled={!hasRead}
-              onClick={startQuiz}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
-            >
-              Start the {QUESTIONS_PER_LESSON} questions
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
+          <StoryStepper
+            title={lesson.title}
+            accent={lesson.accent}
+            emoji={lesson.emoji}
+            paragraphs={lesson.story}
+            onFinish={() => {
+              setHasRead(true);
+              setCelebrate(true);
+            }}
+          />
 
           <div className="space-y-4">
+            {hasRead && (
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">
+                  🎉
+                </div>
+                <h3 className="mt-3 text-lg font-bold text-emerald-800">
+                  Great reading!
+                </h3>
+                <p className="mt-1 text-sm text-emerald-700">
+                  You have read the whole story. Now answer the questions.
+                </p>
+                <button
+                  type="button"
+                  onClick={startQuiz}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 sm:w-auto"
+                >
+                  Start the {QUESTIONS_PER_LESSON} questions
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
               <div className="flex items-center gap-2 text-sm font-bold text-amber-800">
                 <Lightbulb className="h-4 w-4" />
@@ -372,6 +378,8 @@ export default function BuiltInLessonPage() {
           </div>
         </div>
       )}
+
+      <Celebration active={celebrate} onDone={() => setCelebrate(false)} />
 
       {stage === "result" && outcome && (
         <div className="mt-6 space-y-4">

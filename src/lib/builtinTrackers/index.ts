@@ -31,6 +31,7 @@ export const STORIES_OF_THE_PROPHETS: BuiltInTracker = {
   lessonLabelPlural: "Prophets",
   passMark: 7,
   coinReward: 15,
+  courseKey: "stories_of_the_prophets",
   lessons: PROPHETS,
 };
 

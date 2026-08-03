@@ -28,5 +28,6 @@ export type BuiltInTracker = {
   lessonLabelPlural: string;
   passMark: number;
   coinReward: number;
+  courseKey?: string;
   lessons: BuiltInLesson[];
 };

@@ -18,6 +18,8 @@ import {
   supportsBuiltInTrackers,
 } from "@/lib/builtinTrackers";
 import { useBuiltInTrackerProgress } from "@/hooks/useBuiltInTrackerProgress";
+import { TreeProgress } from "@/components/builtInTrackers/TreeProgress";
+import { AssignTrackerButton } from "@/components/builtInTrackers/AssignTrackerButton";
 
 export default function BuiltInTrackerPage() {
   const params = useParams<{ trackerId: string }>();
@@ -169,6 +171,23 @@ export default function BuiltInTrackerPage() {
           pass with {tracker.passMark}/{QUESTIONS_PER_LESSON} or more.
         </div>
       )}
+      {!isStudent && tracker.courseKey && (
+        <div className="mt-4 max-w-md">
+          <AssignTrackerButton
+            courseKey={tracker.courseKey}
+            trackerName={tracker.name}
+          />
+        </div>
+      )}
+
+      <div className="mt-6 max-w-3xl">
+        <TreeProgress
+          completed={completed}
+          total={tracker.lessons.length}
+          accent={tracker.accent}
+          name={tracker.name}
+        />
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {tracker.lessons.map((lesson, index) => {
