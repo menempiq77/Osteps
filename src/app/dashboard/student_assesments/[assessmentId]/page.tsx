@@ -10,13 +10,14 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks, fetchTasks, updateTask } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
@@ -237,8 +238,10 @@ export default function AssessmentDrawer() {
   const params = useParams();
   const searchParams = useSearchParams();
   const assessmentId = params.assessmentId;
+  const pathname = usePathname();
   const classId = searchParams.get("classId");
   const subjectClassId = searchParams.get("subjectClassId");
+  const pathSubjectId = extractSubjectIdFromPath(pathname);
   const querySubjectId = (() => {
     const raw = searchParams.get("subject_id");
     if (!raw) return null;
@@ -247,7 +250,7 @@ export default function AssessmentDrawer() {
   })();
   const { activeSubjectId, canUseSubjectContext, toSubjectHref } =
     useSubjectContext();
-  const scopedSubjectId = querySubjectId ?? activeSubjectId;
+  const scopedSubjectId = pathSubjectId ?? querySubjectId ?? activeSubjectId;
 
   const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
     number | null
