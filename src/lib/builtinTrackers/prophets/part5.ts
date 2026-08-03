@@ -7,7 +7,7 @@ export const PROPHETS_PART_5: BuiltInLesson[] = [
     arabicName: "يُونُس",
     title: "The prophet of the whale and the city that repented",
     emoji: "🐋",
-    accent: "from-cyan-500 to-blue-600",
+  accent: "from-cyan-600 to-blue-700",
     summary:
       "Yunus left his people, was swallowed by a great fish, made dua in the darkness and was saved.",
     story: [
@@ -153,7 +153,7 @@ export const PROPHETS_PART_5: BuiltInLesson[] = [
     arabicName: "زَكَرِيَّا",
     title: "The prophet whose quiet dua was answered",
     emoji: "🤲",
-    accent: "from-teal-400 to-cyan-600",
+  accent: "from-teal-600 to-cyan-700",
     summary:
       "Zakariyya prayed secretly for a righteous child in his old age, and Allah gave him Yahya.",
     story: [
@@ -292,7 +292,7 @@ export const PROPHETS_PART_5: BuiltInLesson[] = [
     arabicName: "يَحْيَى",
     title: "The pure prophet given wisdom as a child",
     emoji: "🕯️",
-    accent: "from-lime-400 to-emerald-500",
+  accent: "from-lime-600 to-emerald-700",
     summary:
       "Yahya was given his unique name by Allah, was wise from childhood, and was kind to his parents.",
     story: [
@@ -431,7 +431,7 @@ export const PROPHETS_PART_5: BuiltInLesson[] = [
     arabicName: "عِيسَى",
     title: "The Messiah who spoke in the cradle",
     emoji: "🌤️",
-    accent: "from-sky-400 to-blue-500",
+  accent: "from-sky-600 to-blue-700",
     summary:
       "Isa was born miraculously to Maryam, spoke as a baby, healed by Allah's permission, and was raised up.",
     story: [
@@ -572,7 +572,7 @@ export const PROPHETS_PART_5: BuiltInLesson[] = [
     arabicName: "مُحَمَّد",
     title: "The final messenger and mercy to the worlds",
     emoji: "🌙",
-    accent: "from-emerald-500 to-green-700",
+  accent: "from-emerald-600 to-green-700",
     summary:
       "Muhammad (peace be upon him) received the Qur'an, built a community on mercy and justice, and completed the message.",
     story: [
