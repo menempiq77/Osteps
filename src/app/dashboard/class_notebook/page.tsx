@@ -13,6 +13,7 @@ import {
   saveNotebookPage,
   deleteNotebookPage,
   uploadNotebookImage,
+  reorderNotebookPages,
 } from "@/services/classNotebookApi";
 import NotebookPageCanvas from "@/components/notebook/NotebookPageCanvas";
 import type { NotebookAnnotation, NotebookBackground, NotebookPage } from "@/lib/classNotebook";
@@ -138,6 +139,22 @@ export default function ClassNotebookPage() {
     }
   };
 
+  const movePage = async (direction: -1 | 1) => {
+    if (!selectedPage || pages.length < 2) return;
+    const index = pages.findIndex((page) => page.id === selectedPage.id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= pages.length) return;
+    const next = [...pages];
+    [next[index], next[target]] = [next[target], next[index]];
+    setPages(next.map((page, pageIndex) => ({ ...page, pageIndex })));
+    try {
+      await reorderNotebookPages(selectedPage.notebookId, next.map((page) => page.id));
+    } catch (reorderError) {
+      setError(reorderError instanceof Error ? reorderError.message : "Unable to reorder pages.");
+      await loadNotebook(notebookStudentId);
+    }
+  };
+
   if (!subjectId || (isTeacher && (!subjectClassId || !classId))) {
     return <div className="p-6 text-sm text-amber-800">Open Class Notebook from a subject class so its class context is available.</div>;
   }
@@ -169,6 +186,8 @@ export default function ClassNotebookPage() {
             </div>
             <div className="mb-3 flex flex-wrap gap-2">
               {pages.map((page) => <button key={page.id} type="button" onClick={() => setSelectedPageId(page.id)} className={`rounded-lg border px-3 py-1.5 text-sm ${selectedPage?.id === page.id ? "border-emerald-500 bg-emerald-50" : "bg-white"}`}>{page.title || `Page ${page.pageIndex + 1}`}</button>)}
+              {selectedPage && <button type="button" onClick={() => void movePage(-1)} className="rounded-lg border px-3 py-1.5 text-sm">↑</button>}
+              {selectedPage && <button type="button" onClick={() => void movePage(1)} className="rounded-lg border px-3 py-1.5 text-sm">↓</button>}
               {selectedPage && isTeacher && <button type="button" onClick={async () => { await deleteNotebookPage(selectedPage.id); await loadNotebook(notebookStudentId); }} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600">Delete page</button>}
             </div>
             {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else { setAnnotations(next); void save(next); } }} /> : <div className="rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}

@@ -422,6 +422,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === "reorder_pages") {
+      const notebookId = Number(body?.notebookId || 0);
+      const pageIds = Array.isArray(body?.pageIds)
+        ? body.pageIds.map((value: unknown) => Number(value)).filter((value: number) => value > 0)
+        : [];
+      if (!notebookId || pageIds.length === 0) {
+        return NextResponse.json({ message: "Notebook and page order are required" }, { status: 400 });
+      }
+      const [notebookRows] = await pool.execute<NotebookRow[]>(
+        "SELECT * FROM class_notebooks WHERE id = ? AND school_id = ? LIMIT 1",
+        [notebookId, schoolId]
+      );
+      const notebook = notebookRows[0];
+      if (!notebook || (role === "STUDENT" && Number(notebook.student_id) !== ownStudentId(user))) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        for (let index = 0; index < pageIds.length; index += 1) {
+          await connection.execute(
+            "UPDATE class_notebook_pages SET page_index = ? WHERE id = ? AND notebook_id = ?",
+            [100000 + index, pageIds[index], notebookId]
+          );
+        }
+        for (let index = 0; index < pageIds.length; index += 1) {
+          await connection.execute(
+            "UPDATE class_notebook_pages SET page_index = ? WHERE id = ? AND notebook_id = ?",
+            [index, pageIds[index], notebookId]
+          );
+        }
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ message: "Unknown notebook action" }, { status: 400 });
   } catch (error) {
     console.error("Class Notebook POST failed:", error);
