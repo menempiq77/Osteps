@@ -1,0 +1,180 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
+import {
+  createNotebookPage,
+  fetchNotebook,
+  fetchNotebookClass,
+  saveNotebookPage,
+  deleteNotebookPage,
+  uploadNotebookImage,
+} from "@/services/classNotebookApi";
+import NotebookPageCanvas from "@/components/notebook/NotebookPageCanvas";
+import type { NotebookAnnotation, NotebookBackground, NotebookPage } from "@/lib/classNotebook";
+
+const teacherRoles = new Set(["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN"]);
+
+export default function ClassNotebookPage() {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const { activeSubjectId, activeSubject } = useSubjectContext();
+  const { currentUser } = useSelector((state: RootState) => state.auth);
+  const subjectId = Number(extractSubjectIdFromPath(pathname) || params.get("subject_id") || activeSubjectId || 0);
+  const subjectClassId = Number(params.get("subjectClassId") || 0);
+  const classId = Number(params.get("classId") || 0);
+  const role = String(currentUser?.role || "").toUpperCase();
+  const isTeacher = teacherRoles.has(role);
+  const [className, setClassName] = useState("");
+  const [students, setStudents] = useState<{ id: string; name: string; pageCount: number }[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [pages, setPages] = useState<NotebookPage[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<"saved" | "saving" | "failed">("saved");
+  const [error, setError] = useState("");
+  const [background, setBackground] = useState<NotebookBackground>({});
+  const [annotations, setAnnotations] = useState<NotebookAnnotation[]>([]);
+  const [teacherAnnotations, setTeacherAnnotations] = useState<NotebookAnnotation[]>([]);
+
+  const selectedPage = useMemo(
+    () => pages.find((page) => page.id === selectedPageId) || pages[0] || null,
+    [pages, selectedPageId]
+  );
+  const notebookStudentId = isTeacher ? selectedStudentId : String((currentUser as any)?.student || (currentUser as any)?.student_id || "");
+
+  const loadNotebook = async (studentId?: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      if (isTeacher && !studentId) {
+        const result = await fetchNotebookClass({ subjectId, subjectClassId, classId });
+        setClassName(result.className);
+        setStudents(result.students);
+        if (result.students[0]) setSelectedStudentId(result.students[0].id);
+      } else {
+        const result = await fetchNotebook({ subjectId, subjectClassId, classId, studentId });
+        setClassName(result.className);
+        setPages(result.pages);
+        setSelectedPageId(result.pages[0]?.id ?? null);
+      }
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load notebook.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!subjectId || (isTeacher && (!subjectClassId || !classId))) return;
+    void loadNotebook(isTeacher ? undefined : notebookStudentId);
+    // The selected student is intentionally loaded by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectId, subjectClassId, classId, isTeacher, notebookStudentId]);
+
+  useEffect(() => {
+    if (!isTeacher || !selectedStudentId || !subjectId || !subjectClassId || !classId) return;
+    void loadNotebook(selectedStudentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!selectedPage) return;
+    setBackground(selectedPage.background || {});
+    setAnnotations(selectedPage.studentAnnotations || []);
+    setTeacherAnnotations(selectedPage.teacherAnnotations || []);
+  }, [selectedPage]);
+
+  const save = async (nextAnnotations: NotebookAnnotation[], nextTeacher = teacherAnnotations, nextBackground = background) => {
+    if (!selectedPage) return;
+    setSaving("saving");
+    try {
+      await saveNotebookPage({
+        pageId: selectedPage.id,
+        studentAnnotations: nextAnnotations,
+        teacherAnnotations: isTeacher ? nextTeacher : undefined,
+        background: isTeacher ? nextBackground : undefined,
+      });
+      setSaving("saved");
+    } catch (saveError) {
+      setSaving("failed");
+      setError(saveError instanceof Error ? saveError.message : "Notebook save failed.");
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedPage || loading) return;
+    const timer = window.setTimeout(() => void save(annotations, teacherAnnotations, background), 700);
+    return () => window.clearTimeout(timer);
+    // Autosave is intentionally keyed to the editable page state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotations, teacherAnnotations, background]);
+
+  const addPage = async (allStudents = false) => {
+    try {
+      await createNotebookPage({ subjectId, subjectClassId, classId, studentId: selectedStudentId, allStudents, title: "New page", background: { text: className } });
+      if (isTeacher && allStudents) {
+        await loadNotebook(selectedStudentId);
+      } else {
+        await loadNotebook(notebookStudentId);
+      }
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Unable to add page.");
+    }
+  };
+
+  const handleImage = async (file: File) => {
+    try {
+      const uploaded = await uploadNotebookImage(file);
+      const next = { ...background, imageUrl: uploaded.url, imageName: uploaded.name, imageMime: uploaded.mime };
+      setBackground(next);
+      await save(annotations, teacherAnnotations, next);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
+    }
+  };
+
+  if (!subjectId || (isTeacher && (!subjectClassId || !classId))) {
+    return <div className="p-6 text-sm text-amber-800">Open Class Notebook from a subject class so its class context is available.</div>;
+  }
+
+  return (
+    <main className="mx-auto max-w-7xl p-4 md:p-6">
+      <h1 className="mb-6 text-center text-3xl font-black text-slate-900">{className || activeSubject?.name || "Class"} Notebook</h1>
+      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>}
+      {loading ? <div className="py-16 text-center text-slate-500">Loading notebook…</div> : (
+        <div className="grid gap-5 lg:grid-cols-[250px_1fr]">
+          {isTeacher && (
+            <aside className="rounded-xl border bg-white p-3 shadow-sm">
+              <div className="mb-2 text-sm font-semibold text-slate-600">Students</div>
+              <div className="space-y-1">
+                {students.map((student) => (
+                  <button key={student.id} type="button" onClick={() => setSelectedStudentId(student.id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${selectedStudentId === student.id ? "bg-emerald-100 text-emerald-800" : "hover:bg-slate-100"}`}>
+                    <div className="font-medium">{student.name}</div><div className="text-xs text-slate-500">{student.pageCount} pages</div>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
+          <section className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => void addPage(false)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Add page</button>
+              {isTeacher && <button type="button" onClick={() => void addPage(true)} className="rounded-lg border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700">Add to whole class</button>}
+              {isTeacher && selectedPage && <label className="rounded-lg border px-3 py-2 text-sm">Worksheet image <input type="file" accept="image/png,image/jpeg,image/webp" className="ml-2 max-w-[180px] text-xs" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleImage(file); }} /></label>}
+              <span className={`ml-auto text-xs ${saving === "failed" ? "text-red-600" : saving === "saving" ? "text-amber-600" : "text-emerald-700"}`}>{saving === "saving" ? "Saving…" : saving === "failed" ? "Save failed" : "Saved"}</span>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {pages.map((page) => <button key={page.id} type="button" onClick={() => setSelectedPageId(page.id)} className={`rounded-lg border px-3 py-1.5 text-sm ${selectedPage?.id === page.id ? "border-emerald-500 bg-emerald-50" : "bg-white"}`}>{page.title || `Page ${page.pageIndex + 1}`}</button>)}
+              {selectedPage && isTeacher && <button type="button" onClick={async () => { await deleteNotebookPage(selectedPage.id); await loadNotebook(notebookStudentId); }} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600">Delete page</button>}
+            </div>
+            {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else { setAnnotations(next); void save(next); } }} /> : <div className="rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
+          </section>
+        </div>
+      )}
+    </main>
+  );
+}

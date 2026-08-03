@@ -499,12 +499,12 @@ const buildBaseNavigation = ({
         keywords: ["progress", "tracker"],
       },
       {
-        name: "Games",
-        href: "/dashboard/games",
-        icon: Gamepad2,
-        description: "Use your coins to unlock and play arcade games.",
-        section: "Resources",
-        keywords: ["games", "arcade", "coins", "rewards"],
+        name: "My Notebook",
+        href: "/dashboard/class_notebook",
+        icon: BookOpen,
+        description: "Open your personal class notebook.",
+        section: "Teaching",
+        keywords: ["notebook", "class notebook", "writing"],
       },
       {
         name: "Leaderboard",
@@ -602,8 +602,8 @@ export const buildDashboardNavigation = ({
 
     /* Hide Library, Leaderboard, Tools, Lessons and Mind-upgrade when inside a subject workspace.
       Access via Courses card on /dashboard/subject-cards. */
-    if (canUseSubjectContext && activeSubjectId) {
-     items = items.filter((item) => item.name !== "Library" && item.name !== "Leaderboard" && item.name !== "Tools" && item.name !== "Lessons" && item.name !== "Mind-upgrade");
+     if (canUseSubjectContext && activeSubjectId) {
+      items = items.filter((item) => item.name !== "Library" && item.name !== "Leaderboard" && item.name !== "Tools" && item.name !== "Lessons" && item.name !== "Mind-upgrade" && item.name !== "Games");
     }
 
 /* Timetable and Announcements should not appear in the sidebar.

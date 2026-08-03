@@ -3439,9 +3439,28 @@ export default function StudentList() {
                   ? "bg-emerald-100 text-emerald-700"
                   : "text-gray-600 hover:text-emerald-700"
               } disabled:opacity-40 disabled:cursor-not-allowed`}
-            >
-              Class Story
-            </button>
+              >
+                Class Story
+              </button>
+              {canArrangeSeats && (
+                <button
+                  onClick={() => {
+                    const query = new URLSearchParams();
+                    if (scopedSubjectId) query.set("subjectId", String(scopedSubjectId));
+                    if (effectiveSubjectClassId) query.set("subjectClassId", effectiveSubjectClassId);
+                    if (effectiveClassId) query.set("classId", effectiveClassId);
+                    const destination = `/dashboard/class_notebook?${query.toString()}`;
+                    router.push(
+                      isSubjectWorkspaceMode && scopedSubjectId
+                        ? toSubjectHref(destination)
+                        : destination
+                    );
+                  }}
+                  className="rounded-full px-4 py-1.5 text-xs text-gray-600 transition hover:text-emerald-700"
+                >
+                  {querySubjectClassLabel || "Class"} Notebook
+                </button>
+              )}
           </div>
           {hasAccess && (
             <Button
