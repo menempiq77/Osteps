@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { DATA_DIR } from "@/lib/server/dataDir";
+import { DATA_DIR, LEGACY_DATA_DIRS } from "@/lib/server/dataDir";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -126,40 +126,68 @@ const createEmptyState = (
   updatedAt: new Date().toISOString(),
 });
 
-const readState = async (
+const statePathForDir = (
+  storeDir: string,
   assessmentId: string,
   taskId: string,
   studentId: string
-): Promise<DocumentState> => {
-  const filePath = statePath(assessmentId, taskId, studentId);
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed = parseStoredState(raw);
-    const nextState = {
-      ...createEmptyState(assessmentId, taskId, studentId),
-      ...parsed,
-    } as DocumentState;
-    const metadata =
-      nextState.metadata && typeof nextState.metadata === "object"
-        ? nextState.metadata
-        : {};
-    const studentLockOverride =
-      typeof metadata.studentLockOverride === "boolean"
-        ? metadata.studentLockOverride
-        : undefined;
+) =>
+  path.join(
+    storeDir,
+    safeSegment(assessmentId),
+    safeSegment(taskId),
+    `${safeSegment(studentId)}.json`
+  );
 
-    if (studentLockOverride !== undefined) {
-      nextState.studentLocked = studentLockOverride;
-    } else if (nextState.status === "marked") {
-      nextState.studentLocked = true;
-    } else {
-      nextState.studentLocked = false;
+const findLegacyStateFile = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string
+): Promise<string | null> => {
+  for (const legacyDir of LEGACY_DATA_DIRS) {
+    const candidate = statePathForDir(
+      path.join(legacyDir, "assessment-documents"),
+      assessmentId,
+      taskId,
+      studentId
+    );
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // not in this legacy location
     }
-    return nextState;
-  } catch (error: any) {
-    if (error?.code !== "ENOENT") throw error;
-    return createEmptyState(assessmentId, taskId, studentId);
   }
+  return null;
+};
+
+const buildState = (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  parsed?: Partial<DocumentState>
+): DocumentState => {
+  const nextState = {
+    ...createEmptyState(assessmentId, taskId, studentId),
+    ...parsed,
+  } as DocumentState;
+  const metadata =
+    nextState.metadata && typeof nextState.metadata === "object"
+      ? nextState.metadata
+      : {};
+  const studentLockOverride =
+    typeof metadata.studentLockOverride === "boolean"
+      ? metadata.studentLockOverride
+      : undefined;
+
+  if (studentLockOverride !== undefined) {
+    nextState.studentLocked = studentLockOverride;
+  } else if (nextState.status === "marked") {
+    nextState.studentLocked = true;
+  } else {
+    nextState.studentLocked = false;
+  }
+  return nextState;
 };
 
 const writeState = async (state: DocumentState) => {
@@ -170,6 +198,44 @@ const writeState = async (state: DocumentState) => {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
   await fs.rename(tempPath, filePath);
+};
+
+const readState = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string
+): Promise<DocumentState> => {
+  const filePath = statePath(assessmentId, taskId, studentId);
+
+  const rawFromPath = async (targetPath: string) => {
+    const raw = await fs.readFile(targetPath, "utf8");
+    return parseStoredState(raw);
+  };
+
+  try {
+    const parsed = await rawFromPath(filePath);
+    return buildState(assessmentId, taskId, studentId, parsed);
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  // The primary store is empty. Look in legacy `.data` directories that may
+  // contain student answers/marking from earlier deploys with a different cwd.
+  const legacyFile = await findLegacyStateFile(assessmentId, taskId, studentId);
+  if (legacyFile) {
+    try {
+      const parsed = await rawFromPath(legacyFile);
+      // Migrate the recovered state into the primary store so future reads
+      // and writes use the stable DATA_DIR.
+      const recoveredState = buildState(assessmentId, taskId, studentId, parsed);
+      await writeState(recoveredState);
+      return recoveredState;
+    } catch (migrationError) {
+      console.error("Failed to migrate legacy assessment document state:", migrationError);
+    }
+  }
+
+  return createEmptyState(assessmentId, taskId, studentId);
 };
 
 const toFiniteNumber = (value: unknown) => {
