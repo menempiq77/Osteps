@@ -11,6 +11,9 @@ import {
 import { submitMindQuizCompletion } from "@/services/mindUpgradeApi";
 
 const STORAGE_KEY = "osteps_builtin_tracker_progress_v1";
+const STORIES_OF_THE_PROPHETS_COURSE_KEY = "stories_of_the_prophets";
+const PASSING_QUIZ_POINTS = 100;
+const PERFECT_QUIZ_POINTS = 150;
 
 export type BuiltInAttemptOutcome = {
   passed: boolean;
@@ -158,8 +161,8 @@ export function useBuiltInTrackerProgress(
         if (passed && !pointsSubmittedRef.current.has(lessonId)) {
           pointsSubmittedRef.current.add(lessonId);
           void submitMindQuizCompletion({
-            course_key: "stories_of_the_prophets",
-            unit_key: `stories_of_the_prophets:${lessonId}:quiz`,
+            course_key: STORIES_OF_THE_PROPHETS_COURSE_KEY,
+            unit_key: `${STORIES_OF_THE_PROPHETS_COURSE_KEY}:${lessonId}:quiz`,
             score,
             total: totalQuestions,
           }).catch(() => {
@@ -193,11 +196,12 @@ export function useBuiltInTrackerProgress(
         awarded,
         coinsEarned,
         coinBalance: balance,
-        pointsEarned: passed
-          ? score === totalQuestions
-            ? 150
-            : 100
-          : 0,
+        pointsEarned:
+          isStudent && passed
+            ? score === totalQuestions
+              ? PERFECT_QUIZ_POINTS
+              : PASSING_QUIZ_POINTS
+            : 0,
         pointsSubmitted: isStudent && passed,
         synced: didSync,
       };

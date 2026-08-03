@@ -54,7 +54,7 @@ const rules: HonorificRule[] = [
     names: PROPHET_NAMES,
     honorific: "(peace be upon him)",
     key: "prophet",
-    existingPattern: /^\s*\((?:peace be upon him|pbuh|peace and blessings be upon him|sallallahu [^)]+)\)/i,
+    existingPattern: /^(?:\s*\((?:peace be upon him|pbuh|peace and blessings be upon him|sallallahu [^)]+)\)|\s*\)\s*\((?:peace be upon him|pbuh|peace and blessings be upon him|sallallahu [^)]+)\))/i,
   },
   {
     names: SCHOLAR_NAMES,
@@ -72,7 +72,7 @@ const rules: HonorificRule[] = [
     names: ["Allah"],
     honorific: "(Almighty)",
     key: "allah",
-    existingPattern: /^\s*(?:the Almighty|the Exalted|the Most High|Almighty)(?!\w)|^\s*\((?:Almighty|SWT|\uFDFB)\b/i,
+    existingPattern: /^\s*(?:the Almighty|the Exalted|the Most High|Almighty)(?!\w)|^\s*\((?:Almighty|SWT|\uFDFB|may Allah\b)/i,
   },
 ];
 
@@ -94,6 +94,17 @@ const hasHonorificAfter = (
   end: number,
   rule: HonorificRule
 ) => rule.existingPattern.test(text.slice(end, end + 55));
+
+const hasHonorificBefore = (
+  text: string,
+  start: number,
+  rule: HonorificRule
+) => {
+  if (rule.key !== "allah") return false;
+  return /(?:the\s+)?(?:Almighty|Most High|Exalted)\s+$/i.test(
+    text.slice(Math.max(0, start - 35), start)
+  );
+};
 
 const isInsideHonorific = (text: string, start: number) => {
   const before = text.slice(0, start);
@@ -117,7 +128,11 @@ export function withHonorifics(text: string): string {
         return match;
       }
       const seenKey = name.toLowerCase();
-      if (seen.has(seenKey) || hasHonorificAfter(source, offset + match.length, rule)) {
+      if (
+        seen.has(seenKey) ||
+        hasHonorificBefore(source, offset, rule) ||
+        hasHonorificAfter(source, offset + match.length, rule)
+      ) {
         seen.add(seenKey);
         return match;
       }
