@@ -7,6 +7,8 @@ export interface SchoolPeriod {
 }
 
 const STORAGE_KEY = "osteps_school_periods";
+const scopedKey = (key: string, scope?: number | string | null) =>
+  scope == null ? key : `${key}_${scope}`;
 
 export const DEFAULT_PERIODS: SchoolPeriod[] = [
   { id: "reg",   label: "Reg",   startTime: "07:40", endTime: "08:00", isTeaching: false },
@@ -20,10 +22,10 @@ export const DEFAULT_PERIODS: SchoolPeriod[] = [
   { id: "p6",    label: "P6",    startTime: "14:20", endTime: "15:20", isTeaching: true  },
 ];
 
-export function loadPeriods(): SchoolPeriod[] {
+export function loadPeriods(scope?: number | string | null): SchoolPeriod[] {
   if (typeof window === "undefined") return DEFAULT_PERIODS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEY, scope));
     if (!raw) return DEFAULT_PERIODS;
     const parsed = JSON.parse(raw) as SchoolPeriod[];
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_PERIODS;
@@ -32,14 +34,17 @@ export function loadPeriods(): SchoolPeriod[] {
   }
 }
 
-export function savePeriods(periods: SchoolPeriod[]): void {
+export function savePeriods(
+  periods: SchoolPeriod[],
+  scope?: number | string | null
+): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(periods));
+  localStorage.setItem(scopedKey(STORAGE_KEY, scope), JSON.stringify(periods));
 }
 
-export function resetPeriodsToDefault(): SchoolPeriod[] {
+export function resetPeriodsToDefault(scope?: number | string | null): SchoolPeriod[] {
   if (typeof window !== "undefined") {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(scopedKey(STORAGE_KEY, scope));
   }
   return DEFAULT_PERIODS;
 }
@@ -51,10 +56,10 @@ export type DayPeriodOverrides = Record<string, SchoolPeriod[]>;
 
 const DAY_OVERRIDES_KEY = "osteps_school_day_periods";
 
-export function loadDayPeriods(): DayPeriodOverrides {
+export function loadDayPeriods(scope?: number | string | null): DayPeriodOverrides {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(DAY_OVERRIDES_KEY);
+    const raw = localStorage.getItem(scopedKey(DAY_OVERRIDES_KEY, scope));
     if (!raw) return {};
     const parsed = JSON.parse(raw) as DayPeriodOverrides;
     if (!parsed || typeof parsed !== "object") return {};
@@ -68,9 +73,12 @@ export function loadDayPeriods(): DayPeriodOverrides {
   }
 }
 
-export function saveDayPeriods(map: DayPeriodOverrides): void {
+export function saveDayPeriods(
+  map: DayPeriodOverrides,
+  scope?: number | string | null
+): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(DAY_OVERRIDES_KEY, JSON.stringify(map));
+  localStorage.setItem(scopedKey(DAY_OVERRIDES_KEY, scope), JSON.stringify(map));
 }
 
 export const DAYS_OF_WEEK = [
@@ -97,10 +105,10 @@ export const DEFAULT_SCHOOL_DAYS: string[] = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
 ];
 
-export function loadSchoolDays(): string[] {
+export function loadSchoolDays(scope?: number | string | null): string[] {
   if (typeof window === "undefined") return [...DEFAULT_SCHOOL_DAYS];
   try {
-    const raw = localStorage.getItem(DAYS_STORAGE_KEY);
+    const raw = localStorage.getItem(scopedKey(DAYS_STORAGE_KEY, scope));
     if (!raw) return [...DEFAULT_SCHOOL_DAYS];
     const parsed = JSON.parse(raw) as string[];
     const valid = parsed.filter((d) => (ALL_CANONICAL_DAYS as readonly string[]).includes(d));
@@ -110,14 +118,19 @@ export function loadSchoolDays(): string[] {
   }
 }
 
-export function saveSchoolDays(days: string[]): void {
+export function saveSchoolDays(
+  days: string[],
+  scope?: number | string | null
+): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(DAYS_STORAGE_KEY, JSON.stringify(days));
+  localStorage.setItem(scopedKey(DAYS_STORAGE_KEY, scope), JSON.stringify(days));
 }
 
-export function resetSchoolDaysToDefault(): string[] {
+export function resetSchoolDaysToDefault(
+  scope?: number | string | null
+): string[] {
   if (typeof window !== "undefined") {
-    localStorage.removeItem(DAYS_STORAGE_KEY);
+    localStorage.removeItem(scopedKey(DAYS_STORAGE_KEY, scope));
   }
   return [...DEFAULT_SCHOOL_DAYS];
 }
