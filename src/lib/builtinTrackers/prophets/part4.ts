@@ -7,7 +7,7 @@ export const PROPHETS_PART_4: BuiltInLesson[] = [
     arabicName: "ذُو الْكِفْل",
     title: "The prophet who kept every promise",
     emoji: "🤝",
-    accent: "from-slate-400 to-slate-600",
+  accent: "from-slate-600 to-slate-700",
     summary:
       "Dhul-Kifl is praised in the Qur'an among the patient and righteous prophets who kept their word.",
     story: [
@@ -137,7 +137,7 @@ export const PROPHETS_PART_4: BuiltInLesson[] = [
     arabicName: "دَاوُد",
     title: "The young shepherd who defeated Jalut",
     emoji: "🎶",
-    accent: "from-amber-400 to-yellow-600",
+  accent: "from-amber-600 to-yellow-700",
     summary:
       "Dawud defeated the giant Jalut, was given the Zabur and a beautiful voice, and ruled with justice.",
     story: [
@@ -273,7 +273,7 @@ export const PROPHETS_PART_4: BuiltInLesson[] = [
     arabicName: "سُلَيْمَان",
     title: "The king who understood the language of animals",
     emoji: "🐜",
-    accent: "from-emerald-500 to-teal-600",
+  accent: "from-emerald-600 to-teal-700",
     summary:
       "Sulayman was given a mighty kingdom, control of the wind and jinn, and the speech of animals — and stayed grateful.",
     story: [
@@ -404,7 +404,7 @@ export const PROPHETS_PART_4: BuiltInLesson[] = [
     arabicName: "إِلْيَاس",
     title: "The prophet who stood against Ba'l worship",
     emoji: "⛈️",
-    accent: "from-sky-500 to-blue-700",
+  accent: "from-sky-600 to-blue-700",
     summary:
       "Ilyas warned his people against worshipping the idol Ba'l and called them back to Allah alone.",
     story: [
@@ -506,7 +506,7 @@ export const PROPHETS_PART_4: BuiltInLesson[] = [
     arabicName: "الْيَسَع",
     title: "The chosen successor of Ilyas",
     emoji: "🌿",
-    accent: "from-green-400 to-emerald-600",
+  accent: "from-green-600 to-emerald-700",
     summary:
       "Al-Yasa' continued the mission of Ilyas and is praised by Allah as one of the chosen and excellent servants.",
     story: [

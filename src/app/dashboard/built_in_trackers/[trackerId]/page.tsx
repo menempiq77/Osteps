@@ -18,6 +18,7 @@ import {
   supportsBuiltInTrackers,
 } from "@/lib/builtinTrackers";
 import { useBuiltInTrackerProgress } from "@/hooks/useBuiltInTrackerProgress";
+import { withHonorifics } from "@/lib/islamicHonorifics";
 import { TreeProgress } from "@/components/builtInTrackers/TreeProgress";
 import { AssignTrackerButton } from "@/components/builtInTrackers/AssignTrackerButton";
 
@@ -89,25 +90,26 @@ export default function BuiltInTrackerPage() {
       </Link>
 
       <div
-        className={`overflow-hidden rounded-3xl bg-gradient-to-r ${tracker.accent} p-6 text-white shadow-lg md:p-8`}
+        className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${tracker.accent} p-6 text-white shadow-lg md:p-8`}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="pointer-events-none absolute inset-0 bg-slate-950/15" />
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/80">
+            <div className="text-xs font-semibold uppercase tracking-wider text-white drop-shadow">
               Built-in tracker
             </div>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold md:text-3xl">
               <span>{tracker.emoji}</span>
-              {tracker.name}
+              {withHonorifics(tracker.name)}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/90">
-              {tracker.description}
+            <p className="mt-2 max-w-2xl text-sm text-white drop-shadow">
+              {withHonorifics(tracker.description)}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="rounded-2xl bg-white/15 px-4 py-3 backdrop-blur">
               <div className="text-2xl font-extrabold">{completed}</div>
-              <div className="text-[11px] uppercase tracking-wide text-white/80">
+              <div className="text-[11px] uppercase tracking-wide text-white drop-shadow">
                 Passed
               </div>
             </div>
@@ -115,13 +117,13 @@ export default function BuiltInTrackerPage() {
               <div className="text-2xl font-extrabold">
                 {tracker.lessons.length - completed}
               </div>
-              <div className="text-[11px] uppercase tracking-wide text-white/80">
+              <div className="text-[11px] uppercase tracking-wide text-white drop-shadow">
                 Left
               </div>
             </div>
             <div className="rounded-2xl bg-white/15 px-4 py-3 backdrop-blur">
               <div className="text-2xl font-extrabold">{coinsEarned}</div>
-              <div className="text-[11px] uppercase tracking-wide text-white/80">
+              <div className="text-[11px] uppercase tracking-wide text-white drop-shadow">
                 Coins
               </div>
             </div>
@@ -129,7 +131,7 @@ export default function BuiltInTrackerPage() {
         </div>
 
         <div className="mt-6">
-          <div className="mb-1 flex items-center justify-between text-xs font-semibold text-white/90">
+          <div className="relative z-10 mb-1 flex items-center justify-between text-xs font-semibold text-white drop-shadow">
             <span>
               {completed} of {tracker.lessons.length} {tracker.lessonLabelPlural}{" "}
               completed
@@ -142,7 +144,7 @@ export default function BuiltInTrackerPage() {
               style={{ width: `${percent}%` }}
             />
           </div>
-          <p className="mt-3 text-sm font-medium text-white/90">
+          <p className="relative z-10 mt-3 text-sm font-medium text-white drop-shadow">
             {completed === tracker.lessons.length
               ? "MashaAllah! You have completed every story. Revise any of them any time."
               : started > completed
@@ -175,7 +177,7 @@ export default function BuiltInTrackerPage() {
         <div className="mt-4 max-w-md">
           <AssignTrackerButton
             courseKey={tracker.courseKey}
-            trackerName={tracker.name}
+            trackerName={withHonorifics(tracker.name)}
           />
         </div>
       )}
@@ -185,7 +187,7 @@ export default function BuiltInTrackerPage() {
           completed={completed}
           total={tracker.lessons.length}
           accent={tracker.accent}
-          name={tracker.name}
+          name={withHonorifics(tracker.name)}
         />
       </div>
 
@@ -217,13 +219,13 @@ export default function BuiltInTrackerPage() {
               </div>
 
               <h2 className="mt-3 text-lg font-bold text-slate-800">
-                {lesson.name}
+                {withHonorifics(lesson.name)}
               </h2>
               <p className="text-sm text-slate-400" dir="rtl">
                 {lesson.arabicName}
               </p>
               <p className="mt-2 flex-1 text-sm text-slate-500">
-                {lesson.title}
+                {withHonorifics(lesson.title)}
               </p>
 
               <div className="mt-4 flex items-center justify-between">

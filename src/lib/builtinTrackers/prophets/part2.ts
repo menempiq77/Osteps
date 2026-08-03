@@ -7,7 +7,7 @@ export const PROPHETS_PART_2: BuiltInLesson[] = [
     arabicName: "إِبْرَاهِيم",
     title: "The friend of Allah who broke the idols",
     emoji: "🕋",
-    accent: "from-violet-400 to-purple-500",
+  accent: "from-violet-600 to-purple-700",
     summary:
       "Ibrahim argued against idol worship, survived the fire, and built the Ka'bah with his son Ismail.",
     story: [
@@ -148,7 +148,7 @@ export const PROPHETS_PART_2: BuiltInLesson[] = [
     arabicName: "لُوط",
     title: "The prophet who left a corrupt city",
     emoji: "🌋",
-    accent: "from-orange-400 to-red-500",
+  accent: "from-orange-600 to-red-700",
     summary:
       "Lut warned his people against shameless sins and cruelty to guests; only he and his followers were saved.",
     story: [
@@ -294,7 +294,7 @@ export const PROPHETS_PART_2: BuiltInLesson[] = [
     arabicName: "إِسْمَاعِيل",
     title: "The patient son and builder of the Ka'bah",
     emoji: "💧",
-    accent: "from-teal-400 to-emerald-500",
+  accent: "from-teal-600 to-emerald-700",
     summary:
       "Ismail trusted Allah in the greatest test, and the well of Zamzam sprang for him as a baby.",
     story: [
@@ -415,7 +415,7 @@ export const PROPHETS_PART_2: BuiltInLesson[] = [
     arabicName: "إِسْحَاق",
     title: "The good news given to Ibrahim in old age",
     emoji: "🌟",
-    accent: "from-lime-400 to-green-500",
+  accent: "from-lime-600 to-green-700",
     summary:
       "Ishaq was born to Ibrahim and Sarah in their old age and became a prophet after his father.",
     story: [
@@ -535,7 +535,7 @@ export const PROPHETS_PART_2: BuiltInLesson[] = [
     arabicName: "يَعْقُوب",
     title: "The patient father of Yusuf",
     emoji: "🕊️",
-    accent: "from-cyan-400 to-blue-500",
+  accent: "from-cyan-600 to-blue-700",
     summary:
       "Yaqub, also called Israil, showed beautiful patience when he lost his beloved son Yusuf.",
     story: [

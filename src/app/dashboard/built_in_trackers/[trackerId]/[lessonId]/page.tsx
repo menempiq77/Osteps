@@ -13,6 +13,7 @@ import {
   LoaderCircle,
   RotateCcw,
   Sparkles,
+  Trophy,
   X,
 } from "lucide-react";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
@@ -23,6 +24,7 @@ import {
   getBuiltInTracker,
   supportsBuiltInTrackers,
 } from "@/lib/builtinTrackers";
+import { withHonorifics } from "@/lib/islamicHonorifics";
 import {
   useBuiltInTrackerProgress,
   type BuiltInAttemptOutcome,
@@ -182,34 +184,35 @@ export default function BuiltInLessonPage() {
       </Link>
 
       <div
-        className={`overflow-hidden rounded-3xl bg-gradient-to-r ${lesson.accent} p-6 text-white shadow-lg`}
+        className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${lesson.accent} p-6 text-white shadow-lg`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="pointer-events-none absolute inset-0 bg-slate-950/20" />
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl backdrop-blur">
               {lesson.emoji}
             </span>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-white/80">
+              <div className="text-xs font-semibold uppercase tracking-wider text-white drop-shadow">
                 {tracker.lessonLabel} {lessonIndex + 1} of{" "}
                 {tracker.lessons.length}
               </div>
-              <h1 className="text-2xl font-extrabold md:text-3xl">
-                {lesson.name}
+              <h1 className="text-2xl font-extrabold drop-shadow-md md:text-3xl">
+                {withHonorifics(lesson.name)}
               </h1>
-              <p className="text-sm text-white/90" dir="rtl">
+              <p className="text-sm text-white drop-shadow" dir="rtl">
                 {lesson.arabicName}
               </p>
             </div>
           </div>
           <div className="rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 drop-shadow">
               <Coins className="h-4 w-4" />
               {tracker.coinReward} coins for {tracker.passMark}/
               {QUESTIONS_PER_LESSON}
             </div>
             {lessonProgress?.passed && (
-              <div className="mt-1 flex items-center gap-2 text-white/90">
+              <div className="mt-1 flex items-center gap-2 text-white drop-shadow">
                 <CheckCircle2 className="h-4 w-4" />
                 Best score {lessonProgress.best_score}/{QUESTIONS_PER_LESSON}
               </div>
@@ -263,7 +266,7 @@ export default function BuiltInLessonPage() {
                 {lesson.lessons.map((item, index) => (
                   <li key={index} className="flex gap-2">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{item}</span>
+                    <span>{withHonorifics(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -302,7 +305,7 @@ export default function BuiltInLessonPage() {
           </div>
 
           <h2 className="mt-5 text-lg font-bold text-slate-800">
-            {currentQuestion.question}
+            {withHonorifics(currentQuestion.question)}
           </h2>
 
           <div className="mt-4 space-y-3">
@@ -333,7 +336,7 @@ export default function BuiltInLessonPage() {
                   >
                     {String.fromCharCode(65 + index)}
                   </span>
-                  {option}
+                  {withHonorifics(option)}
                 </button>
               );
             })}
@@ -414,6 +417,21 @@ export default function BuiltInLessonPage() {
                   : `Students collect ${tracker.coinReward} coins here`}
               </div>
             )}
+            {outcome.passed && isStudent && outcome.pointsSubmitted && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 text-sm font-bold backdrop-blur">
+                <Trophy className="h-4 w-4" />
+                +{outcome.pointsEarned} leaderboard points submitted
+              </div>
+            )}
+            {outcome.passed && isStudent && (
+              <Link
+                href="/dashboard/leaderboard"
+                className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-white underline decoration-white/60 underline-offset-4 hover:decoration-white"
+              >
+                View the leaderboard
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
 
             {isStudent && !outcome.synced && (
               <p className="mt-3 text-xs text-white/80">
@@ -445,14 +463,14 @@ export default function BuiltInLessonPage() {
                         <X className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
                       )}
                       <span>
-                        {index + 1}. {question.question}
+                        {index + 1}. {withHonorifics(question.question)}
                       </span>
                     </div>
                     {!correct && (
                       <p className="mt-2 pl-6 text-slate-600">
                         Correct answer:{" "}
                         <span className="font-semibold text-emerald-700">
-                          {question.options[question.correctIndex]}
+                          {withHonorifics(question.options[question.correctIndex])}
                         </span>
                       </p>
                     )}
@@ -476,7 +494,7 @@ export default function BuiltInLessonPage() {
                 href={`/dashboard/built_in_trackers/${tracker.id}/${nextLesson.id}${subjectQuery}`}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
               >
-                Next: {nextLesson.name}
+                Next: {withHonorifics(nextLesson.name)}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             )}

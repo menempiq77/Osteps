@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store/store";
 import {
@@ -8,6 +8,7 @@ import {
   submitBuiltInLessonAttempt,
   type BuiltInLessonProgress,
 } from "@/services/studentWalletApi";
+import { submitMindQuizCompletion } from "@/services/mindUpgradeApi";
 
 const STORAGE_KEY = "osteps_builtin_tracker_progress_v1";
 
@@ -16,6 +17,8 @@ export type BuiltInAttemptOutcome = {
   awarded: boolean;
   coinsEarned: number;
   coinBalance: number | null;
+  pointsEarned: number;
+  pointsSubmitted: boolean;
   synced: boolean;
 };
 
@@ -87,6 +90,7 @@ export function useBuiltInTrackerProgress(
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(isStudent);
   const [synced, setSynced] = useState(false);
+  const pointsSubmittedRef = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -150,6 +154,18 @@ export function useBuiltInTrackerProgress(
         } catch {
           didSync = false;
         }
+
+        if (passed && !pointsSubmittedRef.current.has(lessonId)) {
+          pointsSubmittedRef.current.add(lessonId);
+          void submitMindQuizCompletion({
+            course_key: "stories_of_the_prophets",
+            unit_key: `stories_of_the_prophets:${lessonId}:quiz`,
+            score,
+            total: totalQuestions,
+          }).catch(() => {
+            // Non-blocking: the service queues failed progress for retry.
+          });
+        }
       }
 
       setProgress((current) => {
@@ -177,6 +193,12 @@ export function useBuiltInTrackerProgress(
         awarded,
         coinsEarned,
         coinBalance: balance,
+        pointsEarned: passed
+          ? score === totalQuestions
+            ? 150
+            : 100
+          : 0,
+        pointsSubmitted: isStudent && passed,
         synced: didSync,
       };
     },
