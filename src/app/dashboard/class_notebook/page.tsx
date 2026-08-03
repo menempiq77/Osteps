@@ -48,7 +48,14 @@ export default function ClassNotebookPage() {
     () => pages.find((page) => page.id === selectedPageId) || pages[0] || null,
     [pages, selectedPageId]
   );
-  const notebookStudentId = isTeacher ? selectedStudentId : String((currentUser as any)?.student || (currentUser as any)?.student_id || "");
+  const studentValue = (currentUser as any)?.student;
+  const notebookStudentId = isTeacher
+    ? selectedStudentId
+    : String(
+        (typeof studentValue === "object" ? studentValue?.id : studentValue) ||
+          (currentUser as any)?.student_id ||
+          ""
+      );
 
   const loadNotebook = async (studentId?: string) => {
     setLoading(true);

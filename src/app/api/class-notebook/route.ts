@@ -11,7 +11,7 @@ const LARAVEL_API_BASE =
 type User = {
   id?: number | string;
   role?: string;
-  student?: number | string;
+  student?: number | string | { id?: number | string; class_id?: number | string };
   student_id?: number | string;
   studentClass?: number | string;
   student_class_id?: number | string;
@@ -62,8 +62,37 @@ const getUser = async (request: NextRequest): Promise<User | null> => {
 const roleOf = (user: User) =>
   String(user.role || "").trim().toUpperCase().replace(/\s+/g, "_");
 
-const ownStudentId = (user: User) =>
-  Number(user.student ?? user.student_id ?? 0);
+const ownStudentId = async (user: User) => {
+  const directId =
+    typeof user.student === "object"
+      ? Number((user.student as { id?: number | string }).id ?? 0)
+      : Number(user.student ?? user.student_id ?? 0);
+  if (directId > 0) return directId;
+  const [rows] = await getDbPool().execute<RowDataPacket[]>(
+    "SELECT id FROM students WHERE user_id = ? LIMIT 1",
+    [Number(user.id ?? 0)]
+  );
+  return Number(rows[0]?.id ?? 0);
+};
+
+const studentClassId = async (user: User) => {
+  const studentObjectClassId =
+    typeof user.student === "object"
+      ? Number(user.student.class_id ?? 0)
+      : 0;
+  const directClassId = Number(
+    studentObjectClassId ||
+      user.studentClass ||
+      user.student_class_id ||
+      0
+  );
+  if (directClassId > 0) return directClassId;
+  const [rows] = await getDbPool().execute<RowDataPacket[]>(
+    "SELECT class_id FROM students WHERE user_id = ? LIMIT 1",
+    [Number(user.id ?? 0)]
+  );
+  return Number(rows[0]?.class_id ?? 0);
+};
 
 const schoolFromUser = async (user: User) => {
   const role = roleOf(user);
@@ -214,7 +243,7 @@ const authorizeClassScope = async (
   if (role === "STUDENT") {
     const [studentRows] = await pool.execute<RowDataPacket[]>(
       "SELECT id FROM students WHERE id = ? AND school_id = ? AND class_id = ? LIMIT 1",
-      [ownStudentId(user), schoolId, classId]
+      [await ownStudentId(user), schoolId, classId]
     );
     if (!studentRows.length) return false;
   }
@@ -246,7 +275,7 @@ export async function GET(request: NextRequest) {
     const role = roleOf(user);
     const schoolId = await schoolFromUser(user);
     if (role === "STUDENT" && (!subjectClassId || !classId)) {
-      classId = classId || Number(user.studentClass ?? user.student_class_id ?? 0);
+      classId = classId || (await studentClassId(user));
       if (classId && subjectId && !subjectClassId) {
         const [subjectRows] = await getDbPool().execute<RowDataPacket[]>(
           `SELECT sc.id FROM subject_classes sc
@@ -291,7 +320,8 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json({ subjectId, subjectClassId, classId, className, students: result });
     }
-    const studentId = role === "STUDENT" ? ownStudentId(user) : requestedStudentId;
+    const studentId =
+      role === "STUDENT" ? await ownStudentId(user) : requestedStudentId;
     if (!schoolId || !studentId || !(await authorizeClassScope(user, schoolId, subjectId, subjectClassId, classId))) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
@@ -337,7 +367,7 @@ export async function POST(request: NextRequest) {
       let subjectClassId = Number(body?.subjectClassId || 0);
       let classId = Number(body?.classId || 0);
       if (role === "STUDENT" && (!subjectClassId || !classId)) {
-        classId = classId || Number(user.studentClass ?? user.student_class_id ?? 0);
+        classId = classId || (await studentClassId(user));
         if (classId && subjectId && !subjectClassId) {
           const [subjectRows] = await pool.execute<RowDataPacket[]>(
             `SELECT sc.id FROM subject_classes sc
@@ -356,7 +386,7 @@ export async function POST(request: NextRequest) {
       }
       const targetIds =
         role === "STUDENT"
-          ? [ownStudentId(user)]
+          ? [await ownStudentId(user)]
           : body?.allStudents
             ? (await pool.execute<RowDataPacket[]>(
                 "SELECT DISTINCT id FROM students WHERE school_id = ? AND class_id = ?",
@@ -395,7 +425,8 @@ export async function POST(request: NextRequest) {
       );
       const page = rows[0];
       if (!page || Number(page.school_id) !== schoolId) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      const owner = role === "STUDENT" ? ownStudentId(user) : Number(page.student_id);
+      const owner =
+        role === "STUDENT" ? await ownStudentId(user) : Number(page.student_id);
       if (role === "STUDENT" && owner !== Number(page.student_id)) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       const updates: string[] = [];
       const values: unknown[] = [];
@@ -441,7 +472,11 @@ export async function POST(request: NextRequest) {
         [notebookId, schoolId]
       );
       const notebook = notebookRows[0];
-      if (!notebook || (role === "STUDENT" && Number(notebook.student_id) !== ownStudentId(user))) {
+      if (
+        !notebook ||
+        (role === "STUDENT" &&
+          Number(notebook.student_id) !== (await ownStudentId(user)))
+      ) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
       const connection = await pool.getConnection();
