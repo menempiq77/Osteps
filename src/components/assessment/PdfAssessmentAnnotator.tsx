@@ -1286,6 +1286,8 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [annotationLoadError, setAnnotationLoadError] = useState<string | null>(null);
+  const [workspaceReloadToken, setWorkspaceReloadToken] = useState(0);
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [documentKind, setDocumentKind] = useState<DocumentKind>("pdf");
   const [docxHtml, setDocxHtml] = useState("");
@@ -1565,7 +1567,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const documentIdentityUnverified = Boolean(
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
-  const editable = role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified);
+  const editable =
+    Boolean(state) &&
+    (role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified));
   // We handle pinch-zoom ourselves for every tool, so the browser must not claim
   // two-finger gestures (which would zoom the whole page and fight our handler).
   // Single-finger native panning stays enabled for the cursor/text tools.
@@ -1575,6 +1579,17 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
+  const retryWorkspaceLoad = useCallback(() => {
+    setAnnotationLoadError(null);
+    setRenderError(null);
+    setLoading(true);
+    setRendering(true);
+    setPages([]);
+    setDocxHtml("");
+    setState(null);
+    setLoadedDocumentKey("");
+    setWorkspaceReloadToken((token) => token + 1);
+  }, []);
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const safeBackHref = sanitizeReturnToPath(backHref);
   const handleBackToClassOverview = useCallback(() => {
@@ -3568,6 +3583,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const load = async () => {
       try {
         setLoading(true);
+        setAnnotationLoadError(null);
         setLoadedDocumentKey("");
         setState(null);
         setAiDraftPreview(null);
@@ -3691,7 +3707,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         }
       } catch (error) {
         console.error(error);
-        if (!cancelled) messageApi.error("Could not load saved document work.");
+        if (!cancelled) {
+          setAnnotationLoadError(
+            "Couldn't load the marking data. The original paper will still be shown below."
+          );
+          messageApi.error("Could not load saved document work.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -3700,12 +3721,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialSelfAssessmentMark, initialTeacherMarks, initialTeacherFeedback]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialSelfAssessmentMark, initialTeacherMarks, initialTeacherFeedback, workspaceReloadToken]);
 
   useEffect(() => {
     let cancelled = false;
     const renderPdf = async () => {
-      if (!pdfRenderUrl) return;
+      if (!pdfRenderUrl) {
+        setRenderError("Couldn't load the paper because no original file was provided.");
+        setRendering(false);
+        return;
+      }
       try {
         setRendering(true);
         setRenderError(null);
@@ -3714,7 +3739,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         if (fileExtension === "docx") {
           setDocumentKind("docx");
           const response = await fetch(pdfRenderUrl, { cache: "no-store" });
-          if (!response.ok) throw new Error("Could not load Word document");
+          if (!response.ok) throw new Error("Could not load the paper file");
           const arrayBuffer = await response.arrayBuffer();
           const mammoth = await import("mammoth");
           const result = await mammoth.convertToHtml({ arrayBuffer });
@@ -3782,7 +3807,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfRenderUrl, fileExtension]);
+  }, [fileExtension, pdfRenderUrl, workspaceReloadToken]);
 
   useEffect(() => {
     for (const page of pages) {
@@ -5872,15 +5897,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        {contextHolder}
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
   const toolbarViewportScale = visualViewportScale > 0 ? visualViewportScale : 1;
   const toolbarIsBrowserZoomed = toolbarViewportScale > 1.01;
@@ -6526,18 +6542,51 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         {role === "teacher" && studentLocked && state?.status === "draft" && (
           <Alert className="mb-4" type="warning" showIcon message="The student has not pressed Finish yet, but editing is currently locked by the teacher." />
         )}
+        {loading && (
+          <Alert
+            className="mb-4"
+            type="info"
+            showIcon
+            message="Loading marking data..."
+            description="The original paper preview can appear while the saved annotations are loading."
+          />
+        )}
+
+        {annotationLoadError && (
+          <Alert
+            className="mb-4"
+            type="warning"
+            showIcon
+            message="Couldn't load the marking data"
+            description={
+              <div className="flex flex-wrap items-center gap-3">
+                <span>{annotationLoadError}</span>
+                <Button size="small" onClick={retryWorkspaceLoad}>
+                  Retry
+                </Button>
+              </div>
+            }
+          />
+        )}
+
         {renderError && (
           <Alert
             className="mb-4"
             type="warning"
             showIcon
-            message={renderErrorMessage}
+            message="Couldn't load the paper preview"
             description={
-              canOpenOriginalFile ? (
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                  Open original PDF
-                </a>
-              ) : undefined
+              <div className="flex flex-wrap items-center gap-3">
+                <span>{renderErrorMessage}</span>
+                {canOpenOriginalFile ? (
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    Open original PDF
+                  </a>
+                ) : null}
+                <Button size="small" onClick={retryWorkspaceLoad}>
+                  Retry
+                </Button>
+              </div>
             }
           />
         )}
