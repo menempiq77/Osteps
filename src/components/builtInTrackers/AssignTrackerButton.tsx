@@ -9,6 +9,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import type { RootState } from "@/store/store";
 import { assignMindUpgradeCourses } from "@/services/mindUpgradeApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
+import { fetchYearsBySchool } from "@/services/yearsApi";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
@@ -78,14 +79,32 @@ export function AssignTrackerButton({
       };
     }
 
-    fetchSubjectClasses({ subject_id: subjectId, include_inactive: false })
-      .then((rows) => {
+    if (!schoolId) {
+      setYearError(
+        "Your school could not be identified, so year groups are unavailable."
+      );
+      setYearsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    Promise.all([
+      fetchSubjectClasses({ subject_id: subjectId, include_inactive: true }),
+      fetchYearsBySchool(schoolId),
+    ])
+      .then(([subjectClassRows, schoolYearRows]) => {
         if (cancelled) return;
+        const subjectYearIds = new Set(
+          (Array.isArray(subjectClassRows) ? subjectClassRows : [])
+            .map((row: any) => Number(row?.year_id ?? row?.year?.id))
+            .filter((id) => id > 0)
+        );
         const options = new Map<number, string>();
-        for (const row of Array.isArray(rows) ? rows : []) {
-          const id = Number(row?.year_id ?? row?.year?.id);
-          const name = String(row?.year_name ?? row?.year?.name ?? "").trim();
-          if (id > 0 && /^Year\s+\d+\b/i.test(name)) {
+        for (const year of Array.isArray(schoolYearRows) ? schoolYearRows : []) {
+          const id = Number(year?.id);
+          const name = String(year?.name ?? year?.year_name ?? "").trim();
+          if (id > 0 && subjectYearIds.has(id) && name) {
             options.set(id, name);
           }
         }
@@ -105,7 +124,7 @@ export function AssignTrackerButton({
     return () => {
       cancelled = true;
     };
-  }, [open, subjectId]);
+  }, [open, schoolId, subjectId]);
 
   const selectedYearNames = useMemo(
     () =>
