@@ -15,6 +15,9 @@ export interface TimetablePattern {
 const STORAGE_KEY = "osteps_timetable_pattern";
 const scopedKey = (scope?: number | string | null) =>
   scope == null ? STORAGE_KEY : `${STORAGE_KEY}_${scope}`;
+const readStorage = (scope?: number | string | null) =>
+  localStorage.getItem(scopedKey(scope)) ??
+  (scope == null ? null : localStorage.getItem(STORAGE_KEY));
 
 export function defaultPattern(): TimetablePattern {
   return {
@@ -26,7 +29,7 @@ export function defaultPattern(): TimetablePattern {
 export function loadPattern(scope?: number | string | null): TimetablePattern {
   if (typeof window === "undefined") return defaultPattern();
   try {
-    const raw = localStorage.getItem(scopedKey(scope));
+    const raw = readStorage(scope);
     if (!raw) return defaultPattern();
     const parsed = JSON.parse(raw) as Partial<TimetablePattern>;
     const mode: WeekMode = parsed.mode === "ab" ? "ab" : "single";
