@@ -499,11 +499,19 @@ const buildBaseNavigation = ({
         keywords: ["progress", "tracker"],
       },
       {
+        name: "Games",
+        href: "/dashboard/games",
+        icon: Gamepad2,
+        description: "Use your coins to unlock and play arcade games.",
+        section: "Resources",
+        keywords: ["games", "arcade", "coins", "rewards"],
+      },
+      {
         name: "My Notebook",
         href: "/dashboard/class_notebook",
         icon: BookOpen,
         description: "Open your personal class notebook.",
-        section: "Teaching",
+        section: "Resources",
         keywords: ["notebook", "class notebook", "writing"],
       },
       {

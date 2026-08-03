@@ -606,6 +606,11 @@ export default function StudentList() {
   );
   const canArrangeSeats =
     role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
+  const canAccessClassNotebook =
+    role === "SCHOOL_ADMIN" ||
+    role === "HOD" ||
+    role === "TEACHER" ||
+    role === "ADMIN";
   const scopedSubjectId =
     Number.isFinite(Number(routeSubjectId)) && Number(routeSubjectId) > 0
       ? Number(routeSubjectId)
@@ -3442,7 +3447,7 @@ export default function StudentList() {
               >
                 Class Story
               </button>
-              {canArrangeSeats && (
+              {canAccessClassNotebook && (
                 <button
                   onClick={() => {
                     const query = new URLSearchParams();
@@ -3458,7 +3463,10 @@ export default function StudentList() {
                   }}
                   className="rounded-full px-4 py-1.5 text-xs text-gray-600 transition hover:text-emerald-700"
                 >
-                  {querySubjectClassLabel || "Class"} Notebook
+                  {resolvedSubjectClassContext?.label ||
+                    querySubjectClassLabel ||
+                    "Class"}{" "}
+                  Notebook
                 </button>
               )}
           </div>
