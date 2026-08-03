@@ -6,6 +6,117 @@ import { DATA_DIR, LEGACY_DATA_DIRS } from "@/lib/server/dataDir";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const LARAVEL_API_BASE =
+  process.env.OSTEPS_LARAVEL_API_BASE || "https://dashboard.osteps.com";
+
+type LaravelStudentAssessmentTask = {
+  id?: number | string;
+  assessment_id?: number | string;
+  task_id?: number | string;
+  student_id?: number | string;
+  status?: string;
+  self_assessment_mark?: number | string | null;
+  teacher_assessment_score?: number | string | null;
+  teacher_assessment_mark?: number | string | null;
+  teacher_assessment_marks?: number | string | null;
+  teacher_feedback?: string | null;
+  teacher_assessment_feedback?: string | null;
+  task?: { id?: number | string };
+  student?: { id?: number | string };
+};
+
+const getLaravelAuthHeaders = (request: NextRequest): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers["cookie"] = cookie;
+  const token = request.headers.get("authorization");
+  if (token) headers["authorization"] = token;
+  return headers;
+};
+
+const findLaravelTask = (
+  tasks: unknown[],
+  taskId: string,
+  studentId: string
+): LaravelStudentAssessmentTask | null => {
+  for (const raw of tasks) {
+    const task = raw as LaravelStudentAssessmentTask;
+    const recordTaskId = String(
+      task.task_id ?? task.task?.id ?? ""
+    ).trim();
+    const recordStudentId = String(
+      task.student_id ?? task.student?.id ?? ""
+    ).trim();
+    if (recordTaskId === taskId && recordStudentId === studentId) {
+      return task;
+    }
+  }
+  return null;
+};
+
+const fetchLaravelStudentTasks = async (
+  assessmentId: string,
+  authHeaders: Record<string, string>
+): Promise<unknown[]> => {
+  try {
+    const res = await fetch(
+      `${LARAVEL_API_BASE}/api/get-student-assessment-tasks/${assessmentId}`,
+      {
+        method: "GET",
+        headers: {
+          ...authHeaders,
+          accept: "application/json",
+        },
+      }
+    );
+    if (!res.ok) return [];
+    const payload = (await res.json()) as { data?: unknown[] };
+    return Array.isArray(payload?.data) ? payload.data : [];
+  } catch (error) {
+    console.error("Failed to fetch student assessment tasks from Laravel:", error);
+    return [];
+  }
+};
+
+const fetchLaravelTask = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  authHeaders: Record<string, string>
+): Promise<LaravelStudentAssessmentTask | null> => {
+  const tasks = await fetchLaravelStudentTasks(assessmentId, authHeaders);
+  return findLaravelTask(tasks, taskId, studentId);
+};
+
+const syncTeacherMarkToLaravel = async (
+  studentId: string,
+  taskId: string,
+  assessmentId: string,
+  marks: string,
+  feedback: string,
+  authHeaders: Record<string, string>
+): Promise<void> => {
+  if (!marks.trim()) return;
+  try {
+    await fetch(`${LARAVEL_API_BASE}/api/add-student-task-marks/${studentId}`, {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        task_id: taskId,
+        assessment_id: assessmentId,
+        teacher_assessment_marks: marks,
+        teacher_assessment_feedback: feedback,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to sync teacher mark to Laravel:", error);
+  }
+};
+
 type AnnotationPayload = {
   layer?: "student" | "teacher";
   annotations?: unknown;
@@ -203,7 +314,8 @@ const writeState = async (state: DocumentState) => {
 const readState = async (
   assessmentId: string,
   taskId: string,
-  studentId: string
+  studentId: string,
+  authHeaders?: Record<string, string>
 ): Promise<DocumentState> => {
   const filePath = statePath(assessmentId, taskId, studentId);
 
@@ -232,6 +344,53 @@ const readState = async (
       return recoveredState;
     } catch (migrationError) {
       console.error("Failed to migrate legacy assessment document state:", migrationError);
+    }
+  }
+
+  // The document store is empty. Fall back to the legacy Laravel
+  // `student_assessment_tasks` table so existing teacher marks/feedback are
+  // still visible after a deploy/cwd change.
+  if (authHeaders) {
+    try {
+      const dbTask = await fetchLaravelTask(assessmentId, taskId, studentId, authHeaders);
+      if (dbTask) {
+        const teacherMark =
+          dbTask.teacher_assessment_score ??
+          dbTask.teacher_assessment_marks ??
+          dbTask.teacher_assessment_mark ??
+          null;
+        const teacherFeedback =
+          dbTask.teacher_feedback ??
+          dbTask.teacher_assessment_feedback ??
+          null;
+        const dbStatus = String(dbTask.status || "").toLowerCase();
+        const isMarked =
+          dbStatus === "completed" ||
+          (teacherMark != null && String(teacherMark).trim() !== "");
+
+        const dbBackedState = buildState(assessmentId, taskId, studentId, {
+          status: isMarked ? "marked" : (dbStatus as any) || "draft",
+          studentLocked: isMarked || dbStatus === "completed",
+          metadata: {
+            selfAssessmentMark: dbTask.self_assessment_mark ?? undefined,
+            ...(teacherMark != null && String(teacherMark).trim() !== ""
+              ? { teacherMarks: String(teacherMark) }
+              : {}),
+            ...(teacherFeedback != null && String(teacherFeedback).trim() !== ""
+              ? { teacherFeedback: String(teacherFeedback) }
+              : {}),
+            dbBacked: true,
+          },
+        });
+
+        // Persist this db-backed state into the primary store so future
+        // reads/writes use the stable DATA_DIR and are not dependent on the
+        // Laravel fallback.
+        await writeState(dbBackedState);
+        return dbBackedState;
+      }
+    } catch (dbError) {
+      console.error("Failed to load assessment document state from Laravel fallback:", dbError);
     }
   }
 
@@ -302,7 +461,8 @@ export async function GET(request: NextRequest) {
   const identityError = validateStudentIdentityHeader(request, ids.studentId);
   if (identityError) return identityError;
 
-  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
+  const authHeaders = getLaravelAuthHeaders(request);
+  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId, authHeaders);
   return NextResponse.json(state);
 }
 
@@ -322,7 +482,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
   const layer = payload.layer === "teacher" ? "teacher" : "student";
-  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
+  const authHeaders = getLaravelAuthHeaders(request);
+  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId, authHeaders);
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
 
   if (
@@ -435,5 +596,24 @@ export async function POST(request: NextRequest) {
   state.updatedAt = new Date().toISOString();
 
   await writeState(state);
+
+  // Sync teacher marks/feedback back to the Laravel `student_assessment_tasks`
+  // table so the assessment list and reports reflect the latest marking.
+  if (layer === "teacher") {
+    const finalMetadata = state.metadata || {};
+    const teacherMarks = String(finalMetadata.teacherMarks ?? "");
+    const teacherFeedback = String(finalMetadata.teacherFeedback ?? "");
+    if (teacherMarks.trim()) {
+      await syncTeacherMarkToLaravel(
+        ids.studentId,
+        ids.taskId,
+        ids.assessmentId,
+        teacherMarks,
+        teacherFeedback,
+        authHeaders
+      );
+    }
+  }
+
   return NextResponse.json(state);
 }

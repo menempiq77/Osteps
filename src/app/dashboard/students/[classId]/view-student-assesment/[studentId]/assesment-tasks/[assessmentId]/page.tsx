@@ -14,6 +14,7 @@ import { addStudentTaskMarks, fetchStudentTasks } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 
 interface Task {
   id: number;
@@ -347,11 +348,19 @@ export default function AssessmentDrawer() {
       : `${IMG_BASE_URL}/storage/${cleanPath}`;
   };
 
+  const getSubmittedFilePath = (task: StudentAssessmentTask) => {
+    const attachments = parseSubmissionAttachments(task.file_paths, task.file_path);
+    if (attachments.length > 0) return attachments[0].path;
+    const taskType = String(task.task?.task_type || "").toLowerCase();
+    return taskType !== "pdf" ? task.file_path : "";
+  };
+
   const openTeacherDocumentWorkspace = (
     task: StudentAssessmentTask,
     options: { autoDownload?: boolean } = {}
   ) => {
-    const sourcePath = task.task?.file_path || task.file_path;
+    const sourcePath =
+      getSubmittedFilePath(task) || task.task?.file_path || task.file_path;
     const params = new URLSearchParams({
       assessmentId: String(task.assessment_id),
       taskId: String(task.task_id),
