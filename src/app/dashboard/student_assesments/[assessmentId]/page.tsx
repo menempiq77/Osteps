@@ -10,13 +10,14 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks, fetchTasks, updateTask } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
 import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
@@ -237,10 +238,19 @@ export default function AssessmentDrawer() {
   const params = useParams();
   const searchParams = useSearchParams();
   const assessmentId = params.assessmentId;
+  const pathname = usePathname();
   const classId = searchParams.get("classId");
   const subjectClassId = searchParams.get("subjectClassId");
+  const pathSubjectId = extractSubjectIdFromPath(pathname);
+  const querySubjectId = (() => {
+    const raw = searchParams.get("subject_id");
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  })();
   const { activeSubjectId, canUseSubjectContext, toSubjectHref } =
     useSubjectContext();
+  const scopedSubjectId = pathSubjectId ?? querySubjectId ?? activeSubjectId;
 
   const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
     number | null
@@ -323,7 +333,7 @@ export default function AssessmentDrawer() {
       setLoading(true);
       const data = await fetchStudentTasks(
         Number(assessmentId),
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined
       );
       setAssesmentTasks(data);
       void loadDocumentSelfAssessmentMarks(data);
@@ -341,7 +351,7 @@ export default function AssessmentDrawer() {
     try {
       const data = await fetchTasks(
         Number(assessmentId),
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined
       );
       setAssessmentTaskDefinitions(
         (data || [])
@@ -380,12 +390,12 @@ export default function AssessmentDrawer() {
 
   useEffect(() => {
     if (!assessmentId) return;
-    if (canUseSubjectContext && !activeSubjectId) return;
+    if (canUseSubjectContext && !scopedSubjectId) return;
     setStudentTasksLoaded(false);
     setTaskDefinitionsLoaded(false);
     loadStudentTasks(Number(assessmentId));
     loadAssessmentTaskDefinitions(Number(assessmentId));
-  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
+  }, [assessmentId, canUseSubjectContext, scopedSubjectId]);
 
   useEffect(() => {
     if (!assessmentId) return;
@@ -396,7 +406,7 @@ export default function AssessmentDrawer() {
     }
 
     const refreshTasks = () => {
-      if (canUseSubjectContext && !activeSubjectId) return;
+      if (canUseSubjectContext && !scopedSubjectId) return;
       loadStudentTasks(currentAssessmentId);
       loadAssessmentTaskDefinitions(currentAssessmentId);
     };
@@ -449,21 +459,21 @@ export default function AssessmentDrawer() {
       window.removeEventListener("focus", refreshTasks);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
+  }, [assessmentId, canUseSubjectContext, scopedSubjectId]);
 
   const loadStudents = async () => {
     try {
       setLoading(true);
       let studentsData = await fetchStudents(
         classId,
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
         subjectClassId ?? undefined
       );
 
       if (!studentsData?.length && subjectClassId) {
         studentsData = await fetchStudents(
           classId,
-          canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+          canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
           undefined
         );
       }
@@ -486,7 +496,7 @@ export default function AssessmentDrawer() {
       setStudents([]);
       setStudentsLoaded(true);
     }
-  }, [classId, activeSubjectId, canUseSubjectContext, subjectClassId]);
+  }, [classId, canUseSubjectContext, scopedSubjectId, subjectClassId]);
 
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
@@ -791,8 +801,8 @@ export default function AssessmentDrawer() {
     formData.append("allocated_marks", String(definition.allocated_marks ?? task.task?.allocated_marks ?? 0));
     appendTaskTypeValue(formData, taskTypeValue);
     if (definition.url) formData.append("url", String(definition.url));
-    if (canUseSubjectContext && activeSubjectId) {
-      formData.append("subject_id", String(activeSubjectId));
+    if (canUseSubjectContext && scopedSubjectId) {
+      formData.append("subject_id", String(scopedSubjectId));
     }
     return formData;
   };
@@ -810,8 +820,8 @@ export default function AssessmentDrawer() {
     formData.append("allocated_marks", String(definition.allocated_marks ?? task.task?.allocated_marks ?? 0));
     appendTaskTypeValue(formData, definition.task_type || "null");
     if (definition.url) formData.append("url", String(definition.url));
-    if (canUseSubjectContext && activeSubjectId) {
-      formData.append("subject_id", String(activeSubjectId));
+    if (canUseSubjectContext && scopedSubjectId) {
+      formData.append("subject_id", String(scopedSubjectId));
     }
     return formData;
   };
@@ -1004,7 +1014,7 @@ export default function AssessmentDrawer() {
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
     const nextHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
     router.push(
-      canUseSubjectContext && activeSubjectId
+      canUseSubjectContext && scopedSubjectId
         ? toSubjectHref(nextHref)
         : nextHref
     );
@@ -1238,7 +1248,7 @@ export default function AssessmentDrawer() {
           }
           const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
           triggerBrowserDownload(
-            canUseSubjectContext && activeSubjectId
+            canUseSubjectContext && scopedSubjectId
               ? toSubjectHref(quizHref)
               : quizHref,
             `${studentName} - ${taskName}`,

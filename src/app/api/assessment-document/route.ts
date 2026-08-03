@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { DATA_DIR, LEGACY_DATA_DIRS } from "@/lib/server/dataDir";
+import { getDbPool } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -114,6 +115,112 @@ const syncTeacherMarkToLaravel = async (
     });
   } catch (error) {
     console.error("Failed to sync teacher mark to Laravel:", error);
+  }
+};
+
+// Database-backed persistence for assessment document state. The file store
+// remains the fast cache, but the MySQL table is the durable source of truth
+// that survives deploys, directory changes, and server re-installs.
+
+type DbDocumentRow = {
+  id: number;
+  assessment_id: number;
+  task_id: number;
+  student_id: number;
+  status: string;
+  student_locked: number;
+  student_annotations: string | null;
+  teacher_annotations: string | null;
+  metadata: string | null;
+  submitted_at: string | null;
+  marked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const parseJsonColumn = (value: string | null): unknown => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const toIsoOrNull = (value: string | undefined | null): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 19).replace("T", " ");
+};
+
+const fetchDbState = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string
+): Promise<DocumentState | null> => {
+  try {
+    const [rows] = await getDbPool().execute<DbDocumentRow[]>(
+      `SELECT * FROM assessment_document_annotations
+       WHERE assessment_id = ? AND task_id = ? AND student_id = ?
+       LIMIT 1`,
+      [assessmentId, taskId, studentId]
+    );
+    const row = rows?.[0];
+    if (!row) return null;
+
+    const parsed: Partial<DocumentState> = {
+      assessmentId: String(row.assessment_id),
+      taskId: String(row.task_id),
+      studentId: String(row.student_id),
+      status: (row.status as DocumentState["status"]) || "draft",
+      studentLocked: Boolean(row.student_locked),
+      studentAnnotations: (parseJsonColumn(row.student_annotations) as unknown[]) || [],
+      teacherAnnotations: (parseJsonColumn(row.teacher_annotations) as unknown[]) || [],
+      metadata: (parseJsonColumn(row.metadata) as Record<string, unknown>) || {},
+      submittedAt: row.submitted_at || undefined,
+      markedAt: row.marked_at || undefined,
+      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+    };
+    return buildState(assessmentId, taskId, studentId, parsed);
+  } catch (error) {
+    console.error("Failed to fetch assessment document from database:", error);
+    return null;
+  }
+};
+
+const upsertDbState = async (state: DocumentState): Promise<void> => {
+  try {
+    await getDbPool().execute(
+      `INSERT INTO assessment_document_annotations
+        (assessment_id, task_id, student_id, status, student_locked,
+         student_annotations, teacher_annotations, metadata,
+         submitted_at, marked_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         status = VALUES(status),
+         student_locked = VALUES(student_locked),
+         student_annotations = VALUES(student_annotations),
+         teacher_annotations = VALUES(teacher_annotations),
+         metadata = VALUES(metadata),
+         submitted_at = VALUES(submitted_at),
+         marked_at = VALUES(marked_at),
+         updated_at = VALUES(updated_at)`,
+      [
+        state.assessmentId,
+        state.taskId,
+        state.studentId,
+        state.status,
+        state.studentLocked ? 1 : 0,
+        JSON.stringify(state.studentAnnotations || []),
+        JSON.stringify(state.teacherAnnotations || []),
+        JSON.stringify(state.metadata || {}),
+        toIsoOrNull(state.submittedAt),
+        toIsoOrNull(state.markedAt),
+        new Date(state.updatedAt).toISOString().slice(0, 19).replace("T", " "),
+      ]
+    );
+  } catch (error) {
+    console.error("Failed to upsert assessment document to database:", error);
   }
 };
 
@@ -309,6 +416,8 @@ const writeState = async (state: DocumentState) => {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
   await fs.rename(tempPath, filePath);
+  // The database is the durable source of truth; always mirror the file.
+  await upsertDbState(state);
 };
 
 const readState = async (
@@ -326,9 +435,25 @@ const readState = async (
 
   try {
     const parsed = await rawFromPath(filePath);
-    return buildState(assessmentId, taskId, studentId, parsed);
+    const fileState = buildState(assessmentId, taskId, studentId, parsed);
+    // Keep the database in sync with the primary file store so the data
+    // survives even if the `.data` files are lost or moved.
+    await upsertDbState(fileState);
+    return fileState;
   } catch (error: any) {
     if (error?.code !== "ENOENT") throw error;
+  }
+
+  // The primary store is empty. Try the database source of truth next and
+  // restore the file from there if a row exists.
+  const dbState = await fetchDbState(assessmentId, taskId, studentId);
+  if (dbState) {
+    try {
+      await writeState(dbState);
+    } catch (writeError) {
+      console.error("Failed to restore assessment document file from database:", writeError);
+    }
+    return dbState;
   }
 
   // The primary store is empty. Look in legacy `.data` directories that may
@@ -383,9 +508,8 @@ const readState = async (
           },
         });
 
-        // Persist this db-backed state into the primary store so future
-        // reads/writes use the stable DATA_DIR and are not dependent on the
-        // Laravel fallback.
+        // Persist this db-backed state into the primary store and database so
+        // future reads/writes are not dependent on the Laravel fallback.
         await writeState(dbBackedState);
         return dbBackedState;
       }
