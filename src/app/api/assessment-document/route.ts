@@ -1,10 +1,121 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { DATA_DIR } from "@/lib/server/dataDir";
+import { DATA_DIR, LEGACY_DATA_DIRS } from "@/lib/server/dataDir";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const LARAVEL_API_BASE =
+  process.env.OSTEPS_LARAVEL_API_BASE || "https://dashboard.osteps.com";
+
+type LaravelStudentAssessmentTask = {
+  id?: number | string;
+  assessment_id?: number | string;
+  task_id?: number | string;
+  student_id?: number | string;
+  status?: string;
+  self_assessment_mark?: number | string | null;
+  teacher_assessment_score?: number | string | null;
+  teacher_assessment_mark?: number | string | null;
+  teacher_assessment_marks?: number | string | null;
+  teacher_feedback?: string | null;
+  teacher_assessment_feedback?: string | null;
+  task?: { id?: number | string };
+  student?: { id?: number | string };
+};
+
+const getLaravelAuthHeaders = (request: NextRequest): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers["cookie"] = cookie;
+  const token = request.headers.get("authorization");
+  if (token) headers["authorization"] = token;
+  return headers;
+};
+
+const findLaravelTask = (
+  tasks: unknown[],
+  taskId: string,
+  studentId: string
+): LaravelStudentAssessmentTask | null => {
+  for (const raw of tasks) {
+    const task = raw as LaravelStudentAssessmentTask;
+    const recordTaskId = String(
+      task.task_id ?? task.task?.id ?? ""
+    ).trim();
+    const recordStudentId = String(
+      task.student_id ?? task.student?.id ?? ""
+    ).trim();
+    if (recordTaskId === taskId && recordStudentId === studentId) {
+      return task;
+    }
+  }
+  return null;
+};
+
+const fetchLaravelStudentTasks = async (
+  assessmentId: string,
+  authHeaders: Record<string, string>
+): Promise<unknown[]> => {
+  try {
+    const res = await fetch(
+      `${LARAVEL_API_BASE}/api/get-student-assessment-tasks/${assessmentId}`,
+      {
+        method: "GET",
+        headers: {
+          ...authHeaders,
+          accept: "application/json",
+        },
+      }
+    );
+    if (!res.ok) return [];
+    const payload = (await res.json()) as { data?: unknown[] };
+    return Array.isArray(payload?.data) ? payload.data : [];
+  } catch (error) {
+    console.error("Failed to fetch student assessment tasks from Laravel:", error);
+    return [];
+  }
+};
+
+const fetchLaravelTask = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  authHeaders: Record<string, string>
+): Promise<LaravelStudentAssessmentTask | null> => {
+  const tasks = await fetchLaravelStudentTasks(assessmentId, authHeaders);
+  return findLaravelTask(tasks, taskId, studentId);
+};
+
+const syncTeacherMarkToLaravel = async (
+  studentId: string,
+  taskId: string,
+  assessmentId: string,
+  marks: string,
+  feedback: string,
+  authHeaders: Record<string, string>
+): Promise<void> => {
+  if (!marks.trim()) return;
+  try {
+    await fetch(`${LARAVEL_API_BASE}/api/add-student-task-marks/${studentId}`, {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        task_id: taskId,
+        assessment_id: assessmentId,
+        teacher_assessment_marks: marks,
+        teacher_assessment_feedback: feedback,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to sync teacher mark to Laravel:", error);
+  }
+};
 
 type AnnotationPayload = {
   layer?: "student" | "teacher";
@@ -126,40 +237,68 @@ const createEmptyState = (
   updatedAt: new Date().toISOString(),
 });
 
-const readState = async (
+const statePathForDir = (
+  storeDir: string,
   assessmentId: string,
   taskId: string,
   studentId: string
-): Promise<DocumentState> => {
-  const filePath = statePath(assessmentId, taskId, studentId);
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed = parseStoredState(raw);
-    const nextState = {
-      ...createEmptyState(assessmentId, taskId, studentId),
-      ...parsed,
-    } as DocumentState;
-    const metadata =
-      nextState.metadata && typeof nextState.metadata === "object"
-        ? nextState.metadata
-        : {};
-    const studentLockOverride =
-      typeof metadata.studentLockOverride === "boolean"
-        ? metadata.studentLockOverride
-        : undefined;
+) =>
+  path.join(
+    storeDir,
+    safeSegment(assessmentId),
+    safeSegment(taskId),
+    `${safeSegment(studentId)}.json`
+  );
 
-    if (studentLockOverride !== undefined) {
-      nextState.studentLocked = studentLockOverride;
-    } else if (nextState.status === "marked") {
-      nextState.studentLocked = true;
-    } else {
-      nextState.studentLocked = false;
+const findLegacyStateFile = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string
+): Promise<string | null> => {
+  for (const legacyDir of LEGACY_DATA_DIRS) {
+    const candidate = statePathForDir(
+      path.join(legacyDir, "assessment-documents"),
+      assessmentId,
+      taskId,
+      studentId
+    );
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // not in this legacy location
     }
-    return nextState;
-  } catch (error: any) {
-    if (error?.code !== "ENOENT") throw error;
-    return createEmptyState(assessmentId, taskId, studentId);
   }
+  return null;
+};
+
+const buildState = (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  parsed?: Partial<DocumentState>
+): DocumentState => {
+  const nextState = {
+    ...createEmptyState(assessmentId, taskId, studentId),
+    ...parsed,
+  } as DocumentState;
+  const metadata =
+    nextState.metadata && typeof nextState.metadata === "object"
+      ? nextState.metadata
+      : {};
+  const studentLockOverride =
+    typeof metadata.studentLockOverride === "boolean"
+      ? metadata.studentLockOverride
+      : undefined;
+
+  if (studentLockOverride !== undefined) {
+    nextState.studentLocked = studentLockOverride;
+  } else if (nextState.status === "marked") {
+    nextState.studentLocked = true;
+  } else {
+    nextState.studentLocked = false;
+  }
+  return nextState;
 };
 
 const writeState = async (state: DocumentState) => {
@@ -170,6 +309,92 @@ const writeState = async (state: DocumentState) => {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(tempPath, JSON.stringify(state, null, 2), "utf8");
   await fs.rename(tempPath, filePath);
+};
+
+const readState = async (
+  assessmentId: string,
+  taskId: string,
+  studentId: string,
+  authHeaders?: Record<string, string>
+): Promise<DocumentState> => {
+  const filePath = statePath(assessmentId, taskId, studentId);
+
+  const rawFromPath = async (targetPath: string) => {
+    const raw = await fs.readFile(targetPath, "utf8");
+    return parseStoredState(raw);
+  };
+
+  try {
+    const parsed = await rawFromPath(filePath);
+    return buildState(assessmentId, taskId, studentId, parsed);
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  // The primary store is empty. Look in legacy `.data` directories that may
+  // contain student answers/marking from earlier deploys with a different cwd.
+  const legacyFile = await findLegacyStateFile(assessmentId, taskId, studentId);
+  if (legacyFile) {
+    try {
+      const parsed = await rawFromPath(legacyFile);
+      // Migrate the recovered state into the primary store so future reads
+      // and writes use the stable DATA_DIR.
+      const recoveredState = buildState(assessmentId, taskId, studentId, parsed);
+      await writeState(recoveredState);
+      return recoveredState;
+    } catch (migrationError) {
+      console.error("Failed to migrate legacy assessment document state:", migrationError);
+    }
+  }
+
+  // The document store is empty. Fall back to the legacy Laravel
+  // `student_assessment_tasks` table so existing teacher marks/feedback are
+  // still visible after a deploy/cwd change.
+  if (authHeaders) {
+    try {
+      const dbTask = await fetchLaravelTask(assessmentId, taskId, studentId, authHeaders);
+      if (dbTask) {
+        const teacherMark =
+          dbTask.teacher_assessment_score ??
+          dbTask.teacher_assessment_marks ??
+          dbTask.teacher_assessment_mark ??
+          null;
+        const teacherFeedback =
+          dbTask.teacher_feedback ??
+          dbTask.teacher_assessment_feedback ??
+          null;
+        const dbStatus = String(dbTask.status || "").toLowerCase();
+        const isMarked =
+          dbStatus === "completed" ||
+          (teacherMark != null && String(teacherMark).trim() !== "");
+
+        const dbBackedState = buildState(assessmentId, taskId, studentId, {
+          status: isMarked ? "marked" : (dbStatus as any) || "draft",
+          studentLocked: isMarked || dbStatus === "completed",
+          metadata: {
+            selfAssessmentMark: dbTask.self_assessment_mark ?? undefined,
+            ...(teacherMark != null && String(teacherMark).trim() !== ""
+              ? { teacherMarks: String(teacherMark) }
+              : {}),
+            ...(teacherFeedback != null && String(teacherFeedback).trim() !== ""
+              ? { teacherFeedback: String(teacherFeedback) }
+              : {}),
+            dbBacked: true,
+          },
+        });
+
+        // Persist this db-backed state into the primary store so future
+        // reads/writes use the stable DATA_DIR and are not dependent on the
+        // Laravel fallback.
+        await writeState(dbBackedState);
+        return dbBackedState;
+      }
+    } catch (dbError) {
+      console.error("Failed to load assessment document state from Laravel fallback:", dbError);
+    }
+  }
+
+  return createEmptyState(assessmentId, taskId, studentId);
 };
 
 const toFiniteNumber = (value: unknown) => {
@@ -236,7 +461,8 @@ export async function GET(request: NextRequest) {
   const identityError = validateStudentIdentityHeader(request, ids.studentId);
   if (identityError) return identityError;
 
-  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
+  const authHeaders = getLaravelAuthHeaders(request);
+  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId, authHeaders);
   return NextResponse.json(state);
 }
 
@@ -256,7 +482,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
   const layer = payload.layer === "teacher" ? "teacher" : "student";
-  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId);
+  const authHeaders = getLaravelAuthHeaders(request);
+  const state = await readState(ids.assessmentId, ids.taskId, ids.studentId, authHeaders);
   const payloadMetadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
 
   if (
@@ -369,5 +596,24 @@ export async function POST(request: NextRequest) {
   state.updatedAt = new Date().toISOString();
 
   await writeState(state);
+
+  // Sync teacher marks/feedback back to the Laravel `student_assessment_tasks`
+  // table so the assessment list and reports reflect the latest marking.
+  if (layer === "teacher") {
+    const finalMetadata = state.metadata || {};
+    const teacherMarks = String(finalMetadata.teacherMarks ?? "");
+    const teacherFeedback = String(finalMetadata.teacherFeedback ?? "");
+    if (teacherMarks.trim()) {
+      await syncTeacherMarkToLaravel(
+        ids.studentId,
+        ids.taskId,
+        ids.assessmentId,
+        teacherMarks,
+        teacherFeedback,
+        authHeaders
+      );
+    }
+  }
+
   return NextResponse.json(state);
 }

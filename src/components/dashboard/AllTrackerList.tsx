@@ -31,6 +31,10 @@ import {
   ImportFromSimilarSubjectModal,
   type ImportableItem,
 } from "@/components/modals/ImportFromSimilarSubjectModal";
+import {
+  BUILT_IN_TRACKERS,
+  supportsBuiltInTrackers,
+} from "@/lib/builtinTrackers";
 
 // ─── Subject isolation helpers ───────────────────────────────────────────────
 const TRACKER_SUBJECT_MAP_KEY = "osteps_tracker_subject_map";
@@ -126,6 +130,12 @@ export default function AllTrackerList() {
     loading: subjectContextLoading,
   } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
+  const showBuiltInFolder =
+    inSubjectContext && supportsBuiltInTrackers(activeSubject?.name);
+  const builtInLessonCount = BUILT_IN_TRACKERS.reduce(
+    (total, tracker) => total + tracker.lessons.length,
+    0
+  );
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const canDeleteTrackers =
@@ -436,6 +446,32 @@ export default function AllTrackerList() {
       </div>
 
       <div className="premium-card relative overflow-auto rounded-xl p-1">
+        {showBuiltInFolder && (
+          <Link
+            href={`/dashboard/built_in_trackers${
+              activeSubjectId ? `?subject_id=${activeSubjectId}` : ""
+            }`}
+            className="group mx-3 mt-3 flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-4 text-white shadow-md transition hover:shadow-xl"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur">
+                📚
+              </span>
+              <div>
+                <h3 className="text-base font-bold md:text-lg">
+                  Built-in Trackers
+                </h3>
+                <p className="text-xs text-emerald-50 md:text-sm">
+                  {builtInLessonCount} ready-made lessons with stories, quizzes
+                  and coin rewards
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/20 px-4 py-1.5 text-xs font-bold backdrop-blur transition group-hover:bg-white/30">
+              Open folder
+            </span>
+          </Link>
+        )}
 
         {/* Untagged trackers — shown per-tracker so admin can assign each to the right subject */}
         {inSubjectContext && untaggedTrackers.length > 0 && canDeleteTrackers && (

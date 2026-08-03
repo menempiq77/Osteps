@@ -19,6 +19,10 @@ import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import Link from "next/link";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
+import {
+  BUILT_IN_TRACKERS,
+  supportsBuiltInTrackers,
+} from "@/lib/builtinTrackers";
 
 const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
   const schoolYearById = new Map(
@@ -84,6 +88,14 @@ export default function TrackerList() {
   const roleKey = String(currentUser?.role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const isTeacher = roleKey === "TEACHER";
   const schoolId = currentUser?.school;
+  const showBuiltInFolder =
+    canUseSubjectContext &&
+    !!activeSubjectId &&
+    supportsBuiltInTrackers(activeSubject?.name);
+  const builtInLessonCount = BUILT_IN_TRACKERS.reduce(
+    (total, tracker) => total + tracker.lessons.length,
+    0
+  );
 
   const [trackersLoading, setTrackersLoading] = useState(false);
 
@@ -303,6 +315,33 @@ export default function TrackerList() {
           </div>
         </div>
       </div>
+
+      {showBuiltInFolder && (
+        <Link
+          href={`/dashboard/built_in_trackers${
+            activeSubjectId ? `?subject_id=${activeSubjectId}` : ""
+          }`}
+          className="group mb-4 flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-4 text-white shadow-md transition hover:shadow-xl"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur">
+              📚
+            </span>
+            <div>
+              <h3 className="text-base font-bold md:text-lg">
+                Built-in Trackers
+              </h3>
+              <p className="text-xs text-emerald-50 md:text-sm">
+                {builtInLessonCount} stories with quizzes — earn coins for every
+                one you pass
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full bg-white/20 px-4 py-1.5 text-xs font-bold backdrop-blur transition group-hover:bg-white/30">
+            Open folder
+          </span>
+        </Link>
+      )}
 
       <div className="premium-card relative overflow-auto rounded-xl p-1">
         <div className="overflow-x-auto rounded-lg">
