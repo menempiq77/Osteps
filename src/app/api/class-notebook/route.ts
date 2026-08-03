@@ -138,8 +138,9 @@ const json = (value: unknown, fallback: unknown) => {
   }
 };
 
-const parse = (value: string | null, fallback: unknown) => {
+const parse = (value: unknown, fallback: unknown) => {
   if (!value) return fallback;
+  if (typeof value !== "string") return value;
   try {
     return JSON.parse(value);
   } catch {
@@ -180,7 +181,7 @@ const getClassName = async (classId: number, subjectClassId: number) => {
     [subjectClassId]
   );
   const [classRows] = await pool.execute<RowDataPacket[]>(
-    "SELECT class_name FROM classes WHERE id = ? LIMIT 1",
+    "SELECT class_name FROM school_classes WHERE id = ? LIMIT 1",
     [classId]
   );
   return String(
@@ -204,9 +205,10 @@ const authorizeClassScope = async (
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT sc.id
        FROM subject_classes sc
-       JOIN classes c ON c.id = COALESCE(sc.class_id, sc.base_class_id)
-      WHERE sc.id = ? AND sc.subject_id = ? AND c.id = ? AND c.school_id = ?`,
-    [subjectClassId, subjectId, classId, schoolId]
+       JOIN school_classes c
+         ON c.id = ? AND c.class_name = COALESCE(sc.base_class_label, sc.name)
+      WHERE sc.id = ? AND sc.subject_id = ? AND c.school_id = ?`,
+    [classId, subjectClassId, subjectId, schoolId]
   );
   if (rows.length === 0) return false;
   if (role === "STUDENT") {
@@ -247,10 +249,12 @@ export async function GET(request: NextRequest) {
       classId = classId || Number(user.studentClass ?? user.student_class_id ?? 0);
       if (classId && subjectId && !subjectClassId) {
         const [subjectRows] = await getDbPool().execute<RowDataPacket[]>(
-          `SELECT id FROM subject_classes
-            WHERE subject_id = ? AND (class_id = ? OR base_class_id = ?)
+          `SELECT sc.id FROM subject_classes sc
+            JOIN school_classes c
+              ON c.id = ? AND c.class_name = COALESCE(sc.base_class_label, sc.name)
+           WHERE sc.subject_id = ?
             ORDER BY is_active DESC, id ASC LIMIT 1`,
-          [subjectId, classId, classId]
+          [classId, subjectId]
         );
         subjectClassId = Number(subjectRows[0]?.id ?? 0);
       }
@@ -263,10 +267,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
       const [students] = await getDbPool().execute<RowDataPacket[]>(
-        `SELECT s.id, s.name, s.email
+        `SELECT s.id, s.student_name AS name, s.email
            FROM students s
           WHERE s.school_id = ? AND s.class_id = ?
-          ORDER BY s.name ASC`,
+          ORDER BY s.student_name ASC`,
         [schoolId, classId]
       );
       const className = await getClassName(classId, subjectClassId);
@@ -336,10 +340,12 @@ export async function POST(request: NextRequest) {
         classId = classId || Number(user.studentClass ?? user.student_class_id ?? 0);
         if (classId && subjectId && !subjectClassId) {
           const [subjectRows] = await pool.execute<RowDataPacket[]>(
-            `SELECT id FROM subject_classes
-              WHERE subject_id = ? AND (class_id = ? OR base_class_id = ?)
+            `SELECT sc.id FROM subject_classes sc
+              JOIN school_classes c
+                ON c.id = ? AND c.class_name = COALESCE(sc.base_class_label, sc.name)
+             WHERE sc.subject_id = ?
               ORDER BY is_active DESC, id ASC LIMIT 1`,
-            [subjectId, classId, classId]
+            [classId, subjectId]
           );
           subjectClassId = Number(subjectRows[0]?.id ?? 0);
         }
