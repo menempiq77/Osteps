@@ -15,13 +15,20 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+type AssessmentEntity = {
+  id?: string | number; name?: string; class_name?: string; subject_class_id?: string | number; year_id?: string | number;
+  year?: AssessmentEntity; class?: AssessmentEntity; base_class?: AssessmentEntity; base_class_label?: string;
+  classes?: AssessmentEntity; assign_assessments?: AssessmentEntity[]; assessment_id?: string | number;
+  [key: string]: unknown;
+};
+
 import {
   buildTeacherAssignedClassOptions,
   buildYearOptionsFromTeacherClasses,
   filterTeacherClassesByYear,
 } from "@/lib/teacherAssignedClasses";
 
-const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
+const buildYearsFromSubjectClasses = (subjectClasses: AssessmentEntity[], schoolYears: AssessmentEntity[] = []) => {
   const schoolYearById = new Map<number, { name?: string }>();
   for (const year of Array.isArray(schoolYears) ? schoolYears : []) {
     const id = Number(year?.id);
@@ -29,9 +36,9 @@ const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] 
       schoolYearById.set(id, year);
     }
   }
-  const yearsById = new Map<number, any>();
+  const yearsById = new Map<number, AssessmentEntity>();
 
-  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item: any) => {
+  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item: AssessmentEntity) => {
     const yearId = Number(
       item?.year_id ??
         item?.year?.id ??
@@ -55,7 +62,7 @@ const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] 
     });
   });
 
-  return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
+  return Array.from(yearsById.values()).sort((left: AssessmentEntity, right: AssessmentEntity) => Number(left.id) - Number(right.id));
 };
 
 interface CurrentUser {
@@ -73,17 +80,17 @@ export default function StudentAssessmentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [years, setYears] = useState<any[]>([]);
+  const [years, setYears] = useState<AssessmentEntity[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubjectClassId, setSelectedSubjectClassId] = useState<string | null>(null);
 
-  const [terms, setTerms] = useState<any[]>([]);
+  const [terms, setTerms] = useState<AssessmentEntity[]>([]);
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const [selectedTerm, setSelectedTerm] = useState<string>("");
 
-  const [assessments, setAssessments] = useState<any[]>([]);
+  const [assessments, setAssessments] = useState<AssessmentEntity[]>([]);
 
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
@@ -118,7 +125,7 @@ export default function StudentAssessmentPage() {
           const teacherYears = buildYearOptionsFromTeacherClasses(teacherClasses);
           if (teacherYears.length > 0) return teacherYears;
         }
-        let schoolYears: any[] = [];
+        let schoolYears: AssessmentEntity[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
           schoolYears = await fetchYearsBySchool(numericSchoolId).catch(() => []);
@@ -143,7 +150,7 @@ export default function StudentAssessmentPage() {
       return;
     }
     setSelectedYear((prev) => {
-      const stillValid = prev && yearsData.some((y: any) => String(y.id) === prev);
+      const stillValid = prev && yearsData.some((y: AssessmentEntity) => String(y.id) === prev);
       return stillValid ? prev : String(yearsData[0].id);
     });
   }, [yearsData]);
@@ -178,7 +185,7 @@ export default function StudentAssessmentPage() {
         }
 
         return await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: AssessmentEntity) => {
             const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
               row,
               Number(activeSubjectId)
@@ -213,7 +220,7 @@ export default function StudentAssessmentPage() {
     }
 
     const currentMatch = classes.find(
-      (cls: any) => String(cls?.id ?? "") === String(selectedClass ?? "")
+      (cls: AssessmentEntity) => String(cls?.id ?? "") === String(selectedClass ?? "")
     );
 
     if (currentMatch) {
@@ -286,7 +293,7 @@ export default function StudentAssessmentPage() {
   }, [selectedTermId, activeSubjectId, canUseSubjectContext]);
 
   /** ------------------ HANDLERS ------------------ */
-  const handleViewTasks = (assessment: any) => {
+  const handleViewTasks = (assessment: AssessmentEntity) => {
     const params = new URLSearchParams();
     if (selectedClass) params.set("classId", String(selectedClass));
     if (selectedSubjectClassId) params.set("subjectClassId", String(selectedSubjectClassId));
@@ -297,7 +304,7 @@ export default function StudentAssessmentPage() {
   const handleTermChange = (termId: number) => {
     const term = terms.find((t) => t.id === termId);
     if (term) {
-      setSelectedTerm(term.name);
+      setSelectedTerm(String(term.name ?? ""));
       setSelectedTermId(termId);
     }
   };
@@ -346,7 +353,7 @@ export default function StudentAssessmentPage() {
               className="w-full"
               placeholder="Select Year"
             >
-              {yearsData?.map((year: any) => (
+              {yearsData?.map((year: AssessmentEntity) => (
                 <Select.Option key={year?.id} value={year?.id?.toString()}>
                   {year?.name}
                 </Select.Option>
@@ -362,7 +369,7 @@ export default function StudentAssessmentPage() {
             <Select
               value={selectedClass || undefined}
               onChange={(value) => {
-                const matchedClass = classes.find((cls: any) => String(cls?.id) === String(value));
+                const matchedClass = classes.find((cls: AssessmentEntity) => String(cls?.id) === String(value));
                 setSelectedClass(value);
                 setSelectedSubjectClassId(
                   matchedClass?.subject_class_id ? String(matchedClass.subject_class_id) : null
@@ -435,11 +442,11 @@ export default function StudentAssessmentPage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="text-gray-800 font-medium group-hover:text-primary transition-colors cursor-pointer"
               onClick={() => handleViewTasks(assessment)}>
-              {assessment?.name || "Untitled Assessment"}
+              {String(assessment?.name ?? "Untitled Assessment")}
             </span>
-            {assessment?.date && (
+            {Boolean(assessment?.date) && (
               <span className="text-sm text-gray-500">
-                • {new Date(assessment?.date).toLocaleDateString()}
+                • {new Date(String(assessment.date)).toLocaleDateString()}
               </span>
             )}
           </div>
