@@ -43,6 +43,7 @@ import {
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
+import type { ColumnsType } from "antd/es/table";
 
 const { Title, Text } = Typography;
 
@@ -50,6 +51,8 @@ interface CurrentUser {
   student?: string;
   avatar?: string;
   name?: string;
+  class_name?: string;
+  className?: string;
   class?: string;
   role?: string;
   school?: string | number | { id?: string | number };
@@ -73,6 +76,7 @@ type LeaderboardApiRecord = {
   student_name?: string;
   user_name?: string;
   classes?: LeaderboardApiRecord | LeaderboardApiRecord[];
+  class?: LeaderboardApiRecord;
   year?: LeaderboardApiRecord;
   user?: LeaderboardApiRecord;
   [key: string]: unknown;
@@ -357,12 +361,12 @@ const LeaderBoard = () => {
   //       const res = await fetchAssignYears();
   //       let classesData = res
   //         .map((item: any) => item.classes)
-  //         .filter((cls: any) => cls);
+  //         .filter((cls) => cls);
   //       classesData = Array.from(
-  //         new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+  //         new Map(classesData.map((cls) => [cls.id, cls])).values()
   //       );
   //       return classesData.filter(
-  //         (cls: any) => cls.year_id === Number(selectedYear)
+  //         (cls) => cls.year_id === Number(selectedYear)
   //       );
   //     } else {
   //       return await fetchClasses(Number(selectedYear));
@@ -1030,13 +1034,13 @@ const LeaderBoard = () => {
 
   const pageErrorMessage = !isStudent
     ? (leaderboardScope === "class"
-        ? (classLeaderboardError as any)?.message
-        : (staffSchoolLeaderboardError as any)?.message) ||
+        ? classLeaderboardError?.message
+        : staffSchoolLeaderboardError?.message) ||
       "Failed to load leaderboard"
-    : (studentProfileError as any)?.message ||
+    : studentProfileError?.message ||
       (leaderboardScope === "class"
-        ? (studentClassLeaderboardError as any)?.message
-        : (schoolLeaderboardError as any)?.message) ||
+        ? studentClassLeaderboardError?.message
+        : schoolLeaderboardError?.message) ||
       "Failed to load leaderboard";
 
   if (isPageLoading) {
@@ -1056,9 +1060,10 @@ const LeaderBoard = () => {
   }
 
   const classLeaderboardRows: LeaderboardRow[] =
-    classLeaderboardResponse?.data?.map((student: any, index: number) => {
-      const key = resolveStudentId(student) || `row-${index}`;
-      const name = classStudentNameMap?.[String(key)] || resolveStudentName(student) || "Unknown";
+    (classLeaderboardResponse?.data?.map((student, index: number) => {
+      const entry = student as unknown as LeaderboardRawEntry;
+      const key = resolveStudentId(entry) || `row-${index}`;
+      const name = classStudentNameMap?.[String(key)] || resolveStudentName(entry) || "Unknown";
       return {
         key,
         rank: index + 1,
@@ -1076,12 +1081,13 @@ const LeaderBoard = () => {
             ? "bronze"
             : null,
       };
-    }) || [];
+    }) || []) as LeaderboardRow[];
 
   const studentClassLeaderboardRows: LeaderboardRow[] =
-    studentClassLeaderboardResponse?.data?.map((student: any, index: number) => {
-      const key = resolveStudentId(student) || `row-${index}`;
-      const name = classStudentNameMap?.[String(key)] || resolveStudentName(student) || "Unknown";
+    (studentClassLeaderboardResponse?.data?.map((student, index: number) => {
+      const entry = student as unknown as LeaderboardRawEntry;
+      const key = resolveStudentId(entry) || `row-${index}`;
+      const name = classStudentNameMap?.[String(key)] || resolveStudentName(entry) || "Unknown";
       return {
         key,
         rank: index + 1,
@@ -1099,7 +1105,7 @@ const LeaderBoard = () => {
             ? "bronze"
             : null,
       };
-    }) || [];
+    }) || []) as LeaderboardRow[];
 
   // Show all rows (no load-more) as requested
   const visibleStudents = classLeaderboardRows;
@@ -1119,44 +1125,44 @@ const LeaderBoard = () => {
         ...row,
         name:
           studentSchoolMaps?.nameByStudentId?.[String(row.key)] ??
-          (row as any)?.name ??
+          (row as LeaderboardApiRecord)?.name ??
           "Unknown",
         avatar:
           (
             studentSchoolMaps?.nameByStudentId?.[String(row.key)] ??
-            (row as any)?.name ??
+            (row as LeaderboardApiRecord)?.name ??
             "?"
           )
             .charAt(0)
             .toUpperCase(),
         className:
-          (row as any)?.className ??
-          (row as any)?.class_name ??
-          (row as any)?.class?.class_name ??
+          (row as LeaderboardApiRecord)?.className ??
+          (row as LeaderboardApiRecord)?.class_name ??
+          (row as LeaderboardApiRecord)?.class?.class_name ??
           studentSchoolMaps?.classByStudentId?.[String(row.key)] ??
           studentProfileClassMap?.[String(row.key)] ??
-          ((row as any)?.class_id ? `Class ${(row as any).class_id}` : ""),
+          ((row as LeaderboardApiRecord)?.class_id ? `Class ${(row as LeaderboardApiRecord).class_id}` : ""),
       }))
     : visibleSchoolStudents.map((row) => ({
         ...row,
         name:
-          staffSchoolMaps?.nameByStudentId?.[String((row as any)?.key ?? "")] ??
-          (row as any)?.name ??
+          staffSchoolMaps?.nameByStudentId?.[String((row as LeaderboardApiRecord)?.key ?? "")] ??
+          (row as LeaderboardApiRecord)?.name ??
           "Unknown",
         avatar:
           (
-            staffSchoolMaps?.nameByStudentId?.[String((row as any)?.key ?? "")] ??
-            (row as any)?.name ??
+            staffSchoolMaps?.nameByStudentId?.[String((row as LeaderboardApiRecord)?.key ?? "")] ??
+            (row as LeaderboardApiRecord)?.name ??
             "?"
           )
             .charAt(0)
             .toUpperCase(),
         className:
-          (row as any)?.className ??
-          (row as any)?.class_name ??
-          (row as any)?.class?.class_name ??
-          staffSchoolMaps?.classByStudentId?.[String((row as any)?.key ?? "")] ??
-          ((row as any)?.class_id ? `Class ${(row as any).class_id}` : ""),
+          (row as LeaderboardApiRecord)?.className ??
+          (row as LeaderboardApiRecord)?.class_name ??
+          (row as LeaderboardApiRecord)?.class?.class_name ??
+          staffSchoolMaps?.classByStudentId?.[String((row as LeaderboardApiRecord)?.key ?? "")] ??
+          ((row as LeaderboardApiRecord)?.class_id ? `Class ${(row as LeaderboardApiRecord).class_id}` : ""),
       }));
 
   const normalizeClassName = (value: string | null | undefined) =>
@@ -1167,18 +1173,18 @@ const LeaderBoard = () => {
 
   const teacherAssignedClassIdSet = new Set(
     teacherAssignedClasses
-      .map((cls: any) => getClassId(cls))
+      .map((cls: LeaderboardApiRecord) => getClassId(cls))
       .filter((id: string) => !!id)
   );
 
   const teacherAssignedClassNameSet = new Set(
     teacherAssignedClasses
-      .map((cls: any) => cls?.class_name ?? cls?.name ?? "")
-      .map((name: string) => normalizeClassName(name))
+      .map((cls: LeaderboardApiRecord) => cls?.class_name ?? cls?.name ?? "")
+      .map((name) => normalizeClassName(String(name)))
       .filter((name: string) => !!name)
   );
 
-  const rankRowsByPoints = (rows: any[]) =>
+  const rankRowsByPoints = (rows: LeaderboardRow[]) =>
     [...rows]
       .sort((a, b) => Number(b?.points || 0) - Number(a?.points || 0))
       .map((row, index) => ({
@@ -1195,15 +1201,15 @@ const LeaderBoard = () => {
       }));
 
   const fallbackStudentClassRows = rankRowsByPoints(
-    (visibleSchoolStudentsWithClass ?? []).filter((row: any) => {
+    ((visibleSchoolStudentsWithClass ?? []).filter((row) => {
       const byClassName =
-        normalizeClassName((row as any)?.className) ===
+        normalizeClassName(String((row as LeaderboardApiRecord)?.className ?? "")) ===
         normalizeClassName(studentOwnClassName);
       const byClassId =
         !!studentClassId &&
-        String((row as any)?.class_id ?? "") === String(studentClassId);
+        String((row as LeaderboardApiRecord)?.class_id ?? "") === String(studentClassId);
       return byClassName || byClassId;
-    })
+    })) as LeaderboardRow[]
   );
 
   const resolvedStudentClassRows =
@@ -1212,27 +1218,27 @@ const LeaderBoard = () => {
       : fallbackStudentClassRows;
 
   const filteredTeacherSchoolRows = rankRowsByPoints(
-    (visibleSchoolStudentsWithClass ?? []).filter((row: any) => {
-      const rowClassId = String((row as any)?.class_id ?? "");
-      const rowClassName = normalizeClassName((row as any)?.className);
+    ((visibleSchoolStudentsWithClass ?? []).filter((row) => {
+      const rowClassId = String((row as LeaderboardApiRecord)?.class_id ?? "");
+      const rowClassName = normalizeClassName(String((row as LeaderboardApiRecord)?.className ?? ""));
       const byClassId = !!rowClassId && teacherAssignedClassIdSet.has(rowClassId);
       const byClassName = !!rowClassName && teacherAssignedClassNameSet.has(rowClassName);
       return byClassId || byClassName;
-    })
+    })) as LeaderboardRow[]
   );
 
   const selectedClassIdSet = new Set(
     (classes ?? [])
-      .map((cls: any) => getClassId(cls))
+      .map((cls: LeaderboardApiRecord) => getClassId(cls))
       .filter((id: string) => !!id)
   );
   const selectedClassNameSet = new Set(
     (classes ?? [])
-      .map((cls: any) => normalizeClassName(cls?.class_name ?? cls?.name ?? ""))
+      .map((cls: LeaderboardApiRecord) => normalizeClassName(String(cls?.class_name ?? cls?.name ?? "")))
       .filter((name: string) => !!name)
   );
 
-  const applySchoolFilters = (rows: any[]) => {
+  const applySchoolFilters = (rows: LeaderboardRow[]) => {
     // "year" scope: rows are already aggregated per year — return all ranked
     if (leaderboardScope === "year") {
       return rankRowsByPoints(rows ?? []);
@@ -1244,9 +1250,9 @@ const LeaderBoard = () => {
     }
     
     return rankRowsByPoints(
-      (rows ?? []).filter((row: any) => {
-        const rowClassId = String((row as any)?.class_id ?? "");
-        const rowClassName = normalizeClassName((row as any)?.className);
+      (rows ?? []).filter((row) => {
+        const rowClassId = String((row as LeaderboardApiRecord)?.class_id ?? "");
+        const rowClassName = normalizeClassName(String((row as LeaderboardApiRecord)?.className ?? ""));
         const yearPass =
           selectedYear === "__all__" ||
           selectedClassIdSet.has(rowClassId) ||
@@ -1255,9 +1261,9 @@ const LeaderBoard = () => {
           !selectedClass ||
           rowClassId === String(selectedClass) ||
           rowClassName === normalizeClassName(
-            (classes ?? []).find((cls: any) => getClassId(cls) === String(selectedClass))
+            (classes ?? []).find((cls: LeaderboardApiRecord) => getClassId(cls) === String(selectedClass))
               ?.class_name ??
-              (classes ?? []).find((cls: any) => getClassId(cls) === String(selectedClass))
+              (classes ?? []).find((cls: LeaderboardApiRecord) => getClassId(cls) === String(selectedClass))
                 ?.name ??
               ""
           );
@@ -1282,13 +1288,13 @@ const LeaderBoard = () => {
 
   const activeRows = leaderboardScope === "class"
     ? visibleStudents
-    : applySchoolFilters(visibleSchoolStudentsWithClass);
+    : applySchoolFilters(visibleSchoolStudentsWithClass as LeaderboardRow[]);
   const studentActiveRows =
     leaderboardScope === "class"
       ? resolvedStudentClassRows
-      : visibleSchoolStudentsWithClass;
+      : (visibleSchoolStudentsWithClass as LeaderboardRow[]);
 
-  const getRowClassName = (record: any, index: number) => {
+  const getRowClassName = (record: LeaderboardRow, index: number) => {
     const classes = [];
     if (index % 2 === 0) classes.push("ant-table-row-striped");
     if (record?.rank === 1) classes.push("leaderboard-row-gold");
@@ -1338,7 +1344,7 @@ const LeaderBoard = () => {
     return palette[hash % palette.length];
   };
 
-  const columns: any[] = [
+  const columns: ColumnsType<LeaderboardRow> = [
     {
       title: "Rank",
       dataIndex: "rank",
@@ -1374,7 +1380,7 @@ const LeaderBoard = () => {
       title: "Student",
       dataIndex: "name",
       key: "name",
-      render: (text: string, record: any) => (
+      render: (text: string, record: LeaderboardRow) => (
         <Space size={10}>
           <Avatar
             style={{
@@ -1455,7 +1461,7 @@ const LeaderBoard = () => {
   }
 
   /* ── Podium top-3 display ── */
-  const PodiumDisplay = ({ rows }: { rows: any[] }) => {
+  const PodiumDisplay = ({ rows }: { rows: LeaderboardRow[] }) => {
     const top3 = rows.slice(0, 3);
     if (top3.length < 2) return null;
     const [first, second, third] = [top3[0], top3[1], top3[2]];
@@ -1538,7 +1544,7 @@ const LeaderBoard = () => {
           {/* Subject switcher — only in subject workspace mode with multiple subjects */}
           {isSubjectWorkspaceMode && (subjects ?? []).length > 1 && (
             <div style={{ display: "flex", gap: 6, marginLeft: 8 }}>
-              {(subjects ?? []).map((s: any) => {
+              {(subjects ?? []).map((s) => {
                 const label =
                   typeof s.name === "string"
                     ? s.name.replace(/islamiat/gi, "Islamic")
@@ -1653,9 +1659,9 @@ const LeaderBoard = () => {
                       loading={classesLoading}
                       disabled={!selectedYear || selectedYear === "__all__"}
                     >
-                      {classes?.map((cls: any) => (
+                      {classes?.map((cls: LeaderboardApiRecord) => (
                         <Select.Option key={getClassId(cls)} value={getClassId(cls)}>
-                          {cls.class_name ?? cls.name ?? `Class ${getClassId(cls)}`}
+                          {String(cls.class_name ?? cls.name ?? `Class ${getClassId(cls)}`)}
                         </Select.Option>
                       ))}
                     </Select>
@@ -1687,7 +1693,7 @@ const LeaderBoard = () => {
                 </div>
 
                 {/* Top-3 podium */}
-                {activeRows.length >= 2 && <PodiumDisplay rows={activeRows} />}
+                {activeRows.length >= 2 && <PodiumDisplay rows={activeRows as LeaderboardRow[]} />}
 
                 {(leaderboardScope === "school" || leaderboardScope === "year") && activeRows.length === 0 && !staffSchoolLeaderboardLoading && (
                   <div style={{ padding: "32px 20px", textAlign: "center", background: "#f8fafc", borderRadius: 12 }}>
@@ -1702,7 +1708,7 @@ const LeaderBoard = () => {
                 <Table
                   className="premium-antd-table"
                   columns={columns}
-                  dataSource={activeRows}
+                  dataSource={activeRows as LeaderboardRow[]}
                   pagination={false}
                   rowClassName={getRowClassName}
                   scroll={{ x: true }}
@@ -1751,20 +1757,20 @@ const LeaderBoard = () => {
               </div>
 
               {leaderboardScope === "class" && studentClassLeaderboardIsError && (resolvedStudentClassRows ?? []).length === 0 && (
-                <Text type="danger">{(studentClassLeaderboardError as any)?.message || "Failed to load class leaderboard"}</Text>
+                <Text type="danger">{studentClassLeaderboardError?.message || "Failed to load class leaderboard"}</Text>
               )}
               {leaderboardScope === "school" && schoolLeaderboardIsError && (
-                <Text type="danger">{(schoolLeaderboardError as any)?.message || "Failed to load whole school leaderboard"}</Text>
+                <Text type="danger">{schoolLeaderboardError?.message || "Failed to load whole school leaderboard"}</Text>
               )}
 
               {/* Top-3 podium */}
-              {studentActiveRows.length >= 2 && <PodiumDisplay rows={studentActiveRows} />}
+              {studentActiveRows.length >= 2 && <PodiumDisplay rows={studentActiveRows as LeaderboardRow[]} />}
 
               <div key={leaderboardScope} className="leaderboard-table-animate">
                 <Table
                   className="premium-antd-table"
                   columns={columns}
-                  dataSource={studentActiveRows}
+                  dataSource={studentActiveRows as LeaderboardRow[]}
                   pagination={false}
                   rowClassName={getRowClassName}
                   scroll={{ x: true }}
