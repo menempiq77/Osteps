@@ -1,7 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
-import AllAssessmentList from "@/components/dashboard/AllAssessmentList";
+import AllAssessmentList, {
+  type Assessment as AssessmentListItem,
+} from "@/components/dashboard/AllAssessmentList";
 import {
   addAssessment,
   addTask,
@@ -27,12 +29,7 @@ import {
   type ImportableItem,
 } from "@/components/modals/ImportFromSimilarSubjectModal";
 
-interface Assessment {
-  id: string;
-  name: string;
-  type: "assessment" | "quiz";
-  term_id: string;
-}
+type Assessment = AssessmentListItem;
 
 const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
@@ -193,8 +190,6 @@ export default function Page() {
   const handleAddAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";
-    term_id: string;
-    school_id: string;
   }) => {
     try {
       let newAssessment;
@@ -226,7 +221,7 @@ export default function Page() {
   const handleEditAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";
-    school_id: string;
+    term_id: string;
   }) => {
     if (!editingAssessment) return;
 
@@ -351,9 +346,9 @@ export default function Page() {
       const assessment = rawAssessments.find((a) => a.id === assessmentToDelete);
 
       if (assessment?.type === "quiz") {
-        await deleteAssignTermQuiz(assessmentToDelete);
+        await deleteAssignTermQuiz(Number(assessmentToDelete));
       } else {
-        await deleteAssessment(assessmentToDelete);
+        await deleteAssessment(Number(assessmentToDelete));
       }
       untagAssessment(assessmentToDelete);
       setRawAssessments(
