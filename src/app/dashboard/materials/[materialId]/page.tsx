@@ -7,13 +7,29 @@ import { fetchStudentSubmiitedMaterials } from "@/services/materialApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { errorMessage } from "@/lib/safeRecord";
+
+type Material = {
+  title?: string;
+  description?: string;
+  resource_type?: string;
+  class_name?: string;
+};
+
+type Submission = {
+  student_name: string;
+  text?: string;
+  submitted_at: string;
+  file_path?: string | null;
+  file_url?: string;
+};
 
 export default function Page() {
   const { materialId } = useParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [material, setMaterial] = useState<any>(null);
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [material, setMaterial] = useState<Material | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   const loadSubmissions = async () => {
     try {
@@ -23,13 +39,13 @@ export default function Page() {
 
       setMaterial(data.material);
       setSubmissions(
-        data.student_submissions?.map((s: any) => ({
+        data.student_submissions?.map((s: Submission) => ({
           ...s,
           file_url: `${IMG_BASE_URL}/storage/${s.file_path}`,
         })) || []
       );
-    } catch (err: any) {
-      message.error(err.message || "Failed to load submissions");
+    } catch (err: unknown) {
+      message.error(errorMessage(err, "Failed to load submissions"));
     } finally {
       setLoading(false);
     }
@@ -69,7 +85,7 @@ export default function Page() {
     {
       title: "View File",
       key: "file",
-      render: (_: any, record: any) =>
+      render: (_value: unknown, record: Submission) =>
         record.file_url ? (
           <a
             href={record.file_url}
