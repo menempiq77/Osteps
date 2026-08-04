@@ -12,7 +12,7 @@ import {
   Breadcrumb,
   Spin,
 } from "antd";
-import { RcFile } from "antd/lib/upload";
+import type { RcFile } from "antd/es/upload/interface";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
