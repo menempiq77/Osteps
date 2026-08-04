@@ -83,7 +83,12 @@ export const addQuizQuestion = async (
   return response.data;
 };
 // add QuizQuestions
-export const updateQuizQuestion = async (questionId: number, quizId: number, quizQuestionData: { name: string }, subjectId?: number) => {
+export const updateQuizQuestion = async (
+  questionId: number,
+  quizId: number,
+  quizQuestionData: Record<string, unknown>,
+  subjectId?: number
+) => {
   const response = await api.post(`/update-quiz-question/${questionId}`, withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };

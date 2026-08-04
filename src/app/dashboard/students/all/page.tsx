@@ -78,6 +78,7 @@ type StudentListRow = {
   subjectNames: string[];
   currentAssignments: Array<{
     subjectId?: number;
+    yearId?: number;
     subjectName: string;
     subjectClassId?: number;
     subjectClassName: string;
@@ -131,6 +132,7 @@ type SubjectClassOption = {
   yearId: number;
   baseClassLabel: string;
   linkedClassId?: number;
+  is_active?: number | string | boolean | null;
 };
 
 type InferredSubjectAssignment = {
@@ -1846,6 +1848,7 @@ export default function AllStudentsPage() {
                 name: String(item.name || `Class ${item.id}`),
                 yearId: Number(item.year_id ?? 0),
                 baseClassLabel: String(item.base_class_label || ""),
+                is_active: item.is_active,
                 linkedClassId: Number(
                   item.linked_class_id ??
                     item.linkedClassId ??
@@ -2072,7 +2075,7 @@ export default function AllStudentsPage() {
       name: record.name,
       school: currentUser.school,
       token: currentUser.token,
-      student: Number(record.studentId) || null,
+      student: Number(record.studentId) || undefined,
       studentClass: record.classId,
       studentClassName: record.className,
       studentYearName: record.yearGroup,
@@ -2257,7 +2260,7 @@ export default function AllStudentsPage() {
           .filter((id: number) => Number.isFinite(id) && id > 0)
       )
     );
-    const selectedSubjectClassIds = Array.from(
+    const selectedSubjectClassIds: number[] = Array.from(
       new Set(
         (Array.isArray(values.subject_class_id)
           ? values.subject_class_id
@@ -2680,7 +2683,7 @@ export default function AllStudentsPage() {
           )
         );
 
-        const selectedSubjectClassIds = Array.from(
+        const selectedSubjectClassIds: number[] = Array.from(
           new Set(
             (
               Array.isArray(row.class_ids)
@@ -2990,7 +2993,7 @@ export default function AllStudentsPage() {
 
       /* Resolve class_id from subject class selection, like Add Students flow.
          class_ids stores subject_classes.id, but update-student expects school_classes.id. */
-      const selectedSubjectClassIds = Array.from(
+      const selectedSubjectClassIds: number[] = Array.from(
         new Set(
           (Array.isArray(values.class_ids) ? values.class_ids : [])
             .map((id: unknown) => Number(id))
@@ -3023,17 +3026,17 @@ export default function AllStudentsPage() {
         }
       }
 
-      const explicitSubjectIds = Array.from(
+      const explicitSubjectIds: number[] = Array.from(
         new Set(
           (Array.isArray(values.subject_ids) ? values.subject_ids : [])
             .map((id: unknown) => Number(id))
             .filter((id: number) => Number.isFinite(id) && id > 0)
         )
       );
-      const subjectIdsFromSelectedClasses = selectedSubjectClasses
+      const subjectIdsFromSelectedClasses: number[] = selectedSubjectClasses
         .map((item) => Number(item.subjectId))
         .filter((id) => Number.isFinite(id) && id > 0);
-      const editSubjectIds = Array.from(
+      const editSubjectIds: number[] = Array.from(
         new Set([...explicitSubjectIds, ...subjectIdsFromSelectedClasses])
       );
       values.subject_ids = editSubjectIds;
@@ -3041,7 +3044,7 @@ export default function AllStudentsPage() {
       await editMutation.mutateAsync(values);
 
       /* After update, sync subject assignments if subjects/classes were selected. */
-      const previousSubjectClassIds = getRowEditSubjectClassIds(studentBeingEdited);
+      const previousSubjectClassIds: number[] = getRowEditSubjectClassIds(studentBeingEdited);
       if (
         editSubjectIds.length > 0 ||
         selectedSubjectClassIds.length > 0 ||

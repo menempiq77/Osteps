@@ -643,10 +643,10 @@ export default function QuranQuizPage() {
       const questionData = buildQuestionPayload(values);
 
       if (isEditingQuestion && editState.questionId) {
-        await updateQuizQuestion(editState.questionId, numericQuizId, questionData);
+        await updateQuizQuestion(editState.questionId, numericQuizId, { ...questionData });
         messageApi.success("Question updated successfully");
       } else {
-        await addQuizQuestion(numericQuizId, questionData);
+        await addQuizQuestion(numericQuizId, { ...questionData });
         messageApi.success("Question added successfully");
       }
 
@@ -884,7 +884,7 @@ export default function QuranQuizPage() {
       setSavingBulk(true);
 
       for (const question of parsedQuestions) {
-        await addQuizQuestion(numericQuizId, question);
+        await addQuizQuestion(numericQuizId, { ...question });
       }
 
       setBulkPasteText("");
@@ -963,7 +963,7 @@ export default function QuranQuizPage() {
 
       for (const question of generatedQuestions) {
         try {
-          await addQuizQuestion(numericQuizId, question);
+          await addQuizQuestion(numericQuizId, { ...question });
           addedCount += 1;
         } catch (error) {
           failedCount += 1;
