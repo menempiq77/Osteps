@@ -433,13 +433,13 @@ export async function POST(request: NextRequest) {
       if (teacher) {
         if (body.background !== undefined) { updates.push("background = ?"); values.push(json(body.background, {})); }
         if (body.teacherAnnotations !== undefined) { updates.push("teacher_annotations = ?"); values.push(json(body.teacherAnnotations, [])); }
-        if (body.title !== undefined) { updates.push("title = ?"); values.push(String(body.title || "")); }
+        if (body.title !== undefined) { updates.push("title = ?"); values.push(String(body.title || "").slice(0, 255)); }
       }
       if (role === "STUDENT" && body.studentAnnotations !== undefined) {
         updates.push("student_annotations = ?"); values.push(json(body.studentAnnotations, []));
       }
       if (role === "STUDENT" && body.title !== undefined) {
-        updates.push("title = ?"); values.push(String(body.title || ""));
+        updates.push("title = ?"); values.push(String(body.title || "").slice(0, 255));
       }
       if (updates.length === 0) return NextResponse.json({ message: "No permitted changes" }, { status: 403 });
       values.push(pageId);

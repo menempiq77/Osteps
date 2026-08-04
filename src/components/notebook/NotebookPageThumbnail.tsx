@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { NOTEBOOK_PAGE_HEIGHT, NOTEBOOK_PAGE_WIDTH, type NotebookPage } from "@/lib/classNotebook";
 import { drawNotebookAnnotations } from "./NotebookPageCanvas";
+import AuthenticatedNotebookImage from "./AuthenticatedNotebookImage";
 
 type Props = {
   page: NotebookPage;
@@ -44,7 +45,7 @@ export default function NotebookPageThumbnail({ page, active, onClick }: Props) 
     >
       <div className="relative mx-auto w-fit overflow-hidden rounded border bg-white shadow-sm">
         {page.background.imageUrl ? (
-          <img
+          <AuthenticatedNotebookImage
             src={page.background.imageUrl}
             alt=""
             className="pointer-events-none absolute inset-0 h-full w-full object-contain object-top"
@@ -53,7 +54,7 @@ export default function NotebookPageThumbnail({ page, active, onClick }: Props) 
         {[...page.studentAnnotations, ...page.teacherAnnotations]
           .filter((annotation) => annotation.type === "image")
           .map((annotation) => (
-            <img
+            <AuthenticatedNotebookImage
               key={annotation.id}
               src={annotation.url}
               alt={annotation.name || ""}

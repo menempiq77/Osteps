@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { getAuthHeader } from "@/lib/apiClient";
 import { uploadNotebookImage } from "@/services/classNotebookApi";
 import {
   Eraser,
@@ -22,6 +21,7 @@ import {
   type NotebookPenAnnotation,
   type NotebookTextAnnotation,
 } from "@/lib/classNotebook";
+import AuthenticatedNotebookImage from "./AuthenticatedNotebookImage";
 
 type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 
@@ -198,7 +198,6 @@ export default function NotebookPageCanvas({
   const [fitPageZoom, setFitPageZoom] = useState(1);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const visibleAnnotations = displayAnnotations ?? annotations;
   const editingText = annotations.find(
     (annotation): annotation is NotebookTextAnnotation =>
@@ -250,30 +249,6 @@ export default function NotebookPageCanvas({
     if (historyRef.current.length > 50) historyRef.current.shift();
     redoRef.current = [];
   }, [annotations]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    setImageUrl(null);
-    if (!background.imageUrl) return undefined;
-    void fetch(background.imageUrl, { headers: getAuthHeader() })
-      .then((response) => {
-        if (!response.ok) throw new Error("Background image unavailable");
-        return response.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setImageUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setImageUrl(null);
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [background.imageUrl]);
 
   const prepareCanvas = useCallback(
     (canvas: HTMLCanvasElement | null) => {
@@ -365,6 +340,7 @@ export default function NotebookPageCanvas({
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pageAreaRef.current?.focus();
     if (readOnly) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
@@ -428,9 +404,11 @@ export default function NotebookPageCanvas({
     return { x: Math.max(0, x), y: Math.min(NOTEBOOK_PAGE_HEIGHT - 80, y) };
   };
 
-  const onPaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
+  const onPaste = useCallback(async (event: ClipboardEvent) => {
     if (readOnly) return;
-    const image = Array.from(event.clipboardData.files).find((file) =>
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+    const image = Array.from(clipboardData.files).find((file) =>
       ["image/png", "image/jpeg", "image/webp"].includes(file.type)
     );
     if (image) {
@@ -461,7 +439,7 @@ export default function NotebookPageCanvas({
       }
       return;
     }
-    const text = event.clipboardData.getData("text/plain").trim();
+    const text = clipboardData.getData("text/plain").trim();
     if (!text) return;
     event.preventDefault();
     const point = pasteAt();
@@ -482,7 +460,23 @@ export default function NotebookPageCanvas({
     remember();
     onChange([...annotations, pasted]);
     setSelectedTextId(pasted.id);
-  };
+  }, [annotations, bold, color, onChange, readOnly, remember, textAlign, textSize, underline, zoom]);
+
+  useEffect(() => {
+    const handleDocumentPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      void onPaste(event);
+    };
+    document.addEventListener("paste", handleDocumentPaste);
+    return () => document.removeEventListener("paste", handleDocumentPaste);
+  }, [onPaste]);
 
   const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const point = pointFromEvent(event);
@@ -593,13 +587,21 @@ export default function NotebookPageCanvas({
           <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
         </div>
       )}
-      <div ref={pageAreaRef} onPaste={(event) => void onPaste(event)} className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4">
+      <div
+        ref={pageAreaRef}
+        tabIndex={0}
+        className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4 outline-none"
+      >
         <div className="flex min-h-full min-w-full items-start justify-center">
           <div className="relative shrink-0 overflow-hidden bg-white shadow-xl" style={pageDimensions}>
             <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
-            {imageUrl && <img src={imageUrl} alt="" className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top" />}
+            <AuthenticatedNotebookImage
+              src={background.imageUrl}
+              alt=""
+              className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top"
+            />
             {visibleAnnotations.filter((annotation): annotation is NotebookImageAnnotation => annotation.type === "image").map((annotation) => (
-              <img
+              <AuthenticatedNotebookImage
                 key={annotation.id}
                 src={annotation.url}
                 alt={annotation.name || ""}
