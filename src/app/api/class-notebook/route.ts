@@ -438,6 +438,9 @@ export async function POST(request: NextRequest) {
       if (role === "STUDENT" && body.studentAnnotations !== undefined) {
         updates.push("student_annotations = ?"); values.push(json(body.studentAnnotations, []));
       }
+      if (role === "STUDENT" && body.title !== undefined) {
+        updates.push("title = ?"); values.push(String(body.title || ""));
+      }
       if (updates.length === 0) return NextResponse.json({ message: "No permitted changes" }, { status: 403 });
       values.push(pageId);
       await pool.execute(

@@ -26,7 +26,21 @@ export type NotebookTextAnnotation = {
   textAlign: "left" | "center" | "right";
 };
 
-export type NotebookAnnotation = NotebookPenAnnotation | NotebookTextAnnotation;
+export type NotebookImageAnnotation = {
+  id: string;
+  type: "image";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  url: string;
+  name?: string;
+};
+
+export type NotebookAnnotation =
+  | NotebookPenAnnotation
+  | NotebookTextAnnotation
+  | NotebookImageAnnotation;
 
 export type NotebookBackground = {
   imageUrl?: string;
