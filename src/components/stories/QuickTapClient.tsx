@@ -44,12 +44,15 @@ export default function QuickTapClient({ prompts, difficulty = "easy", onComplet
   }, [ended]);
 
   useEffect(() => {
-    setTimeLeft(GAME_DURATION);
-    setCurrent(0);
-    setScore(0);
-    setEnded(false);
-    setFeedback(null);
-    if (inputRef.current) inputRef.current.value = "";
+    const id = setTimeout(() => {
+      setTimeLeft(GAME_DURATION);
+      setCurrent(0);
+      setScore(0);
+      setEnded(false);
+      setFeedback(null);
+      if (inputRef.current) inputRef.current.value = "";
+    }, 0);
+    return () => clearTimeout(id);
   }, [difficulty, prompts, GAME_DURATION]);
 
   const handleInput = (value: string) => {

@@ -1,7 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Modal, Form, Input, Button } from "antd";
-import type { SuperAdminBasic } from "./types"; // Assuming you have a types file
+
+type SuperAdminBasic = {
+  id?: string | number;
+  name: string;
+  email: string;
+  password?: string;
+};
 
 export const EditSuperAdminModal = ({
   admin,

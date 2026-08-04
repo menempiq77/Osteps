@@ -21,11 +21,14 @@ export default function GameFullscreenButton({
 
   useEffect(() => {
     const updateState = () => setIsActive(isDocumentFullscreenActive());
-    setIsSupported(isDocumentFullscreenSupported());
-    updateState();
+    const id = setTimeout(() => {
+      setIsSupported(isDocumentFullscreenSupported());
+      updateState();
+    }, 0);
     document.addEventListener("fullscreenchange", updateState);
     document.addEventListener("webkitfullscreenchange", updateState);
     return () => {
+      clearTimeout(id);
       document.removeEventListener("fullscreenchange", updateState);
       document.removeEventListener("webkitfullscreenchange", updateState);
     };

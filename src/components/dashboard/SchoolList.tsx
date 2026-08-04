@@ -1,6 +1,13 @@
 "use client";
 import { DeleteOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 
+type School = {
+  id: string | number;
+  name: string;
+  adminEmail?: string;
+  contactPerson?: string;
+};
+
 export default function SchoolList({
   schools,
   onView,
@@ -8,10 +15,10 @@ export default function SchoolList({
   onEdit,
   onDelete,
 }: {
-  schools: any[];
-  onView?: (school: any) => void;
+  schools: School[];
+  onView?: (school: School) => void;
   viewingSchoolId?: string | null;
-  onEdit: (school: any) => void;
+  onEdit: (school: School) => void;
   onDelete: (id: string) => void;
 }) {
   return (
@@ -68,7 +75,7 @@ export default function SchoolList({
                         <EditOutlined />
                       </button>
                       <button
-                        onClick={() => onDelete(school.id)}
+                        onClick={() => onDelete(String(school.id))}
                         className="text-red-500 hover:text-red-700 cursor-pointer"
                         title="Delete"
                       >
@@ -79,7 +86,7 @@ export default function SchoolList({
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="p-4 text-center text-gray-500">
+                  <td colSpan={4} className="p-4 text-center text-gray-500">
                     No schools found
                   </td>
                 </tr>

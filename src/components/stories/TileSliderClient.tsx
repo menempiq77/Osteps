@@ -97,10 +97,13 @@ export default function TileSliderClient({ tiles, difficulty = "easy", onComplet
   };
 
   useEffect(() => {
-    setBoard(shuffledBoard(tiles, BOARD_SIZE));
-    setMoves(0);
-    setEnded(false);
-    setTimeLeft(GAME_DURATION);
+    const id = setTimeout(() => {
+      setBoard(shuffledBoard(tiles, BOARD_SIZE));
+      setMoves(0);
+      setEnded(false);
+      setTimeLeft(GAME_DURATION);
+    }, 0);
+    return () => clearTimeout(id);
   }, [tiles, BOARD_SIZE]);
 
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;

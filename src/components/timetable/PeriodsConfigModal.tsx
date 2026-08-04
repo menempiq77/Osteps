@@ -42,12 +42,14 @@ export default function PeriodsConfigModal({
   const [editDay, setEditDay] = useState<string>(ALL);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const id = setTimeout(() => {
       setLocal(periods);
       setLocalDays(schoolDays);
       setLocalOverrides(dayOverrides);
       setEditDay(ALL);
-    }
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, periods, schoolDays, dayOverrides]);
 
   // The period list currently shown/edited.

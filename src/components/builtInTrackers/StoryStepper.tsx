@@ -23,7 +23,8 @@ export function StoryStepper({
   const current = paragraphs[step] ?? "";
 
   useEffect(() => {
-    setStep(0);
+    const id = setTimeout(() => setStep(0), 0);
+    return () => clearTimeout(id);
   }, [paragraphs.length]);
 
   const progress = total > 0 ? Math.round(((step + 1) / total) * 100) : 0;

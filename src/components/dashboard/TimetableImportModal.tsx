@@ -24,6 +24,7 @@ import {
   InboxOutlined,
 } from "@ant-design/icons";
 import { addTimetableSlot } from "@/services/timetableApi";
+import { errorMessage } from "@/lib/safeRecord";
 
 const { Option } = Select;
 
@@ -38,28 +39,28 @@ const normName = (s: string) =>
     .trim();
 
 /** Fuzzy-match a teacher name against the list from the DB. */
-function fuzzyTeacher(name: string, list: any[]): any | null {
+function fuzzyTeacher(name: string, list:Record<string, unknown>[]):Record<string, unknown> | null {
   const n = normName(name);
   if (!n) return null;
   return (
-    list.find((t) => normName(t.teacher_name) === n) ??
-    list.find((t) => normName(t.teacher_name).includes(n)) ??
-    list.find((t) => n.includes(normName(t.teacher_name))) ??
+    list.find((t) => normName(String(t.teacher_name || "")) === n) ??
+    list.find((t) => normName(String(t.teacher_name || "")).includes(n)) ??
+    list.find((t) => n.includes(normName(String(t.teacher_name || "")))) ??
     null
   );
 }
 
 /** Fuzzy-match a class label like "7IA/Is" against DB class_name. */
-function fuzzyClass(label: string, list: any[]): any | null {
+function fuzzyClass(label: string, list:Record<string, unknown>[]):Record<string, unknown> | null {
   const base = String(label || "")
     .split("/")[0]
     .trim()
     .toLowerCase();
   if (!base) return null;
   return (
-    list.find((c) => c.class_name.toLowerCase() === base) ??
-    list.find((c) => c.class_name.toLowerCase().startsWith(base)) ??
-    list.find((c) => base.startsWith(c.class_name.toLowerCase())) ??
+    list.find((c) => String(c.class_name || "").toLowerCase() === base) ??
+    list.find((c) => String(c.class_name || "").toLowerCase().startsWith(base)) ??
+    list.find((c) => base.startsWith(String(c.class_name || "").toLowerCase())) ??
     null
   );
 }
@@ -181,8 +182,8 @@ interface ResolvedRow extends ParsedRow {
 interface Props {
   open: boolean;
   onClose: () => void;
-  teachers: any[];
-  allClasses: any[];
+  teachers:Record<string, unknown>[];
+  allClasses:Record<string, unknown>[];
   schoolId?: number | null;
   onImported: () => void;
 }
@@ -282,7 +283,7 @@ export default function TimetableImportModal({
           type: "array",
         });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const json: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        const json:Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
         const normalized: ParsedRow[] = json
           .map((rawRow, i) => {
@@ -391,11 +392,11 @@ export default function TimetableImportModal({
           school_id: schoolId ?? undefined,
         });
         ok++;
-      } catch (err: any) {
+      } catch (err: unknown) {
         fail++;
         errors.push(
           `Row ${i + 1} (${row.subject} / ${row.class_name}): ${
-            err?.message || "failed"
+            errorMessage(err, "failed")
           }`
         );
       }
@@ -426,7 +427,7 @@ export default function TimetableImportModal({
       title: "",
       key: "status",
       width: 36,
-      render: (_: any, row: ResolvedRow) =>
+      render: (_:Record<string, unknown>, row: ResolvedRow) =>
         row.status === "ok" ? (
           <CheckCircleOutlined style={{ color: "#22c55e" }} />
         ) : (
@@ -445,12 +446,12 @@ export default function TimetableImportModal({
       title: "Class",
       key: "class",
       width: 175,
-      render: (_: any, row: ResolvedRow) => {
+      render: (_:Record<string, unknown>, row: ResolvedRow) => {
         if (row.class_id) {
           const cls = allClasses.find((c) => Number(c.id) === row.class_id);
           return (
             <Tag color="green" className="text-xs font-medium">
-              {cls?.class_name || row.class_name}
+              {String(cls?.class_name || row.class_name)}
             </Tag>
           );
         }
@@ -474,9 +475,9 @@ export default function TimetableImportModal({
             optionFilterProp="children"
           >
             {allClasses.map((c) => (
-              <Option key={c.id} value={String(c.id)}>
-                {c.class_name}
-                {c.year_name ? ` (${c.year_name})` : ""}
+              <Option key={String(c.id)} value={String(c.id)}>
+                {String(c.class_name || "")}
+                {c.year_name ? ` (${String(c.year_name)})` : ""}
               </Option>
             ))}
           </Select>
@@ -487,12 +488,12 @@ export default function TimetableImportModal({
       title: "Teacher",
       key: "teacher",
       width: 185,
-      render: (_: any, row: ResolvedRow) => {
+      render: (_:Record<string, unknown>, row: ResolvedRow) => {
         if (row.teacher_id) {
           const t = teachers.find((t) => Number(t.id) === row.teacher_id);
           return (
             <Tag color="blue" className="text-xs font-medium">
-              {t?.teacher_name || row.teacher_name}
+              {String(t?.teacher_name || row.teacher_name)}
             </Tag>
           );
         }
@@ -516,8 +517,8 @@ export default function TimetableImportModal({
             optionFilterProp="children"
           >
             {teachers.map((t) => (
-              <Option key={t.id} value={String(t.id)}>
-                {t.teacher_name}
+              <Option key={String(t.id)} value={String(t.id)}>
+                {String(t.teacher_name || "")}
               </Option>
             ))}
           </Select>
@@ -530,14 +531,14 @@ export default function TimetableImportModal({
       title: "Time",
       key: "time",
       width: 115,
-      render: (_: any, row: ResolvedRow) =>
+      render: (_:Record<string, unknown>, row: ResolvedRow) =>
         `${row.start_time} – ${row.end_time}`,
     },
     {
       title: "Date",
       key: "date",
       width: 105,
-      render: (_: any, row: ResolvedRow) =>
+      render: (_:Record<string, unknown>, row: ResolvedRow) =>
         row.date ? (
           <span className="text-xs text-slate-600">
             {dayjs(row.date).format("ddd DD MMM")}

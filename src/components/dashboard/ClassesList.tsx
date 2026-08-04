@@ -92,8 +92,21 @@ export default function ClassesList({
   }, [canShare, archivedView]);
 
   useEffect(() => {
-    void loadPendingCounts();
-  }, [loadPendingCounts]);
+    let cancelled = false;
+    if (!canShare || archivedView) return;
+
+    fetchPendingCounts()
+      .then((counts) => {
+        if (!cancelled) setPendingCounts(counts || {});
+      })
+      .catch(() => {
+        /* non-blocking */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canShare, archivedView]);
 
   const resolveBaseId = useCallback(
     (cls: Class): string | null => {
@@ -150,7 +163,8 @@ export default function ClassesList({
   };
 
   useEffect(() => {
-    setLocalClasses(classes || []);
+    const id = setTimeout(() => setLocalClasses(classes || []), 0);
+    return () => clearTimeout(id);
   }, [classes]);
 
   const reorderClasses = (draggedId: string, targetId: string) => {
@@ -288,7 +302,7 @@ export default function ClassesList({
             <div className="text-lg mb-2">No classes found</div>
             {!isStudent && (
               <p className="text-sm text-gray-400">
-                Click the 'Add Class' button to create a new class
+                Click the &apos;Add Class&apos; button to create a new class
               </p>
             )}
           </div>

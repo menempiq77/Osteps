@@ -176,7 +176,9 @@ export default function GroupWorkCanvas({ disabled, onChange, dataRef }: GroupWo
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const isDrawing = useRef(false);
 
-  annotationsRef.current = annotations;
+  useEffect(() => {
+    annotationsRef.current = annotations;
+  }, [annotations]);
 
   // --- expose data getter to parent ---
   useEffect(() => {

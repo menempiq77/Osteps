@@ -6,7 +6,7 @@ import { RootState } from "@/store/store";
 import {
   LucideLogOut,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ElementType } from "react";
 import { logout } from "@/features/auth/authSlice";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +21,16 @@ import {
   normalizeDashboardRole,
 } from "@/lib/dashboardNavigation";
 
+type NavItem = {
+  name: string;
+  href?: string;
+  section?: string;
+  icon?: ElementType;
+  badge?: number;
+  external?: boolean;
+  onClick?: () => void;
+};
+
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -28,7 +38,7 @@ const Sidebar = () => {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [isOpen, setIsOpen] = useState(!isMobile);
-  const [orderedItems, setOrderedItems] = useState<any[]>([]);
+  const [orderedItems, setOrderedItems] = useState<NavItem[]>([]);
   const [draggingItemName, setDraggingItemName] = useState<string | null>(null);
   const [preferredActiveItemName, setPreferredActiveItemName] = useState<string | null>(null);
   const { toSubjectHref, canUseSubjectContext, activeSubjectId, activeSubject, loading: subjectContextLoading } = useSubjectContext();
@@ -85,7 +95,8 @@ const Sidebar = () => {
   const announcementUnreadCount = announcementData?.unseen_count ?? 0;
 
   useEffect(() => {
-    setIsOpen(!isMobile);
+    const id = setTimeout(() => setIsOpen(!isMobile), 0);
+    return () => clearTimeout(id);
   }, [isMobile]);
 
   const handleLogout = () => {
@@ -394,7 +405,7 @@ const Sidebar = () => {
     return patterns.some((pattern) => pattern.test(comparableCurrent));
   };
 
-  const itemMatchesCurrentPath = (item: any, current: string) => {
+  const itemMatchesCurrentPath = (item: NavItem, current: string) => {
     if (roleKey === "STUDENT") {
       const comparableCurrent = normalizePath(stripSubjectScope(current));
       return (
@@ -419,7 +430,7 @@ const Sidebar = () => {
       return true;
     }
 
-    const target = resolveItemTarget(item.href);
+    const target = resolveItemTarget(item.href || "");
     if (current === target) return true;
     if (isDashboardRootTarget(target)) return false;
     return current.startsWith(`${target}/`);
@@ -427,12 +438,12 @@ const Sidebar = () => {
 
   const getMatchedItemsForCurrentPath = () => {
     const current = normalizePath(pathname || "");
-    return orderedItems.filter((item: any) => itemMatchesCurrentPath(item, current));
+    return orderedItems.filter((item) => itemMatchesCurrentPath(item, current));
   };
 
   const isItemActive = (href: string, itemName?: string) => {
     const current = normalizePath(pathname || "");
-    const currentItem = { href, name: itemName };
+    const currentItem = { href, name: itemName || "" };
     const matchesCurrent = itemMatchesCurrentPath(currentItem, current);
     const target = resolveItemTarget(href);
     if (!matchesCurrent) return false;
@@ -441,7 +452,7 @@ const Sidebar = () => {
     if (matchedItems.length <= 1) return true;
 
     const preferred = preferredActiveItemName
-      ? matchedItems.find((item: any) => item.name === preferredActiveItemName)
+      ? matchedItems.find((item) => item.name === preferredActiveItemName)
       : null;
 
     if (preferred) {
@@ -454,7 +465,7 @@ const Sidebar = () => {
   const sidebarOrderStorageKey = `sidebar-order-${roleKey || "UNKNOWN"}`;
   const sidebarPreferredActiveStorageKey = `sidebar-active-item-${roleKey || "UNKNOWN"}`;
 
-  const applySavedSidebarOrder = (items: any[]) => {
+  const applySavedSidebarOrder = (items: NavItem[]) => {
     if (typeof window === "undefined") return items;
     try {
       const raw = localStorage.getItem(sidebarOrderStorageKey);
@@ -473,7 +484,7 @@ const Sidebar = () => {
     }
   };
 
-  const persistSidebarOrder = (items: any[]) => {
+  const persistSidebarOrder = (items: NavItem[]) => {
     if (typeof window === "undefined") return;
     localStorage.setItem(
       sidebarOrderStorageKey,
@@ -482,7 +493,7 @@ const Sidebar = () => {
   };
 
   useEffect(() => {
-    let navItems = buildDashboardNavigation({
+    let navItems: NavItem[] = buildDashboardNavigation({
       roleKey,
       announcementUnreadCount,
       questionUnreadCount,
@@ -504,7 +515,9 @@ const Sidebar = () => {
           item.name !== "Mind-upgrade"
       );
     }
-    setOrderedItems(applySavedSidebarOrder(navItems));
+    const nextOrdered = applySavedSidebarOrder(navItems);
+    const id = setTimeout(() => setOrderedItems(nextOrdered), 0);
+    return () => clearTimeout(id);
   }, [
     roleKey,
     announcementUnreadCount,
@@ -519,7 +532,9 @@ const Sidebar = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setPreferredActiveItemName(window.localStorage.getItem(sidebarPreferredActiveStorageKey));
+    const stored = window.localStorage.getItem(sidebarPreferredActiveStorageKey);
+    const id = setTimeout(() => setPreferredActiveItemName(stored), 0);
+    return () => clearTimeout(id);
   }, [sidebarPreferredActiveStorageKey]);
 
   useEffect(() => {
@@ -527,17 +542,18 @@ const Sidebar = () => {
     const matchedItems = getMatchedItemsForCurrentPath();
     if (matchedItems.length === 1) {
       window.localStorage.setItem(sidebarPreferredActiveStorageKey, matchedItems[0].name);
-      setPreferredActiveItemName(matchedItems[0].name);
-      return;
+      const id = setTimeout(() => setPreferredActiveItemName(matchedItems[0].name), 0);
+      return () => clearTimeout(id);
     }
 
     if (matchedItems.length > 1) {
       const stillValid = preferredActiveItemName
-        ? matchedItems.some((item: any) => item.name === preferredActiveItemName)
+        ? matchedItems.some((item) => item.name === preferredActiveItemName)
         : false;
       if (!stillValid) {
         window.localStorage.setItem(sidebarPreferredActiveStorageKey, matchedItems[0].name);
-        setPreferredActiveItemName(matchedItems[0].name);
+        const id = setTimeout(() => setPreferredActiveItemName(matchedItems[0].name), 0);
+        return () => clearTimeout(id);
       }
     }
   }, [pathname, orderedItems, preferredActiveItemName, sidebarPreferredActiveStorageKey]);
@@ -610,7 +626,7 @@ const Sidebar = () => {
           className="flex-1 p-3 md:p-4 overflow-y-auto sidebar-scrollbar relative"
         >
           {!!roleKey &&
-            orderedItems?.map((item: any) => (
+            orderedItems?.map((item) => (
               <div
                 key={item.name}
                 draggable
@@ -626,9 +642,9 @@ const Sidebar = () => {
               >
                 <Link
                   href={
-                    canUseSubjectContext && !isSharedPath(item.href) && activeSubjectId
-                      ? toSubjectHref(item.href)
-                      : item.href
+                    canUseSubjectContext && !isSharedPath(item.href || "") && activeSubjectId
+                      ? toSubjectHref(item.href || "")
+                      : (item.href || "#")
                   }
                   onClick={() => {
                     setPreferredActiveItemName(item.name);
@@ -640,18 +656,23 @@ const Sidebar = () => {
                     }
                   }}
                   className={`sidebar-nav-item group flex items-center p-3 mb-1 rounded-lg cursor-pointer shadow-none transition-all duration-200 relative overflow-hidden ${
-                    isItemActive(item.href, item.name)
+                    isItemActive(item.href || "", item.name)
                       ? "sidebar-nav-item-active font-semibold sidebar-item-active"
                       : "text-gray-600 hover:text-[var(--theme-dark)] hover:bg-[var(--theme-soft)]"
                   }`}
                 >
-                  <item.icon
-                    className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
-                      isOpen
-                        ? "mr-3 group-hover:scale-110"
-                        : "mx-auto group-hover:scale-110"
-                    }`}
-                  />
+                  {(() => {
+                    const Icon = item.icon;
+                    return Icon ? (
+                      <Icon
+                        className={`h-5 w-5 flex-shrink-0 transition-transform duration-200 ${
+                          isOpen
+                            ? "mr-3 group-hover:scale-110"
+                            : "mx-auto group-hover:scale-110"
+                        }`}
+                      />
+                    ) : null;
+                  })()}
 
                   {isOpen && (
                     <div className="flex items-center justify-between w-full">

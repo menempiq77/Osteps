@@ -37,16 +37,16 @@ export function AddTrackerModal({
 }) {
   const [form] = Form.useForm();
 
-  const handleSubmit = (values: any) => {
+  const handleSubmit = (values: Record<string, unknown>) => {
     onAddTracker({
-      name: values.name,
-      type: values.type || "",
-      status: values.status || "",
-      progress: (values.progress || [])
-        .map((option: string) => normalizeProgressOption(option))
+      name: String(values.name || ""),
+      type: String(values.type || ""),
+      status: String(values.status || ""),
+      progress: ((values.progress as string[]) || [])
+        .map((option) => normalizeProgressOption(option))
         .filter(Boolean),
-      claim_certificate: values.claim_certificate || false,
-      deadline: values.deadline ? dayjs(values.deadline).format("YYYY-MM-DD") : null,
+      claim_certificate: Boolean(values.claim_certificate),
+      deadline: values.deadline ? dayjs(String(values.deadline)).format("YYYY-MM-DD") : null,
     });
     form.resetFields();
   };

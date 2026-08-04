@@ -66,9 +66,8 @@ export default function WhackGameClient({ temptations, virtues, theme, difficult
         const next = [...prev];
         if (next.length > MAX_ACTIVE) next.shift();
 
-        const pickPool = Math.random() < TEMPTATION_WEIGHT ? temptations : virtues;
-        const pick = pickPool[Math.floor(Math.random() * pickPool.length)];
-        next.push({ id: nextId.current++, item: pick, isBad: (pick as any).isBad });
+        const pick = spawnPool[Math.floor(Math.random() * spawnPool.length)];
+        next.push({ id: nextId.current++, item: pick, isBad: pick.isBad });
         return next;
       });
     }, SPAWN_INTERVAL_MS);
@@ -76,12 +75,15 @@ export default function WhackGameClient({ temptations, virtues, theme, difficult
   }, [gameEnded, MAX_ACTIVE, SPAWN_INTERVAL_MS, TEMPTATION_WEIGHT, spawnPool, temptations, virtues]);
 
   useEffect(() => {
-    setTimeLeft(GAME_DURATION);
-    setScore(0);
-    setLives(INITIAL_LIVES);
-    setActiveSlots([]);
-    setGameEnded(false);
-    nextId.current = 0;
+    const id = setTimeout(() => {
+      setTimeLeft(GAME_DURATION);
+      setScore(0);
+      setLives(INITIAL_LIVES);
+      setActiveSlots([]);
+      setGameEnded(false);
+      nextId.current = 0;
+    }, 0);
+    return () => clearTimeout(id);
   }, [difficulty, GAME_DURATION, INITIAL_LIVES]);
 
   const handleWhack = (slotId: number, isBad: boolean) => {

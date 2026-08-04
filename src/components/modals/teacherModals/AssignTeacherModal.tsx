@@ -54,10 +54,11 @@ export default function AssignTeacherModal({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const queryClient = useQueryClient();
 
+  const currentUserRecord = currentUser as unknown as Record<string, unknown> | undefined;
   const schoolId = Number(
-    (currentUser as any)?.school?.id ??
-      (currentUser as any)?.school_id ??
-      (currentUser as any)?.school ??
+    (currentUserRecord?.school as Record<string, unknown> | undefined)?.id ??
+      currentUserRecord?.school_id ??
+      currentUserRecord?.school ??
       0
   );
 
@@ -72,17 +73,22 @@ export default function AssignTeacherModal({
   );
 
   useEffect(() => {
-    if (subjectOptions.length > 0 && !selectedSubject) {
-      setSelectedSubject(subjectOptions[0].key);
-    }
+    const id = setTimeout(() => {
+      if (subjectOptions.length > 0 && !selectedSubject) {
+        setSelectedSubject(subjectOptions[0].key);
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [subjectOptions, selectedSubject]);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const id = setTimeout(() => {
       setSelectedSubject(null);
       setSelectedYear(null);
       setBusyClassIds(new Set());
-    }
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, teacherId]);
 
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function AssignTeacherModal({
 
   const assignedClassIds = useMemo(() => {
     const ids = new Set<number>();
-    (assignedRows as any[]).forEach((row: any) => {
+    (assignedRows as Record<string, unknown>[]).forEach((row) => {
       if (row?.class_id) ids.add(Number(row.class_id));
     });
     return ids;
@@ -141,9 +147,9 @@ export default function AssignTeacherModal({
 
       const response = await fetchAssignYears();
       const mapped = (response || [])
-        .map((item: any) => item?.classes?.year)
+        .map((item: Record<string, unknown>) => (item?.classes as Record<string, unknown> | undefined)?.year)
         .filter(Boolean);
-      return Array.from(new Map(mapped.map((year: any) => [year.id, year])).values());
+      return Array.from(new Map(mapped.map((year: Record<string, unknown>) => [year.id, year])).values());
     },
     enabled: open,
     staleTime: 1000 * 60,
@@ -164,7 +170,7 @@ export default function AssignTeacherModal({
       });
 
       const resolved = await Promise.all(
-        (Array.isArray(rows) ? rows : []).map(async (row: any) => {
+        (Array.isArray(rows) ? rows : []).map(async (row: Record<string, unknown>) => {
           const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(row, selectedSubjectId);
           return {
             linkedClassId: Number(linkedClassId || 0),
@@ -199,7 +205,7 @@ export default function AssignTeacherModal({
             });
 
             const resolvedRows = await Promise.all(
-              (Array.isArray(rows) ? rows : []).map(async (row: any) => {
+              (Array.isArray(rows) ? rows : []).map(async (row: Record<string, unknown>) => {
                 const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(row, subjectId);
                 return Number(linkedClassId || 0);
               })
@@ -222,7 +228,7 @@ export default function AssignTeacherModal({
   });
 
   const validClassRows = useMemo(() => {
-    const rows = (subjectClasses as any[]).map((row: any) => ({
+    const rows = (subjectClasses as Record<string, unknown>[]).map((row) => ({
       id: Number(row.linkedClassId),
       name: String(row.label || "Class"),
       yearId: String(row.yearId || ""),
@@ -234,22 +240,26 @@ export default function AssignTeacherModal({
 
   const availableYears = useMemo(() => {
     const yearSet = new Set(validClassRows.map((row) => row.yearId).filter(Boolean));
-    return (years as any[])
-      .filter((year: any) => yearSet.has(String(year?.id)))
-      .map((year: any) => ({
+    return (years as Record<string, unknown>[])
+      .filter((year) => yearSet.has(String(year?.id)))
+      .map((year) => ({
         id: String(year.id),
         name: String(year.name || `Year ${year.id}`),
       }));
   }, [validClassRows, years]);
 
   useEffect(() => {
-    setSelectedYear(null);
+    const id = setTimeout(() => setSelectedYear(null), 0);
+    return () => clearTimeout(id);
   }, [selectedSubject]);
 
   useEffect(() => {
-    if (availableYears.length > 0 && !selectedYear) {
-      setSelectedYear(availableYears[0].id);
-    }
+    const id = setTimeout(() => {
+      if (availableYears.length > 0 && !selectedYear) {
+        setSelectedYear(availableYears[0].id);
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [availableYears, selectedYear]);
 
   const classRows = useMemo(
@@ -266,12 +276,13 @@ export default function AssignTeacherModal({
   const assignmentSummary = useMemo(() => {
     const grouped = new Map<string, Set<string>>();
 
-    (assignedRows as any[]).forEach((row: any) => {
-      const classId = Number(row?.class_id ?? row?.classes?.id ?? 0);
+    (assignedRows as Record<string, unknown>[]).forEach((row) => {
+      const classesRecord = row?.classes as Record<string, unknown> | undefined;
+      const classId = Number(row?.class_id ?? classesRecord?.id ?? 0);
       const subjectName =
         teacherSubjectClassMap.get(classId) ||
         displaySubject(String(row?.subject || "General"));
-      const className = String(row?.classes?.class_name || row?.class_name || "").trim();
+      const className = String(classesRecord?.class_name || row?.class_name || "").trim();
       if (!grouped.has(subjectName)) {
         grouped.set(subjectName, new Set<string>());
       }

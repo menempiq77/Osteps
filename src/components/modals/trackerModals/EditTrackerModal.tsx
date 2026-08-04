@@ -71,11 +71,11 @@ export function EditTrackerModal({
         .filter(Boolean),
       deadline: initialTracker.deadline ? dayjs(initialTracker.deadline) : null,
     });
-    setProgressOptions(
-      (initialTracker.progress || [])
-        .map(normalizeProgressOption)
-        .filter(Boolean)
-    );
+    const nextProgress = (initialTracker.progress || [])
+      .map(normalizeProgressOption)
+      .filter(Boolean);
+    const id = setTimeout(() => setProgressOptions(nextProgress), 0);
+    return () => clearTimeout(id);
   }, [initialTracker, form]);
 
   const handleSubmit = (values: {

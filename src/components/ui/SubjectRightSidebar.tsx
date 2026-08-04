@@ -134,7 +134,7 @@ export default function SubjectRightSidebar({
   const { data: archivedSubjectIds } = useQuery({
     queryKey: ["subject-right-sidebar-archived-subject-ids", subjectIdsKey],
     queryFn: async () => {
-      const isActive = (row: any) =>
+      const isActive = (row: Record<string, unknown>) =>
         row?.is_active === undefined ? true : Number(row?.is_active) === 1;
       const ids = new Set<number>();
       await Promise.all(
@@ -183,8 +183,11 @@ export default function SubjectRightSidebar({
   }, [isSubjectPickerOpen]);
 
   useEffect(() => {
-    setMobileOpen(false);
-    setIsSubjectPickerOpen(false);
+    const id = setTimeout(() => {
+      setMobileOpen(false);
+      setIsSubjectPickerOpen(false);
+    }, 0);
+    return () => clearTimeout(id);
   }, [pathname]);
 
   useEffect(() => {
@@ -226,7 +229,7 @@ export default function SubjectRightSidebar({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
-  }, [sortedSubjects, subjectSearch]);
+  }, [switchableSubjects, subjectSearch]);
 
   const handleSubjectPick = (subjectId: number) => {
     setActiveSubjectId(subjectId, { navigate: true });

@@ -5,8 +5,11 @@ import { useEffect, useRef } from "react";
 function playChime() {
   if (typeof window === "undefined") return;
   try {
-    const AudioCtx =
-      (window as any).AudioContext || (window as any).webkitAudioContext;
+    const audioWindow = window as typeof window & {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioCtx = audioWindow.AudioContext || audioWindow.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C, E, G, C

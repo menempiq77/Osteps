@@ -124,15 +124,18 @@ export default function SnakeGameClient({
   }, [gameOver, gameWon]);
 
   useEffect(() => {
-    setSnake([{ x: 10, y: 10 }]);
-    nextDirectionRef.current = { x: 1, y: 0 };
-    setScore(0);
-    setCurrentCollectible(0);
-    setGameOver(false);
-    setGameWon(false);
-    setTimeLeft(GAME_DURATION);
-    setIsPaused(false);
-    generateFood([{ x: 10, y: 10 }]);
+    const id = setTimeout(() => {
+      setSnake([{ x: 10, y: 10 }]);
+      nextDirectionRef.current = { x: 1, y: 0 };
+      setScore(0);
+      setCurrentCollectible(0);
+      setGameOver(false);
+      setGameWon(false);
+      setTimeLeft(GAME_DURATION);
+      setIsPaused(false);
+      generateFood([{ x: 10, y: 10 }]);
+    }, 0);
+    return () => clearTimeout(id);
   }, [difficulty, GAME_DURATION]);
 
   // Handle touch controls

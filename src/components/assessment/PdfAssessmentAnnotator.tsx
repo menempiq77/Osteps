@@ -429,7 +429,7 @@ const sanitizeReturnToPath = (value: string | null | undefined) => {
   return normalizedValue;
 };
 
-const extractStudentClassName = (profileData: Record<string, any> | null | undefined) =>
+const extractStudentClassName = (profileData: Record<string, unknown> | null | undefined) =>
   String(
     profileData?.subject_class_name ??
       profileData?.subject_context?.subject_class_name ??
@@ -4998,7 +4998,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       try {
         await uploadTaskByStudent(formData, Number(assessmentId));
-      } catch (error: any) {
+      } catch (error: unknown) {
         const duplicateSubmission =
           Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) === 409 ||
           /already submitted|teacher marked/i.test(

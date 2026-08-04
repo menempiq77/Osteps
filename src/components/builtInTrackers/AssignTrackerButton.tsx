@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, LoaderCircle, Users } from "lucide-react";
 import { assignMindUpgradeCourses } from "@/services/mindUpgradeApi";
+import { errorMessage } from "@/lib/safeRecord";
 
 export type AssignTrackerButtonProps = {
   courseKey: string;
@@ -24,9 +25,9 @@ export function AssignTrackerButton({ courseKey, trackerName }: AssignTrackerBut
       });
       setStatus("done");
       setMessage(`Assigned ${trackerName} to all students.`);
-    } catch (err: any) {
+    } catch (err) {
       setStatus("error");
-      setMessage(err?.response?.data?.message || err?.message || "Assignment failed.");
+      setMessage(errorMessage(err, "Assignment failed."));
     }
   };
 

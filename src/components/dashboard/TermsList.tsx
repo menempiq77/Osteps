@@ -11,6 +11,7 @@ interface TermsListProps {
   terms: Term[];
   onEdit: (term: Term) => void;
   onDelete: (id: number) => void;
+  hasAccess?: boolean;
 }
 
 export default function TermsList({

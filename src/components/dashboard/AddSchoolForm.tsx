@@ -13,8 +13,8 @@ export default function AddSchoolForm({
   defaultValues,
   formId = "school-form",
 }: {
-  onSubmit: (data: any) => void;
-  defaultValues?: any;
+  onSubmit: (data: Record<string, unknown>) => void;
+  defaultValues?: Record<string, unknown>;
   formId?: string;
 }) {
   const {
@@ -38,12 +38,12 @@ export default function AddSchoolForm({
     }
   }, [defaultValues, reset]);
 
-   const parseAcademicYear = (yearString: string) => {
+   const parseAcademicYear = (yearString: string): [dayjs.Dayjs | null, dayjs.Dayjs | null] => {
     if (!yearString) return [null, null];
     const [startYear, endYear] = yearString.split('-');
     return [
-      dayjs(startYear, 'YYYY'),
-      dayjs(endYear, 'YYYY'),
+      startYear ? dayjs(startYear, 'YYYY') : null,
+      endYear ? dayjs(endYear, 'YYYY') : null,
     ];
   };
 

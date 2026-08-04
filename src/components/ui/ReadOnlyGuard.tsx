@@ -112,7 +112,8 @@ export default function ReadOnlyGuard() {
     }
     if (isReadOnlyWorkspace()) {
       installNetworkGuards();
-      setActive(true);
+      const id = setTimeout(() => setActive(true), 0);
+      return () => clearTimeout(id);
     }
   }, [searchParams]);
 

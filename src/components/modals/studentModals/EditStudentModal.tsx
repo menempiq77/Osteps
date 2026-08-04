@@ -22,6 +22,7 @@ type Student = {
   nationality?: string;
   class_id?: number;
   subject_class_id?: number | string;
+  subject_id?: number | string;
   subject_ids?: number[];
   class_ids?: number[];
   is_sen?: boolean;
@@ -31,7 +32,7 @@ type Student = {
 type EditStudentModalProps = {
   open: boolean;
   onCancel: () => void;
-  onOk: (values: any) => void;
+  onOk: (values: Record<string, unknown>) => void;
   student: Student | null;
   subjectOptions?: SelectOption[];
   classOptions?: SelectOption[];
@@ -66,11 +67,11 @@ export const EditStudentModal = ({
       const currentGender =
         student?.gender ||
         student?.student_gender ||
-        (student as any)?.sex ||
-        (student as any)?.student_sex;
+        student?.sex ||
+        student?.student_sex;
       const subjectIds = normalizeIdArray([
         ...(Array.isArray(student?.subject_ids) ? student.subject_ids : []),
-        (student as any)?.subject_id,
+        student?.subject_id,
       ]);
       const classIds = normalizeIdArray([
         ...(Array.isArray(student?.class_ids) ? student.class_ids : []),
@@ -84,12 +85,12 @@ export const EditStudentModal = ({
         password: "",
         status: student?.status,
         gender: currentGender ? String(currentGender).toLowerCase() : undefined,
-        nationality: (student as any)?.nationality || undefined,
+        nationality: student?.nationality || undefined,
         class_id: student?.class_id,
         subject_ids: subjectIds,
         class_ids: classIds,
-        is_sen: Boolean((student as any)?.is_sen),
-        sen_details: (student as any)?.sen_details || "",
+        is_sen: Boolean(student?.is_sen),
+        sen_details: student?.sen_details || "",
       });
     } else {
       form.resetFields();
