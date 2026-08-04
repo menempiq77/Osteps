@@ -33,6 +33,7 @@ type PageRow = RowDataPacket & {
   notebook_id: number;
   page_index: number;
   title: string;
+  heading: string | null;
   background: string | null;
   student_annotations: string | null;
   teacher_annotations: string | null;
@@ -147,6 +148,7 @@ const ensureTables = async () => {
       notebook_id BIGINT UNSIGNED NOT NULL,
       page_index INT NOT NULL,
       title VARCHAR(255) NOT NULL DEFAULT '',
+      heading VARCHAR(255) NULL,
       background JSON NOT NULL,
       student_annotations JSON NOT NULL,
       teacher_annotations JSON NOT NULL,
@@ -157,6 +159,18 @@ const ensureTables = async () => {
       KEY class_notebook_pages_notebook (notebook_id)
     )
   `);
+  const [headingColumns] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) AS count
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'class_notebook_pages'
+        AND column_name = 'heading'`
+  );
+  if (Number(headingColumns[0]?.count ?? 0) === 0) {
+    await pool.execute(
+      "ALTER TABLE class_notebook_pages ADD COLUMN heading VARCHAR(255) NULL AFTER title"
+    );
+  }
 };
 
 const json = (value: unknown, fallback: unknown) => {
@@ -255,6 +269,7 @@ const pageDto = (row: PageRow) => ({
   notebookId: Number(row.notebook_id),
   pageIndex: Number(row.page_index),
   title: row.title || "",
+  heading: row.heading ?? null,
   background: parse(row.background, {}),
   studentAnnotations: parse(row.student_annotations, []),
   teacherAnnotations: parse(row.teacher_annotations, []),
@@ -434,12 +449,16 @@ export async function POST(request: NextRequest) {
         if (body.background !== undefined) { updates.push("background = ?"); values.push(json(body.background, {})); }
         if (body.teacherAnnotations !== undefined) { updates.push("teacher_annotations = ?"); values.push(json(body.teacherAnnotations, [])); }
         if (body.title !== undefined) { updates.push("title = ?"); values.push(String(body.title || "").slice(0, 255)); }
+        if (body.heading !== undefined) { updates.push("heading = ?"); values.push(body.heading == null ? null : String(body.heading).slice(0, 255)); }
       }
       if (role === "STUDENT" && body.studentAnnotations !== undefined) {
         updates.push("student_annotations = ?"); values.push(json(body.studentAnnotations, []));
       }
       if (role === "STUDENT" && body.title !== undefined) {
         updates.push("title = ?"); values.push(String(body.title || "").slice(0, 255));
+      }
+      if (role === "STUDENT" && body.heading !== undefined) {
+        updates.push("heading = ?"); values.push(body.heading == null ? null : String(body.heading).slice(0, 255));
       }
       if (updates.length === 0) return NextResponse.json({ message: "No permitted changes" }, { status: 403 });
       values.push(pageId);

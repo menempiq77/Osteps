@@ -12,6 +12,7 @@ type Props = {
   studentAnnotations?: NotebookPage["studentAnnotations"];
   teacherAnnotations?: NotebookPage["teacherAnnotations"];
   title?: string;
+  heading?: string | null;
 };
 
 const THUMBNAIL_WIDTH = 118;
@@ -25,6 +26,7 @@ export default function NotebookPageThumbnail({
   studentAnnotations = page.studentAnnotations,
   teacherAnnotations = page.teacherAnnotations,
   title = page.title,
+  heading = page.heading,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -75,6 +77,21 @@ export default function NotebookPageThumbnail({
               }}
             />
           ))}
+        {heading ? (
+          <div
+            className="pointer-events-none absolute z-10 truncate border-b border-slate-400 text-center font-[cursive] text-slate-700"
+            style={{
+              left: 40 * SCALE,
+              top: 24 * SCALE,
+              width: 714 * SCALE,
+              height: 46 * SCALE,
+              fontSize: 30 * SCALE,
+              lineHeight: `${40 * SCALE}px`,
+            }}
+          >
+            {heading}
+          </div>
+        ) : null}
         <canvas ref={canvasRef} className="relative block" />
       </div>
       <div className="mt-1 truncate text-xs font-medium text-slate-700">

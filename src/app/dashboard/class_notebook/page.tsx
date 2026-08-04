@@ -43,10 +43,14 @@ export default function ClassNotebookPage() {
   const [annotations, setAnnotations] = useState<NotebookAnnotation[]>([]);
   const [teacherAnnotations, setTeacherAnnotations] = useState<NotebookAnnotation[]>([]);
   const [pageTitle, setPageTitle] = useState("");
+  const [heading, setHeading] = useState<string | null>(null);
   const [pageDirty, setPageDirty] = useState(false);
   const [worksheetOpen, setWorksheetOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(!isTeacher);
   const workspaceRef = useRef<HTMLElement | null>(null);
+  const loadedPageIdRef = useRef<number | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const loadGenerationRef = useRef(0);
   const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
 
   useEffect(() => {
@@ -74,17 +78,25 @@ export default function ClassNotebookPage() {
       );
 
   const loadNotebook = async (studentId?: string) => {
+    loadGenerationRef.current += 1;
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    setPageDirty(false);
     setLoading(true);
     setError("");
     try {
       if (isTeacher && !studentId) {
         const result = await fetchNotebookClass({ subjectId, subjectClassId, classId });
         setClassName(result.className);
+        loadedPageIdRef.current = null;
         setStudents(result.students);
         if (result.students[0]) setSelectedStudentId(result.students[0].id);
       } else {
         const result = await fetchNotebook({ subjectId, subjectClassId, classId, studentId });
         setClassName(result.className);
+        loadedPageIdRef.current = null;
         setPages(result.pages);
         setSelectedPageId(result.pages[0]?.id ?? null);
       }
@@ -110,10 +122,13 @@ export default function ClassNotebookPage() {
 
   useEffect(() => {
     if (!selectedPage) return;
+    if (loadedPageIdRef.current === selectedPage.id) return;
+    loadedPageIdRef.current = selectedPage.id;
     setBackground(selectedPage.background || {});
     setAnnotations(selectedPage.studentAnnotations || []);
     setTeacherAnnotations(selectedPage.teacherAnnotations || []);
     setPageTitle(selectedPage.title || "");
+    setHeading(selectedPage.heading ?? null);
     setPageDirty(false);
   }, [selectedPage]);
 
@@ -121,7 +136,8 @@ export default function ClassNotebookPage() {
     nextAnnotations: NotebookAnnotation[],
     nextTeacher = teacherAnnotations,
     nextBackground = background,
-    nextTitle = pageTitle
+    nextTitle = pageTitle,
+    nextHeading = heading
   ) => {
     if (!selectedPage) return;
     setSaving("saving");
@@ -132,7 +148,22 @@ export default function ClassNotebookPage() {
         teacherAnnotations: isTeacher ? nextTeacher : undefined,
         background: isTeacher ? nextBackground : undefined,
         title: nextTitle,
+        heading: nextHeading,
       });
+      setPages((current) =>
+        current.map((page) =>
+          page.id === selectedPage.id
+            ? {
+                ...page,
+                title: nextTitle,
+                heading: nextHeading,
+                background: nextBackground,
+                studentAnnotations: nextAnnotations,
+                teacherAnnotations: nextTeacher,
+              }
+            : page
+        )
+      );
       setSaving("saved");
     } catch (saveError) {
       setSaving("failed");
@@ -142,14 +173,21 @@ export default function ClassNotebookPage() {
 
   useEffect(() => {
     if (!selectedPage || loading || !pageDirty) return;
+    const generation = loadGenerationRef.current;
     const timer = window.setTimeout(() => {
-      void save(annotations, teacherAnnotations, background, pageTitle);
+      autosaveTimerRef.current = null;
+      if (generation !== loadGenerationRef.current) return;
+      void save(annotations, teacherAnnotations, background, pageTitle, heading);
       setPageDirty(false);
     }, 700);
-    return () => window.clearTimeout(timer);
+    autosaveTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (autosaveTimerRef.current === timer) autosaveTimerRef.current = null;
+    };
     // Autosave is intentionally keyed to the editable page state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [annotations, teacherAnnotations, background, pageTitle, pageDirty, selectedPage]);
+  }, [annotations, teacherAnnotations, background, pageTitle, heading, pageDirty, selectedPage]);
 
   const addPage = async (allStudents = false) => {
     try {
@@ -246,6 +284,7 @@ export default function ClassNotebookPage() {
                           studentAnnotations={live ? annotations : undefined}
                           teacherAnnotations={live ? teacherAnnotations : undefined}
                           title={live ? pageTitle : undefined}
+                          heading={live ? heading : undefined}
                           onClick={() => setSelectedPageId(page.id)}
                         />
                       );
@@ -253,7 +292,7 @@ export default function ClassNotebookPage() {
                   </div>
                 ) : null}
               </div>
-              {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
+              {selectedPage ? <NotebookPageCanvas heading={heading} onHeadingChange={(next) => { setHeading(next.slice(0, 255)); setPageDirty(true); }} background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
             </div>
           </section>
         </div>

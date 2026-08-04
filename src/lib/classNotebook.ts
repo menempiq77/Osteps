@@ -56,6 +56,7 @@ export type NotebookPage = {
   notebookId: number;
   pageIndex: number;
   title: string;
+  heading: string | null;
   background: NotebookBackground;
   studentAnnotations: NotebookAnnotation[];
   teacherAnnotations: NotebookAnnotation[];

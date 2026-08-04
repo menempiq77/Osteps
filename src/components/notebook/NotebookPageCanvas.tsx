@@ -27,10 +27,12 @@ type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 
 type Props = {
   background: NotebookBackground;
+  heading: string | null;
   annotations: NotebookAnnotation[];
   displayAnnotations?: NotebookAnnotation[];
   readOnly?: boolean;
   onChange: (annotations: NotebookAnnotation[]) => void;
+  onHeadingChange: (heading: string) => void;
 };
 
 const COLORS = ["#111827", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#8b5cf6", "#ffffff"];
@@ -175,7 +177,9 @@ export default function NotebookPageCanvas({
   annotations,
   displayAnnotations,
   readOnly = false,
+  heading,
   onChange,
+  onHeadingChange,
 }: Props) {
   const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeStrokeCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -632,6 +636,36 @@ export default function NotebookPageCanvas({
                 style={{ left: annotation.x * zoom, top: annotation.y * zoom, width: annotation.width * zoom, height: annotation.height * zoom }}
               />
             ))}
+            {!readOnly ? (
+              <input
+                value={heading || ""}
+                onChange={(event) => onHeadingChange(event.target.value)}
+                placeholder="Title / date"
+                aria-label="Notebook headline"
+                className="absolute z-10 border-0 border-b-2 border-slate-400 bg-transparent px-1 text-center font-[cursive] outline-none placeholder:text-slate-400"
+                style={{
+                  left: 40 * zoom,
+                  top: 24 * zoom,
+                  width: 714 * zoom,
+                  height: 46 * zoom,
+                  fontSize: 30 * zoom,
+                }}
+              />
+            ) : heading ? (
+              <div
+                className="pointer-events-none absolute z-10 truncate border-b-2 border-slate-400 text-center font-[cursive] text-slate-700"
+                style={{
+                  left: 40 * zoom,
+                  top: 24 * zoom,
+                  width: 714 * zoom,
+                  height: 46 * zoom,
+                  fontSize: 30 * zoom,
+                  lineHeight: `${40 * zoom}px`,
+                }}
+              >
+                {heading}
+              </div>
+            ) : null}
             <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
             <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
             {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
