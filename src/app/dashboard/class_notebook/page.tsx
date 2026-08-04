@@ -211,13 +211,13 @@ export default function ClassNotebookPage() {
             </aside>
           )}
           <section className="flex min-h-0 min-w-0 flex-col">
-            <div className="mb-3 flex shrink-0 items-center gap-2 overflow-x-auto">
+            <div className="mb-3 flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
               <button type="button" onClick={() => void addPage(false)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Add page</button>
               {isTeacher && <button type="button" onClick={() => void addPage(true)} className="rounded-lg border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700">Add to whole class</button>}
               {isTeacher && selectedPage && <label className="rounded-lg border px-3 py-2 text-sm">Worksheet image <input type="file" accept="image/png,image/jpeg,image/webp" className="ml-2 max-w-[180px] text-xs" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleImage(file); }} /></label>}
               <span className={`ml-auto text-xs ${saving === "failed" ? "text-red-600" : saving === "saving" ? "text-amber-600" : "text-emerald-700"}`}>{saving === "saving" ? "Saving…" : saving === "failed" ? "Save failed" : "Saved"}</span>
             </div>
-            <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+            <div className="mb-3 flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
               {selectedPage && isTeacher ? <input value={pageTitle} onChange={(event) => { setPageTitle(event.target.value); setPageDirty(true); }} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" placeholder="Page title" /> : null}
               {selectedPage ? <span className="text-sm text-slate-500">Page {selectedPage.pageIndex + 1} of {pages.length}</span> : null}
               <button type="button" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) <= 0} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index > 0) setSelectedPageId(pages[index - 1].id); }} className="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40">Previous</button>
@@ -227,7 +227,7 @@ export default function ClassNotebookPage() {
               {selectedPage && <button type="button" onClick={() => void movePage(1)} className="rounded-lg border px-3 py-1.5 text-sm">↓</button>}
               {selectedPage && isTeacher && <button type="button" onClick={async () => { await deleteNotebookPage(selectedPage.id); await loadNotebook(notebookStudentId); }} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600">Delete page</button>}
             </div>
-            {selectedPage && isTeacher ? <textarea value={background.text || ""} onChange={(event) => { setBackground({ ...background, text: event.target.value }); setPageDirty(true); }} placeholder="Optional worksheet text/content" className="mb-3 min-h-16 w-full shrink-0 rounded-lg border p-2 text-sm" /> : null}
+            {selectedPage && isTeacher ? <textarea value={background.text || ""} onChange={(event) => { setBackground({ ...background, text: event.target.value }); setPageDirty(true); }} placeholder="Optional worksheet text/content" className="mb-3 min-h-10 w-full shrink-0 rounded-lg border p-2 text-sm" /> : null}
             {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
           </section>
         </div>
