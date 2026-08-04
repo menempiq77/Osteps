@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -43,6 +43,19 @@ export default function ClassNotebookPage() {
   const [teacherAnnotations, setTeacherAnnotations] = useState<NotebookAnnotation[]>([]);
   const [pageTitle, setPageTitle] = useState("");
   const [pageDirty, setPageDirty] = useState(false);
+  const workspaceRef = useRef<HTMLElement | null>(null);
+  const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const measureWorkspace = () => {
+      const workspace = workspaceRef.current;
+      if (!workspace) return;
+      setWorkspaceHeight(Math.max(360, window.innerHeight - workspace.getBoundingClientRect().top));
+    };
+    measureWorkspace();
+    window.addEventListener("resize", measureWorkspace);
+    return () => window.removeEventListener("resize", measureWorkspace);
+  }, []);
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.id === selectedPageId) || pages[0] || null,
@@ -180,13 +193,13 @@ export default function ClassNotebookPage() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl p-4 md:p-6">
-      <h1 className="mb-6 text-center text-5xl font-black tracking-tight text-slate-900">{className || activeSubject?.name || "Class"} Notebook</h1>
-      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>}
-      {loading ? <div className="py-16 text-center text-slate-500">Loading notebook…</div> : (
-        <div className="grid gap-5 lg:grid-cols-[250px_1fr]">
+    <main ref={workspaceRef} className="flex min-h-[360px] w-full flex-col bg-slate-100" style={workspaceHeight ? { height: workspaceHeight } : undefined}>
+      <h1 className="shrink-0 px-4 py-3 text-center text-3xl font-black tracking-tight text-slate-900 md:text-4xl">{className || activeSubject?.name || "Class"} Notebook</h1>
+      {error && <div className="mx-4 mb-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>}
+      {loading ? <div className="flex min-h-0 flex-1 items-center justify-center text-slate-500">Loading notebook…</div> : (
+        <div className={`grid min-h-0 flex-1 gap-4 px-4 pb-4 ${isTeacher ? "lg:grid-cols-[250px_minmax(0,1fr)]" : "grid-cols-1"}`}>
           {isTeacher && (
-            <aside className="rounded-xl border bg-white p-3 shadow-sm">
+            <aside className="min-h-0 overflow-y-auto rounded-xl border bg-white p-3 shadow-sm">
               <div className="mb-2 text-sm font-semibold text-slate-600">Students</div>
               <div className="space-y-1">
                 {students.map((student) => (
@@ -197,14 +210,14 @@ export default function ClassNotebookPage() {
               </div>
             </aside>
           )}
-          <section className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+          <section className="flex min-h-0 min-w-0 flex-col">
+            <div className="mb-3 flex shrink-0 items-center gap-2 overflow-x-auto">
               <button type="button" onClick={() => void addPage(false)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Add page</button>
               {isTeacher && <button type="button" onClick={() => void addPage(true)} className="rounded-lg border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700">Add to whole class</button>}
               {isTeacher && selectedPage && <label className="rounded-lg border px-3 py-2 text-sm">Worksheet image <input type="file" accept="image/png,image/jpeg,image/webp" className="ml-2 max-w-[180px] text-xs" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleImage(file); }} /></label>}
               <span className={`ml-auto text-xs ${saving === "failed" ? "text-red-600" : saving === "saving" ? "text-amber-600" : "text-emerald-700"}`}>{saving === "saving" ? "Saving…" : saving === "failed" ? "Save failed" : "Saved"}</span>
             </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
               {selectedPage && isTeacher ? <input value={pageTitle} onChange={(event) => { setPageTitle(event.target.value); setPageDirty(true); }} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" placeholder="Page title" /> : null}
               {selectedPage ? <span className="text-sm text-slate-500">Page {selectedPage.pageIndex + 1} of {pages.length}</span> : null}
               <button type="button" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) <= 0} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index > 0) setSelectedPageId(pages[index - 1].id); }} className="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40">Previous</button>
@@ -214,8 +227,8 @@ export default function ClassNotebookPage() {
               {selectedPage && <button type="button" onClick={() => void movePage(1)} className="rounded-lg border px-3 py-1.5 text-sm">↓</button>}
               {selectedPage && isTeacher && <button type="button" onClick={async () => { await deleteNotebookPage(selectedPage.id); await loadNotebook(notebookStudentId); }} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600">Delete page</button>}
             </div>
-            {selectedPage && isTeacher ? <textarea value={background.text || ""} onChange={(event) => { setBackground({ ...background, text: event.target.value }); setPageDirty(true); }} placeholder="Optional worksheet text/content" className="mb-3 min-h-16 w-full rounded-lg border p-2 text-sm" /> : null}
-            {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
+            {selectedPage && isTeacher ? <textarea value={background.text || ""} onChange={(event) => { setBackground({ ...background, text: event.target.value }); setPageDirty(true); }} placeholder="Optional worksheet text/content" className="mb-3 min-h-16 w-full shrink-0 rounded-lg border p-2 text-sm" /> : null}
+            {selectedPage ? <NotebookPageCanvas background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
           </section>
         </div>
       )}
