@@ -15,19 +15,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["education", "productivity"],
     icons: [
       {
-        src: "/icons/osteps-192.png",
+        src: "/icons/osteps-192.png?v=20260714",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/osteps-512.png",
+        src: "/icons/osteps-512.png?v=20260714",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/osteps-maskable-512.png",
+        src: "/icons/osteps-maskable-512.png?v=20260714",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
@@ -40,7 +40,7 @@ export default function manifest(): MetadataRoute.Manifest {
         url: "/dashboard/subject-cards",
         icons: [
           {
-            src: "/icons/osteps-192.png",
+            src: "/icons/osteps-192.png?v=20260714",
             sizes: "192x192",
           },
         ],
@@ -51,7 +51,7 @@ export default function manifest(): MetadataRoute.Manifest {
         url: "/dashboard/games",
         icons: [
           {
-            src: "/icons/osteps-192.png",
+            src: "/icons/osteps-192.png?v=20260714",
             sizes: "192x192",
           },
         ],
