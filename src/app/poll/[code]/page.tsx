@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import axios from "axios";
+import { usePolling } from "@/hooks/usePolling";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -56,7 +57,6 @@ export default function PublicPollPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [syncMode, setSyncMode] = useState<SyncMode>("self");
   const [presenterIndex, setPresenterIndex] = useState(0);
-  const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!code) {
@@ -86,20 +86,23 @@ export default function PublicPollPage() {
     return () => { active = false; };
   }, [code]);
 
-  const startPollSync = useCallback((pollId: number) => {
-    if (syncRef.current) clearInterval(syncRef.current);
-    syncRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/live-polls/sync?pollId=${pollId}`);
-        const data = await res.json();
-        setPresenterIndex(data.questionIndex ?? 0);
-      } catch { /* ignore */ }
-    }, 2500);
-  }, []);
+  const allDone = poll ? poll.questions.every((q) => submitted.has(q.id)) : false;
 
-  useEffect(() => {
-    return () => { if (syncRef.current) clearInterval(syncRef.current); };
-  }, []);
+  const pollPresenter = async () => {
+    if (!poll) return;
+    try {
+      const res = await fetch(`/api/live-polls/sync?pollId=${poll.id}`);
+      const data = await res.json();
+      setPresenterIndex(data.questionIndex ?? 0);
+    } catch { /* ignore */ }
+  };
+
+  usePolling({
+    baseIntervalMs: 2500,
+    run: pollPresenter,
+    enabled: phase === "answering" && !!poll && !allDone,
+    immediate: false,
+  });
 
   useEffect(() => {
     if (syncMode === "follow" && poll) setCurrentQIndex(presenterIndex);
@@ -108,7 +111,6 @@ export default function PublicPollPage() {
   const handleStart = () => {
     if (!poll) return;
     setPhase("answering");
-    if (poll.id) startPollSync(poll.id);
   };
 
   const handleSubmitAnswer = async () => {
@@ -130,11 +132,8 @@ export default function PublicPollPage() {
     setSubmitting(false);
   };
 
-  const allDone = poll ? poll.questions.every((q) => submitted.has(q.id)) : false;
-
   useEffect(() => {
     if (allDone && phase === "answering") {
-      if (syncRef.current) clearInterval(syncRef.current);
       setPhase("done");
     }
   }, [allDone, phase]);

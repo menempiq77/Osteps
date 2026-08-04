@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
+import { usePolling } from "@/hooks/usePolling";
 
 interface PlenaryComment {
   id: string;
@@ -31,11 +32,11 @@ export default function PlenaryPage() {
     }
   }, [code]);
 
-  useEffect(() => {
-    fetchComments();
-    const interval = setInterval(fetchComments, 3000);
-    return () => clearInterval(interval);
-  }, [fetchComments]);
+  usePolling({
+    baseIntervalMs: 3000,
+    run: fetchComments,
+    enabled: !!code,
+  });
 
   const handleSubmit = async () => {
     if (!name.trim() || !comment.trim()) return;
