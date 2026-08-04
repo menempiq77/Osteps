@@ -12,7 +12,16 @@ import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 
-const extractLiveStudentClassId = (profile: any, fallback?: number | string | null) =>
+type AssignmentRecord = {
+  id?: string | number; student_id?: string | number; student_name?: string; name?: string; user_name?: string; description?: string;
+  class_id?: string | number; term_id?: string | number; type?: string; status?: string; dueDate?: string;
+  position?: string | number; quiz?: AssignmentRecord; assigned?: AssignmentRecord[]; assign_assessments?: AssignmentRecord[];
+  tasks?: AssignmentRecord[]; due_date?: string;
+  class?: AssignmentRecord; student?: AssignmentRecord;
+  [key: string]: unknown;
+};
+
+const extractLiveStudentClassId = (profile: AssignmentRecord, fallback?: number | string | null) =>
   Number(
     profile?.class_id ??
       profile?.class?.id ??
@@ -29,8 +38,8 @@ export default function AssignmentsPage() {
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
-  const [terms, setTerms] = useState<any[]>([]);
-  const [assessments, setAssessments] = useState<any[]>([]);
+  const [terms, setTerms] = useState<AssignmentRecord[]>([]);
+  const [assessments, setAssessments] = useState<AssignmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveStudentClassId, setLiveStudentClassId] = useState<number | null>(null);
@@ -85,7 +94,7 @@ export default function AssignmentsPage() {
       : [];
   };
 
-  const hasVisibleAssignmentsForTerm = (items: any[], termId: number) => {
+  const hasVisibleAssignmentsForTerm = (items: AssignmentRecord[], termId: number) => {
     return items.some((assignment) => {
       if (impersonating) {
         return true;
@@ -103,7 +112,7 @@ export default function AssignmentsPage() {
           : [];
 
         return assignedRows.some(
-          (a: any) =>
+          (a: AssignmentRecord) =>
             Number(a.term_id) === Number(termId) &&
             String(a.status ?? "").toLowerCase() === "assigned"
         );
@@ -120,7 +129,7 @@ export default function AssignmentsPage() {
       setTerms(response);
       if (response.length > 0) {
         let preferredTerm = response[0];
-        let preferredAssessments: any[] | null = null;
+        let preferredAssessments: AssignmentRecord[] | null = null;
 
         for (const term of response) {
           const termAssessments = await getAssignmentsForTerm(Number(term.id));
@@ -177,21 +186,21 @@ export default function AssignmentsPage() {
     const term = terms.find((t) => t.name === termName);
     if (term) {
       setSelectedTerm(termName);
-      setSelectedTermId(term.id);
+      setSelectedTermId(Number(term.id));
     }
   };
 
-  const getAssignmentStatus = (assignment: any) => {
+  const getAssignmentStatus = (assignment: AssignmentRecord) => {
     const today = new Date();
-    const due = new Date(assignment.dueDate);
+    const due = new Date(String(assignment.dueDate ?? ""));
 
     if (assignment.status === "submitted") return "submitted";
     if (today > due) return "overdue";
     return assignment.status || "not-started";
   };
 
-  const handleItemClick = (assignment: any) => {
-    if (assignment.type === "quiz") {
+  const handleItemClick = (assignment: AssignmentRecord) => {
+    if (assignment.type === "quiz" && assignment.quiz?.id != null) {
       router.push(
         `/dashboard/students/assignments/${assignment.id}/quiz/${assignment.quiz.id}`
       );
@@ -225,7 +234,7 @@ export default function AssignmentsPage() {
       }
 
       return assignedRows.some(
-        (a: any) => a.term_id === selectedTermId && a.status === "assigned"
+        (a: AssignmentRecord) => a.term_id === selectedTermId && a.status === "assigned"
       );
     }
     return false;
@@ -251,7 +260,7 @@ export default function AssignmentsPage() {
     );
   };
 
-  const getNearestTask = (tasks: any[]) => {
+  const getNearestTask = (tasks: AssignmentRecord[]) => {
     if (!tasks || tasks.length === 0) return null;
 
     const now = new Date();
@@ -260,23 +269,23 @@ export default function AssignmentsPage() {
     if (validTasks.length === 0) return tasks[0]; // fallback to first task if no due dates
 
     const futureTasks = validTasks.filter(
-      (task) => new Date(task.due_date) >= now
+      (task) => new Date(String(task.due_date)) >= now
     );
 
     if (futureTasks.length > 0) {
       return futureTasks.reduce((nearest, current) => {
         const nearestDiff = Math.abs(
-          new Date(nearest.due_date).getTime() - now.getTime()
+          new Date(String(nearest.due_date)).getTime() - now.getTime()
         );
         const currentDiff = Math.abs(
-          new Date(current.due_date).getTime() - now.getTime()
+          new Date(String(current.due_date)).getTime() - now.getTime()
         );
         return currentDiff < nearestDiff ? current : nearest;
       });
     }
 
     return validTasks.reduce((latest, current) => {
-      return new Date(current.due_date) > new Date(latest.due_date)
+      return new Date(String(current.due_date)) > new Date(String(latest.due_date))
         ? current
         : latest;
     });
@@ -341,7 +350,7 @@ export default function AssignmentsPage() {
                         {/* {getStatusBadge(status)} */}
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                        {assignment.description}
+                        {String(assignment.description ?? "")}
                       </p>
                       {assignment.tasks && assignment.tasks.length > 0 && (
                         <div className="flex items-center mt-2">
@@ -349,7 +358,7 @@ export default function AssignmentsPage() {
                           <span className="text-sm text-gray-600">
                             Due:{" "}
                             {new Date(
-                              getNearestTask(assignment.tasks)?.due_date
+                              String(getNearestTask(assignment.tasks)?.due_date ?? "")
                             ).toLocaleDateString()}
                           </span>
                         </div>
