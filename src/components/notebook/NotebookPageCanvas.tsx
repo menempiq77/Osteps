@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { getAuthHeader } from "@/lib/apiClient";
+import { uploadNotebookImage } from "@/services/classNotebookApi";
 import {
   Eraser,
   Highlighter,
@@ -17,9 +17,11 @@ import {
   NOTEBOOK_PAGE_WIDTH,
   type NotebookAnnotation,
   type NotebookBackground,
+  type NotebookImageAnnotation,
   type NotebookPenAnnotation,
   type NotebookTextAnnotation,
 } from "@/lib/classNotebook";
+import AuthenticatedNotebookImage from "./AuthenticatedNotebookImage";
 
 type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 
@@ -36,6 +38,7 @@ const PEN_WIDTHS = [2, 4, 6, 8];
 const HIGHLIGHT_WIDTHS = [10, 16, 24];
 const TEXT_SIZES = [14, 18, 24, 36];
 const TEXT_BOX_WIDTH = 300;
+const PASTED_IMAGE_SIZE = 360;
 
 const cloneAnnotations = (items: NotebookAnnotation[]) =>
   items.map((item) =>
@@ -88,7 +91,7 @@ const wrapText = (context: CanvasRenderingContext2D, text: string, maxWidth: num
   return output;
 };
 
-const drawText = (context: CanvasRenderingContext2D, annotation: NotebookTextAnnotation) => {
+export const drawTextAnnotation = (context: CanvasRenderingContext2D, annotation: NotebookTextAnnotation) => {
   context.save();
   context.font = `${annotation.fontWeight === "bold" ? "700" : "400"} ${annotation.fontSize}px Arial`;
   context.fillStyle = annotation.color;
@@ -112,7 +115,7 @@ const drawText = (context: CanvasRenderingContext2D, annotation: NotebookTextAnn
   context.restore();
 };
 
-const drawPen = (context: CanvasRenderingContext2D, annotation: NotebookPenAnnotation) => {
+export const drawPenAnnotation = (context: CanvasRenderingContext2D, annotation: NotebookPenAnnotation) => {
   if (!annotation.points.length) return;
   context.save();
   context.strokeStyle = annotation.color;
@@ -135,6 +138,16 @@ const drawPen = (context: CanvasRenderingContext2D, annotation: NotebookPenAnnot
   context.restore();
 };
 
+export const drawNotebookAnnotations = (
+  context: CanvasRenderingContext2D,
+  annotations: NotebookAnnotation[]
+) => {
+  annotations.forEach((annotation) => {
+    if (annotation.type === "pen") drawPenAnnotation(context, annotation);
+    else if (annotation.type === "text") drawTextAnnotation(context, annotation);
+  });
+};
+
 const textHitHeight = (annotation: NotebookTextAnnotation) =>
   Math.max(
     annotation.fontSize * 1.6,
@@ -142,6 +155,20 @@ const textHitHeight = (annotation: NotebookTextAnnotation) =>
       annotation.fontSize *
       1.22
   );
+
+const annotationHit = (annotation: NotebookAnnotation, point: { x: number; y: number }) => {
+  if (annotation.type === "text") {
+    return point.x >= annotation.x && point.x <= annotation.x + annotation.width &&
+      point.y >= annotation.y && point.y <= annotation.y + textHitHeight(annotation);
+  }
+  if (annotation.type === "image") {
+    return point.x >= annotation.x && point.x <= annotation.x + annotation.width &&
+      point.y >= annotation.y && point.y <= annotation.y + annotation.height;
+  }
+  return annotation.points.some(
+    (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < annotation.width + 14
+  );
+};
 
 export default function NotebookPageCanvas({
   background,
@@ -171,7 +198,7 @@ export default function NotebookPageCanvas({
   const [fitPageZoom, setFitPageZoom] = useState(1);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const visibleAnnotations = displayAnnotations ?? annotations;
   const editingText = annotations.find(
     (annotation): annotation is NotebookTextAnnotation =>
@@ -224,30 +251,6 @@ export default function NotebookPageCanvas({
     redoRef.current = [];
   }, [annotations]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    setImageUrl(null);
-    if (!background.imageUrl) return undefined;
-    void fetch(background.imageUrl, { headers: getAuthHeader() })
-      .then((response) => {
-        if (!response.ok) throw new Error("Background image unavailable");
-        return response.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setImageUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setImageUrl(null);
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [background.imageUrl]);
-
   const prepareCanvas = useCallback(
     (canvas: HTMLCanvasElement | null) => {
       if (!canvas) return null;
@@ -268,10 +271,7 @@ export default function NotebookPageCanvas({
   const redraw = useCallback(() => {
     const context = prepareCanvas(annotationCanvasRef.current);
     if (!context) return;
-    visibleAnnotations.forEach((annotation) => {
-      if (annotation.type === "pen") drawPen(context, annotation);
-      else drawText(context, annotation);
-    });
+    drawNotebookAnnotations(context, visibleAnnotations);
     prepareCanvas(activeStrokeCanvasRef.current);
   }, [prepareCanvas, visibleAnnotations]);
 
@@ -279,7 +279,7 @@ export default function NotebookPageCanvas({
 
   const paintActiveStroke = useCallback(() => {
     const context = prepareCanvas(activeStrokeCanvasRef.current);
-    if (context && drawingRef.current) drawPen(context, drawingRef.current);
+    if (context && drawingRef.current) drawPenAnnotation(context, drawingRef.current);
   }, [prepareCanvas]);
 
   const pointFromEvent = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -341,16 +341,25 @@ export default function NotebookPageCanvas({
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pageAreaRef.current?.focus();
     if (readOnly) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
     setSelectedTextId(null);
     if (tool === "cursor") {
-      const selected = findTextAt(point);
+      const selected = [...annotations].reverse().find(
+        (annotation): annotation is NotebookTextAnnotation | NotebookImageAnnotation =>
+          (annotation.type === "text" || annotation.type === "image") &&
+          annotationHit(annotation, point)
+      );
       if (selected) {
         remember();
         setSelectedTextId(selected.id);
-        draggingRef.current = { id: selected.id, offsetX: point.x - selected.x, offsetY: point.y - selected.y };
+        draggingRef.current = {
+          id: selected.id,
+          offsetX: point.x - selected.x,
+          offsetY: point.y - selected.y,
+        };
       }
     } else if (tool === "pen" || tool === "highlighter") {
       drawingRef.current = {
@@ -369,7 +378,7 @@ export default function NotebookPageCanvas({
             (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < annotation.width + 14
           );
         }
-        return point.x >= annotation.x && point.x <= annotation.x + annotation.width && point.y >= annotation.y && point.y <= annotation.y + textHitHeight(annotation);
+        return annotationHit(annotation, point);
       });
       if (nearest) removeAnnotation(nearest.id);
     } else if (tool === "text") {
@@ -387,6 +396,106 @@ export default function NotebookPageCanvas({
     }
   };
 
+  const pasteAt = () => {
+    const pageArea = pageAreaRef.current;
+    const x = NOTEBOOK_PAGE_WIDTH / 2 - TEXT_BOX_WIDTH / 2;
+    const y = pageArea
+      ? Math.max(40, pageArea.scrollTop / zoom + pageArea.clientHeight / zoom / 2 - 80)
+      : 120;
+    return { x: Math.max(0, x), y: Math.min(NOTEBOOK_PAGE_HEIGHT - 80, y) };
+  };
+
+  const onPaste = useCallback(async (event: ClipboardEvent) => {
+    if (readOnly) return;
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+    const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+    const itemImages = Array.from(clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    const fileImages = Array.from(clipboardData.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    const image = [...itemImages, ...fileImages].find((file) => allowedImageTypes.has(file.type));
+    const unsupportedImage = [...itemImages, ...fileImages].find(
+      (file) => !allowedImageTypes.has(file.type)
+    );
+    if (image) {
+      event.preventDefault();
+      setPasteError(null);
+      try {
+        const uploaded = await uploadNotebookImage(image);
+        const bitmap = await createImageBitmap(image);
+        const width = Math.min(PASTED_IMAGE_SIZE, bitmap.width);
+        const height = width * (bitmap.height / bitmap.width);
+        bitmap.close();
+        const point = pasteAt();
+        remember();
+        onChange([
+          ...annotations,
+          {
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "image",
+            x: Math.max(0, point.x - width / 2),
+            y: point.y,
+            width,
+            height,
+            url: uploaded.url,
+            name: uploaded.name,
+          },
+        ]);
+      } catch (pasteError) {
+        console.error("Notebook image paste failed:", pasteError);
+        setPasteError("We couldn't paste that image. Please try PNG, JPG, or WebP.");
+      }
+      return;
+    }
+    if (unsupportedImage) {
+      event.preventDefault();
+      setPasteError("Only PNG, JPG, and WebP images can be pasted.");
+      return;
+    }
+    const text = clipboardData.getData("text/plain").trim();
+    if (!text) return;
+    event.preventDefault();
+    setPasteError(null);
+    const point = pasteAt();
+    const isLink = /^https?:\/\/\S+$/i.test(text);
+    const pasted: NotebookTextAnnotation = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: "text",
+      x: point.x,
+      y: point.y,
+      width: TEXT_BOX_WIDTH,
+      text,
+      color: isLink ? "#2563eb" : color,
+      fontSize: textSize,
+      fontWeight: bold ? "bold" : "normal",
+      underline: isLink || underline,
+      textAlign,
+    };
+    remember();
+    onChange([...annotations, pasted]);
+    setSelectedTextId(pasted.id);
+  }, [annotations, bold, color, onChange, readOnly, remember, textAlign, textSize, underline, zoom]);
+
+  useEffect(() => {
+    const handleDocumentPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      void onPaste(event);
+    };
+    document.addEventListener("paste", handleDocumentPaste);
+    return () => document.removeEventListener("paste", handleDocumentPaste);
+  }, [onPaste]);
+
   const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const point = pointFromEvent(event);
     if (drawingRef.current) {
@@ -398,7 +507,7 @@ export default function NotebookPageCanvas({
       const drag = draggingRef.current;
       onChange(
         annotations.map((annotation) =>
-          annotation.id === drag.id && annotation.type === "text"
+          annotation.id === drag.id && (annotation.type === "text" || annotation.type === "image")
             ? { ...annotation, x: point.x - drag.offsetX, y: point.y - drag.offsetY }
             : annotation
         )
@@ -496,11 +605,33 @@ export default function NotebookPageCanvas({
           <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
         </div>
       )}
-      <div ref={pageAreaRef} className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4">
+      {pasteError ? (
+        <div role="alert" className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {pasteError}
+        </div>
+      ) : null}
+      <div
+        ref={pageAreaRef}
+        tabIndex={0}
+        className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4 outline-none"
+      >
         <div className="flex min-h-full min-w-full items-start justify-center">
           <div className="relative shrink-0 overflow-hidden bg-white shadow-xl" style={pageDimensions}>
             <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
-            {imageUrl && <img src={imageUrl} alt="" className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top" />}
+            <AuthenticatedNotebookImage
+              src={background.imageUrl}
+              alt=""
+              className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top"
+            />
+            {visibleAnnotations.filter((annotation): annotation is NotebookImageAnnotation => annotation.type === "image").map((annotation) => (
+              <AuthenticatedNotebookImage
+                key={annotation.id}
+                src={annotation.url}
+                alt={annotation.name || ""}
+                className="pointer-events-none absolute object-contain object-top"
+                style={{ left: annotation.x * zoom, top: annotation.y * zoom, width: annotation.width * zoom, height: annotation.height * zoom }}
+              />
+            ))}
             <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
             <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
             {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}

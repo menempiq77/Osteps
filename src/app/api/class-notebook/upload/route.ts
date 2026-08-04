@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!identity.ok) return NextResponse.json({ message: "Unauthenticated" }, { status: 401 });
     const user = await identity.json().catch(() => null);
     const role = String(user?.role || "").trim().toUpperCase().replace(/\s+/g, "_");
-    if (!["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN"].includes(role)) {
+    if (!["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN", "STUDENT"].includes(role)) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
     const form = await request.formData();
