@@ -198,6 +198,7 @@ export default function NotebookPageCanvas({
   const [fitPageZoom, setFitPageZoom] = useState(1);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const visibleAnnotations = displayAnnotations ?? annotations;
   const editingText = annotations.find(
     (annotation): annotation is NotebookTextAnnotation =>
@@ -408,11 +409,21 @@ export default function NotebookPageCanvas({
     if (readOnly) return;
     const clipboardData = event.clipboardData;
     if (!clipboardData) return;
-    const image = Array.from(clipboardData.files).find((file) =>
-      ["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+    const itemImages = Array.from(clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    const fileImages = Array.from(clipboardData.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    const image = [...itemImages, ...fileImages].find((file) => allowedImageTypes.has(file.type));
+    const unsupportedImage = [...itemImages, ...fileImages].find(
+      (file) => !allowedImageTypes.has(file.type)
     );
     if (image) {
       event.preventDefault();
+      setPasteError(null);
       try {
         const uploaded = await uploadNotebookImage(image);
         const bitmap = await createImageBitmap(image);
@@ -436,12 +447,19 @@ export default function NotebookPageCanvas({
         ]);
       } catch (pasteError) {
         console.error("Notebook image paste failed:", pasteError);
+        setPasteError("We couldn't paste that image. Please try PNG, JPG, or WebP.");
       }
+      return;
+    }
+    if (unsupportedImage) {
+      event.preventDefault();
+      setPasteError("Only PNG, JPG, and WebP images can be pasted.");
       return;
     }
     const text = clipboardData.getData("text/plain").trim();
     if (!text) return;
     event.preventDefault();
+    setPasteError(null);
     const point = pasteAt();
     const isLink = /^https?:\/\/\S+$/i.test(text);
     const pasted: NotebookTextAnnotation = {
@@ -587,6 +605,11 @@ export default function NotebookPageCanvas({
           <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
         </div>
       )}
+      {pasteError ? (
+        <div role="alert" className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {pasteError}
+        </div>
+      ) : null}
       <div
         ref={pageAreaRef}
         tabIndex={0}
