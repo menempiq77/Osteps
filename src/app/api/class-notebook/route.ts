@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDbPool } from "@/lib/server/db";
-import type { RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +39,18 @@ type PageRow = RowDataPacket & {
   teacher_annotations: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type MaterialRow = RowDataPacket & {
+  id: number;
+  school_id: number;
+  subject_id: number;
+  name: string;
+  kind: "docx" | "pdf" | "image";
+  pages: string | null;
+  page_count: number;
+  created_by: number;
+  created_at: string;
 };
 
 const authHeaders = (request: NextRequest) => {
@@ -171,6 +183,21 @@ const ensureTables = async () => {
       "ALTER TABLE class_notebook_pages ADD COLUMN heading VARCHAR(255) NULL AFTER title"
     );
   }
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS class_notebook_materials (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      school_id BIGINT UNSIGNED NOT NULL,
+      subject_id BIGINT UNSIGNED NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      kind ENUM('docx', 'pdf', 'image') NOT NULL,
+      pages JSON NULL,
+      page_count INT NOT NULL DEFAULT 1,
+      created_by BIGINT UNSIGNED NOT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY class_notebook_materials_school_subject (school_id, subject_id)
+    )
+  `);
 };
 
 const json = (value: unknown, fallback: unknown) => {
@@ -190,6 +217,25 @@ const parse = (value: unknown, fallback: unknown) => {
     return fallback;
   }
 };
+
+const sanitizeMaterialHtml = (value: unknown) =>
+  String(value || "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, "")
+    .replace(/\s(href|src)\s*=\s*("|')\s*javascript:[\s\S]*?\2/gi, "");
+
+const materialDto = (row: MaterialRow) => ({
+  id: Number(row.id),
+  schoolId: Number(row.school_id),
+  subjectId: Number(row.subject_id),
+  name: row.name || "",
+  kind: row.kind,
+  pages: parse(row.pages, []),
+  pageCount: Number(row.page_count || 1),
+  createdBy: Number(row.created_by),
+  createdAt: row.created_at,
+});
 
 const ensureNotebook = async (
   schoolId: number,
@@ -264,18 +310,22 @@ const authorizeClassScope = async (
   return true;
 };
 
-const pageDto = (row: PageRow) => ({
-  id: Number(row.id),
-  notebookId: Number(row.notebook_id),
-  pageIndex: Number(row.page_index),
-  title: row.title || "",
-  heading: row.heading ?? null,
-  background: parse(row.background, {}),
-  studentAnnotations: parse(row.student_annotations, []),
-  teacherAnnotations: parse(row.teacher_annotations, []),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
+const pageDto = (row: PageRow, materials?: Map<number, ReturnType<typeof materialDto>>) => {
+  const background = parse(row.background, {}) as { materialId?: number };
+  return {
+    id: Number(row.id),
+    notebookId: Number(row.notebook_id),
+    pageIndex: Number(row.page_index),
+    title: row.title || "",
+    heading: row.heading ?? null,
+    background,
+    material: materials?.get(Number(background.materialId || 0)) || null,
+    studentAnnotations: parse(row.student_annotations, []),
+    teacherAnnotations: parse(row.teacher_annotations, []),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -302,6 +352,32 @@ export async function GET(request: NextRequest) {
         );
         subjectClassId = Number(subjectRows[0]?.id ?? 0);
       }
+    }
+    if (params.get("view") === "material") {
+      const materialId = Number(params.get("materialId") || 0);
+      if (!materialId || !schoolId || !subjectId) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      const [materialRows] = await getDbPool().execute<MaterialRow[]>(
+        "SELECT * FROM class_notebook_materials WHERE id = ? AND school_id = ? AND subject_id = ? LIMIT 1",
+        [materialId, schoolId, subjectId]
+      );
+      const material = materialRows[0];
+      if (!material) return NextResponse.json({ message: "Not found" }, { status: 404 });
+      if (role === "STUDENT") {
+        const studentId = await ownStudentId(user);
+        const [pageRows] = await getDbPool().execute<RowDataPacket[]>(
+          `SELECT p.id
+             FROM class_notebook_pages p
+             JOIN class_notebooks n ON n.id = p.notebook_id
+            WHERE n.school_id = ? AND n.subject_id = ? AND n.student_id = ?
+              AND JSON_UNQUOTE(JSON_EXTRACT(p.background, '$.materialId')) = CAST(? AS CHAR)
+            LIMIT 1`,
+          [schoolId, subjectId, studentId, materialId]
+        );
+        if (!pageRows.length) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.json({ material: materialDto(material) });
     }
     if (params.get("view") === "class") {
       if (!["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN"].includes(role)) {
@@ -346,6 +422,19 @@ export async function GET(request: NextRequest) {
       "SELECT * FROM class_notebook_pages WHERE notebook_id = ? ORDER BY page_index ASC",
       [notebook.id]
     );
+    const materialIds = pages
+      .map((page) => Number((parse(page.background, {}) as { materialId?: number })?.materialId || 0))
+      .filter((id, index, ids) => id > 0 && ids.indexOf(id) === index);
+    const materials = new Map<number, ReturnType<typeof materialDto>>();
+    if (materialIds.length) {
+      const placeholders = materialIds.map(() => "?").join(",");
+      const [materialRows] = await getDbPool().execute<MaterialRow[]>(
+        `SELECT * FROM class_notebook_materials
+          WHERE school_id = ? AND subject_id = ? AND id IN (${placeholders})`,
+        [schoolId, subjectId, ...materialIds]
+      );
+      materialRows.forEach((material) => materials.set(Number(material.id), materialDto(material)));
+    }
     const className = await getClassName(classId, subjectClassId);
     return NextResponse.json({
       notebook: {
@@ -356,7 +445,7 @@ export async function GET(request: NextRequest) {
         classId: notebook.class_id,
       },
       className,
-      pages: pages.map(pageDto),
+      pages: pages.map((page) => pageDto(page, materials)),
     });
   } catch (error) {
     console.error("Class Notebook GET failed:", error);
@@ -376,6 +465,161 @@ export async function POST(request: NextRequest) {
     const teacher = ["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN"].includes(role);
     const pageId = Number(body?.pageId || 0);
     const pool = getDbPool();
+
+    if (action === "list_materials") {
+      const subjectId = Number(body?.subjectId || 0);
+      if (!subjectId || !schoolId || !["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN", "STUDENT"].includes(role)) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      const studentId = role === "STUDENT" ? await ownStudentId(user) : 0;
+      const [rows] = await pool.execute<MaterialRow[]>(
+        studentId
+          ? `SELECT DISTINCT m.*
+               FROM class_notebook_materials m
+               JOIN class_notebooks n
+                 ON n.school_id = m.school_id AND n.subject_id = m.subject_id
+               JOIN class_notebook_pages p
+                 ON p.notebook_id = n.id
+                AND JSON_UNQUOTE(JSON_EXTRACT(p.background, '$.materialId')) = CAST(m.id AS CHAR)
+              WHERE m.school_id = ? AND m.subject_id = ? AND n.student_id = ?
+              ORDER BY m.created_at DESC, m.id DESC`
+          : `SELECT * FROM class_notebook_materials
+              WHERE school_id = ? AND subject_id = ?
+              ORDER BY created_at DESC, id DESC`,
+        studentId ? [schoolId, subjectId, studentId] : [schoolId, subjectId]
+      );
+      return NextResponse.json({ materials: rows.map(materialDto) });
+    }
+
+    if (action === "create_material") {
+      if (!teacher) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const subjectId = Number(body?.subjectId || 0);
+      const kind = String(body?.kind || "");
+      const name = String(body?.name || "").trim().slice(0, 255);
+      if (!schoolId || !subjectId || !name || !["docx", "pdf", "image"].includes(kind)) {
+        return NextResponse.json({ message: "Material name, subject, and kind are required" }, { status: 400 });
+      }
+      const rawPages = Array.isArray(body?.pages) ? body.pages : [];
+      const pages =
+        kind === "docx"
+          ? rawPages.map((page) => ({
+              html: sanitizeMaterialHtml(page?.html),
+            }))
+          : rawPages;
+      if (pages.length < 1) {
+        return NextResponse.json({ message: "Material pages are required" }, { status: 400 });
+      }
+      if (Buffer.byteLength(JSON.stringify(pages), "utf8") > 4 * 1024 * 1024) {
+        return NextResponse.json(
+          { message: "This document is too large to store; split it or share it as a PDF." },
+          { status: 413 }
+        );
+      }
+      const [result] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO class_notebook_materials
+          (school_id, subject_id, name, kind, pages, page_count, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          schoolId,
+          subjectId,
+          name,
+          kind,
+          json(pages, []),
+          pages.length,
+          Number(user.id || 0),
+        ]
+      );
+      return NextResponse.json({ materialId: result.insertId });
+    }
+
+    if (action === "share_material") {
+      if (!teacher) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const materialId = Number(body?.materialId || 0);
+      const subjectClassId = Number(body?.subjectClassId || 0);
+      const classId = Number(body?.classId || 0);
+      const [materialRows] = await pool.execute<MaterialRow[]>(
+        "SELECT * FROM class_notebook_materials WHERE id = ? AND school_id = ? LIMIT 1",
+        [materialId, schoolId]
+      );
+      const material = materialRows[0];
+      if (!material || !(await authorizeClassScope(user, schoolId, Number(material.subject_id), subjectClassId, classId))) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+      const targetIds = body?.allStudents
+        ? (await pool.execute<RowDataPacket[]>(
+            "SELECT id FROM students WHERE school_id = ? AND class_id = ? ORDER BY id",
+            [schoolId, classId]
+          ))[0].map((row) => Number(row.id))
+        : Array.isArray(body?.studentIds)
+          ? body.studentIds.map((id: unknown) => Number(id)).filter((id: number) => id > 0)
+          : [];
+      if (!targetIds.length) return NextResponse.json({ message: "Select at least one student" }, { status: 400 });
+      const [validRows] = await pool.execute<RowDataPacket[]>(
+        `SELECT id FROM students WHERE school_id = ? AND class_id = ? AND id IN (${targetIds.map(() => "?").join(",")})`,
+        [schoolId, classId, ...targetIds]
+      );
+      const validIds = validRows.map((row) => Number(row.id));
+      const materialPages = Array.isArray(parse(material.pages, []))
+        ? (parse(material.pages, []) as Array<{ imageUrl?: string; html?: string }>)
+        : [];
+      const pagesPerStudent = materialPages.length;
+      if (!pagesPerStudent) {
+        return NextResponse.json({ message: "Material pages are missing" }, { status: 409 });
+      }
+      let pagesCreated = 0;
+      for (const studentId of validIds) {
+        const notebook = await ensureNotebook(schoolId, Number(material.subject_id), subjectClassId, classId, studentId);
+        if (!notebook) continue;
+        const [maxRows] = await pool.execute<RowDataPacket[]>(
+          "SELECT COALESCE(MAX(page_index), -1) AS max_index FROM class_notebook_pages WHERE notebook_id = ?",
+          [notebook.id]
+        );
+        let pageIndex = Number(maxRows[0]?.max_index ?? -1) + 1;
+        for (let materialPage = 0; materialPage < pagesPerStudent; materialPage += 1) {
+          await pool.execute(
+            `INSERT INTO class_notebook_pages
+              (notebook_id, page_index, title, background, student_annotations, teacher_annotations)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              notebook.id,
+              pageIndex,
+              `${material.name} — ${materialPage + 1}`.slice(0, 255),
+              json({ materialId, materialPage }, {}),
+              "[]",
+              "[]",
+            ]
+          );
+          pageIndex += 1;
+          pagesCreated += 1;
+        }
+      }
+      return NextResponse.json({
+        students: validIds.length,
+        pagesPerStudent,
+        pagesCreated,
+      });
+    }
+
+    if (action === "delete_material") {
+      const materialId = Number(body?.materialId || 0);
+      const subjectId = Number(body?.subjectId || 0);
+      if (!teacher || !materialId || !subjectId) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const [result] = await pool.execute<ResultSetHeader>(
+        `DELETE FROM class_notebook_materials
+          WHERE id = ? AND school_id = ? AND subject_id = ?
+            AND EXISTS (
+              SELECT 1
+                FROM subject_classes sc
+                JOIN school_classes c
+                  ON c.class_name = COALESCE(sc.base_class_label, sc.name)
+               WHERE sc.subject_id = class_notebook_materials.subject_id
+                 AND c.school_id = ?
+            )`,
+        [materialId, schoolId, subjectId, schoolId]
+      );
+      if (!result.affectedRows) return NextResponse.json({ message: "Material not found" }, { status: 404 });
+      return NextResponse.json({ ok: true });
+    }
 
     if (action === "create_page") {
       const subjectId = Number(body?.subjectId || 0);
@@ -418,7 +662,7 @@ export async function POST(request: NextRequest) {
           [notebook.id]
         );
         const pageIndex = Number(maxRows[0]?.max_index ?? -1) + 1;
-        const [result] = await pool.execute<any>(
+        const [result] = await pool.execute<ResultSetHeader>(
           `INSERT INTO class_notebook_pages
             (notebook_id, page_index, title, background, student_annotations, teacher_annotations)
            VALUES (?, ?, ?, ?, ?, ?)`,
@@ -444,7 +688,7 @@ export async function POST(request: NextRequest) {
         role === "STUDENT" ? await ownStudentId(user) : Number(page.student_id);
       if (role === "STUDENT" && owner !== Number(page.student_id)) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       const updates: string[] = [];
-      const values: unknown[] = [];
+      const values: Array<string | number | null> = [];
       if (teacher) {
         if (body.background !== undefined) { updates.push("background = ?"); values.push(json(body.background, {})); }
         if (body.teacherAnnotations !== undefined) { updates.push("teacher_annotations = ?"); values.push(json(body.teacherAnnotations, [])); }
@@ -464,7 +708,7 @@ export async function POST(request: NextRequest) {
       values.push(pageId);
       await pool.execute(
         `UPDATE class_notebook_pages SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        values as any[]
+        values
       );
       return NextResponse.json({ ok: true });
     }
@@ -479,6 +723,38 @@ export async function POST(request: NextRequest) {
       if (!rows.length) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       await pool.execute("DELETE FROM class_notebook_pages WHERE id = ?", [pageId]);
       return NextResponse.json({ ok: true });
+    }
+
+    if (action === "duplicate_page") {
+      if (!teacher || !pageId) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const [rows] = await pool.execute<(PageRow & NotebookRow)[]>(
+        `SELECT p.*, n.school_id, n.student_id
+           FROM class_notebook_pages p
+           JOIN class_notebooks n ON n.id = p.notebook_id
+          WHERE p.id = ? AND n.school_id = ? LIMIT 1`,
+        [pageId, schoolId]
+      );
+      const page = rows[0];
+      if (!page) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      const [maxRows] = await pool.execute<RowDataPacket[]>(
+        "SELECT COALESCE(MAX(page_index), -1) AS max_index FROM class_notebook_pages WHERE notebook_id = ?",
+        [page.notebook_id]
+      );
+      const [result] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO class_notebook_pages
+          (notebook_id, page_index, title, heading, background, student_annotations, teacher_annotations)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          page.notebook_id,
+          Number(maxRows[0]?.max_index ?? -1) + 1,
+          page.title || "",
+          page.heading ?? null,
+          page.background || "{}",
+          "[]",
+          page.teacher_annotations || "[]",
+        ]
+      );
+      return NextResponse.json({ ok: true, pageId: result.insertId });
     }
 
     if (action === "reorder_pages") {

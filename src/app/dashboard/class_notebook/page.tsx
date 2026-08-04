@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
+import { Select, Dropdown, Modal } from "antd";
+import type { MenuProps } from "antd";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
+import { ChevronLeft, ChevronRight, MoreVertical, Plus } from "lucide-react";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
@@ -12,12 +16,14 @@ import {
   fetchNotebookClass,
   saveNotebookPage,
   deleteNotebookPage,
-  uploadNotebookImage,
+  duplicateNotebookPage,
   reorderNotebookPages,
+  uploadNotebookImage,
 } from "@/services/classNotebookApi";
 import NotebookPageCanvas from "@/components/notebook/NotebookPageCanvas";
 import NotebookPageThumbnail from "@/components/notebook/NotebookPageThumbnail";
-import type { NotebookAnnotation, NotebookBackground, NotebookPage } from "@/lib/classNotebook";
+import NotebookMaterialModal from "@/components/notebook/NotebookMaterialModal";
+import type { NotebookAnnotation, NotebookBackground, NotebookPage, NotebookStudent } from "@/lib/classNotebook";
 
 const teacherRoles = new Set(["TEACHER", "HOD", "SCHOOL_ADMIN", "ADMIN"]);
 
@@ -32,7 +38,7 @@ export default function ClassNotebookPage() {
   const role = String(currentUser?.role || "").toUpperCase();
   const isTeacher = teacherRoles.has(role);
   const [className, setClassName] = useState("");
-  const [students, setStudents] = useState<{ id: string; name: string; pageCount: number }[]>([]);
+  const [students, setStudents] = useState<NotebookStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [pages, setPages] = useState<NotebookPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
@@ -47,6 +53,10 @@ export default function ClassNotebookPage() {
   const [pageDirty, setPageDirty] = useState(false);
   const [worksheetOpen, setWorksheetOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(!isTeacher);
+  const [renamingPageId, setRenamingPageId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [materialModalOpen, setMaterialModalOpen] = useState(false);
+  const backgroundInputRef = useRef<HTMLInputElement | null>(null);
   const workspaceRef = useRef<HTMLElement | null>(null);
   const loadedPageIdRef = useRef<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -84,6 +94,8 @@ export default function ClassNotebookPage() {
       autosaveTimerRef.current = null;
     }
     setPageDirty(false);
+    setWorksheetOpen(false);
+    setRenamingPageId(null);
     setLoading(true);
     setError("");
     try {
@@ -133,17 +145,18 @@ export default function ClassNotebookPage() {
   }, [selectedPage]);
 
   const save = async (
+    targetPageId: number,
     nextAnnotations: NotebookAnnotation[],
     nextTeacher = teacherAnnotations,
     nextBackground = background,
     nextTitle = pageTitle,
     nextHeading = heading
   ) => {
-    if (!selectedPage) return;
+    if (!targetPageId) return;
     setSaving("saving");
     try {
       await saveNotebookPage({
-        pageId: selectedPage.id,
+        pageId: targetPageId,
         studentAnnotations: nextAnnotations,
         teacherAnnotations: isTeacher ? nextTeacher : undefined,
         background: isTeacher ? nextBackground : undefined,
@@ -152,7 +165,7 @@ export default function ClassNotebookPage() {
       });
       setPages((current) =>
         current.map((page) =>
-          page.id === selectedPage.id
+          page.id === targetPageId
             ? {
                 ...page,
                 title: nextTitle,
@@ -177,7 +190,7 @@ export default function ClassNotebookPage() {
     const timer = window.setTimeout(() => {
       autosaveTimerRef.current = null;
       if (generation !== loadGenerationRef.current) return;
-      void save(annotations, teacherAnnotations, background, pageTitle, heading);
+      void save(selectedPage.id, annotations, teacherAnnotations, background, pageTitle, heading);
       setPageDirty(false);
     }, 700);
     autosaveTimerRef.current = timer;
@@ -202,101 +215,232 @@ export default function ClassNotebookPage() {
     }
   };
 
-  const handleImage = async (file: File) => {
-    try {
-      const uploaded = await uploadNotebookImage(file);
-      const next = { ...background, imageUrl: uploaded.url, imageName: uploaded.name, imageMime: uploaded.mime };
-      setBackground(next);
-      setPageDirty(true);
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
-    }
-  };
-
-  const movePage = async (direction: -1 | 1) => {
-    if (!selectedPage || pages.length < 2) return;
-    const index = pages.findIndex((page) => page.id === selectedPage.id);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= pages.length) return;
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) return;
     const next = [...pages];
-    [next[index], next[target]] = [next[target], next[index]];
-    setPages(next.map((page, pageIndex) => ({ ...page, pageIndex })));
+    const [moved] = next.splice(result.source.index, 1);
+    next.splice(result.destination.index, 0, moved);
+    const ordered = next.map((page, pageIndex) => ({ ...page, pageIndex }));
+    setPages(ordered);
     try {
-      await reorderNotebookPages(selectedPage.notebookId, next.map((page) => page.id));
+      await reorderNotebookPages(selectedPage?.notebookId || 0, ordered.map((page) => page.id));
     } catch (reorderError) {
       setError(reorderError instanceof Error ? reorderError.message : "Unable to reorder pages.");
       await loadNotebook(notebookStudentId);
     }
   };
 
+  const beginRename = (page: NotebookPage) => {
+    setSelectedPageId(page.id);
+    setRenamingPageId(page.id);
+    setRenameValue(page.title || "");
+  };
+
+  const commitRename = () => {
+    if (!renamingPageId) return;
+    const page = pages.find((candidate) => candidate.id === renamingPageId);
+    if (!page) {
+      setRenamingPageId(null);
+      return;
+    }
+    const nextTitle = renameValue.slice(0, 255);
+    setRenamingPageId(null);
+    setPageTitle(nextTitle);
+    setPages((current) => current.map((candidate) => candidate.id === page.id ? { ...candidate, title: nextTitle } : candidate));
+    if (selectedPage?.id === page.id) setPageDirty(true);
+    void save(
+      page.id,
+      selectedPage?.id === page.id ? annotations : page.studentAnnotations,
+      selectedPage?.id === page.id ? teacherAnnotations : page.teacherAnnotations,
+      selectedPage?.id === page.id ? background : page.background,
+      nextTitle,
+      selectedPage?.id === page.id ? heading : page.heading
+    );
+  };
+
+  const duplicatePage = async (page: NotebookPage) => {
+    try {
+      await duplicateNotebookPage(page.id);
+      await loadNotebook(notebookStudentId);
+    } catch (duplicateError) {
+      setError(duplicateError instanceof Error ? duplicateError.message : "Unable to duplicate page.");
+    }
+  };
+
+  const deletePage = async (page: NotebookPage) => {
+    try {
+      await deleteNotebookPage(page.id);
+      await loadNotebook(notebookStudentId);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete page.");
+    }
+  };
+
+  const pageMenu = (page: NotebookPage): MenuProps["items"] => [
+    { key: "rename", label: "Rename", onClick: () => beginRename(page) },
+    ...(isTeacher ? [{ key: "duplicate", label: "Duplicate page", onClick: () => void duplicatePage(page) }] : []),
+    ...(isTeacher ? [{ key: "worksheet", label: "Edit worksheet text", onClick: () => { setSelectedPageId(page.id); setWorksheetOpen(true); } }] : []),
+    ...(isTeacher ? [{ key: "background", label: "Set page background image", onClick: () => { setSelectedPageId(page.id); backgroundInputRef.current?.click(); } }] : []),
+    ...(isTeacher ? [{ type: "divider" as const }] : []),
+    ...(isTeacher ? [{ key: "delete", label: "Delete", danger: true, onClick: () => void deletePage(page) }] : []),
+  ];
+
   if (!subjectId || (isTeacher && (!subjectClassId || !classId))) {
     return <div className="p-6 text-sm text-amber-800">Open Class Notebook from a subject class so its class context is available.</div>;
   }
 
   return (
-    <main ref={workspaceRef} className="flex min-h-[360px] w-full flex-col bg-slate-100" style={workspaceHeight ? { height: workspaceHeight } : undefined}>
+    <>
+      <input
+        ref={backgroundInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file || !isTeacher) return;
+          try {
+            const uploaded = await uploadNotebookImage(file);
+            setBackground((current) => ({
+              ...current,
+              imageUrl: uploaded.url,
+              imageName: file.name,
+              imageMime: file.type,
+            }));
+            setPageDirty(true);
+          } catch (uploadError) {
+            setError(uploadError instanceof Error ? uploadError.message : "Unable to upload the page background.");
+          }
+        }}
+      />
+      <main ref={workspaceRef} className="flex min-h-[360px] w-full flex-col bg-slate-100" style={workspaceHeight ? { height: workspaceHeight } : undefined}>
       <h1 className="shrink-0 px-4 py-1.5 text-center text-2xl font-black tracking-tight text-slate-900 md:text-3xl">{className || activeSubject?.name || "Class"} Notebook</h1>
       {error && <div className="mx-4 mb-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>}
       {loading ? <div className="flex min-h-0 flex-1 items-center justify-center text-slate-500">Loading notebook…</div> : (
-        <div className={`grid min-h-0 flex-1 gap-4 px-4 pb-4 ${isTeacher ? "lg:grid-cols-[250px_minmax(0,1fr)]" : "grid-cols-1"}`}>
-          {isTeacher && (
-            <aside className="min-h-0 overflow-y-auto rounded-xl border bg-white p-3 shadow-sm">
-              <div className="mb-2 text-sm font-semibold text-slate-600">Students</div>
-              <div className="space-y-1">
-                {students.map((student) => (
-                  <button key={student.id} type="button" onClick={() => setSelectedStudentId(student.id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${selectedStudentId === student.id ? "bg-emerald-100 text-emerald-800" : "hover:bg-slate-100"}`}>
-                    <div className="font-medium">{student.name}</div><div className="text-xs text-slate-500">{student.pageCount} pages</div>
-                  </button>
-                ))}
-              </div>
-            </aside>
-          )}
-          <section className="flex min-h-0 min-w-0 flex-col">
-            <div className="mb-3 flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
-              <button type="button" onClick={() => void addPage(false)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Add page</button>
-              {isTeacher && <button type="button" onClick={() => void addPage(true)} className="rounded-lg border border-emerald-600 px-3 py-2 text-sm font-semibold text-emerald-700">Add to whole class</button>}
-              {isTeacher && selectedPage && <label className="rounded-lg border px-3 py-2 text-sm">Worksheet image <input type="file" accept="image/png,image/jpeg,image/webp" className="ml-2 max-w-[180px] text-xs" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleImage(file); }} /></label>}
-              {selectedPage ? <input value={pageTitle} onChange={(event) => { setPageTitle(event.target.value); setPageDirty(true); }} className="rounded-lg border px-3 py-1.5 text-sm font-semibold" placeholder="Page title" aria-label="Page title" /> : null}
-              {selectedPage ? <span className="text-sm text-slate-500">Page {selectedPage.pageIndex + 1} of {pages.length}</span> : null}
-              <button type="button" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) <= 0} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index > 0) setSelectedPageId(pages[index - 1].id); }} className="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40">Previous</button>
-              <button type="button" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) >= pages.length - 1} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index >= 0 && index < pages.length - 1) setSelectedPageId(pages[index + 1].id); }} className="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40">Next</button>
-              {pages.map((page) => <button key={page.id} type="button" onClick={() => setSelectedPageId(page.id)} className={`rounded-lg border px-3 py-1.5 text-sm ${selectedPage?.id === page.id ? "border-emerald-500 bg-emerald-50" : "bg-white"}`}>{page.title || `Page ${page.pageIndex + 1}`}</button>)}
-              {selectedPage && <button type="button" onClick={() => void movePage(-1)} className="rounded-lg border px-3 py-1.5 text-sm">↑</button>}
-              {selectedPage && <button type="button" onClick={() => void movePage(1)} className="rounded-lg border px-3 py-1.5 text-sm">↓</button>}
-              {selectedPage && isTeacher && <button type="button" onClick={async () => { await deleteNotebookPage(selectedPage.id); await loadNotebook(notebookStudentId); }} className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600">Delete page</button>}
-              <span className={`ml-auto text-xs ${saving === "failed" ? "text-red-600" : saving === "saving" ? "text-amber-600" : "text-emerald-700"}`}>{saving === "saving" ? "Saving…" : saving === "failed" ? "Save failed" : "Saved"}</span>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
+          <div className="flex min-h-10 shrink-0 items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm">
+            {isTeacher ? (
+              <>
+                <Select
+                  showSearch
+                  value={selectedStudentId || undefined}
+                  onChange={setSelectedStudentId}
+                  optionFilterProp="label"
+                  placeholder="Select a student"
+                  className="w-[300px] max-w-full flex-none"
+                  options={students.map((student) => ({ value: student.id, label: `${student.name} — ${student.pageCount} pages` }))}
+                />
+                <button type="button" onClick={() => setMaterialModalOpen(true)} className="shrink-0 rounded-lg border border-emerald-600 px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                  Add material
+                </button>
+              </>
+            ) : <span className="text-sm font-medium text-slate-600">My notebook</span>}
+            <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${saving === "failed" ? "bg-red-100 text-red-700" : saving === "saving" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+              {saving === "saving" ? "Saving…" : saving === "failed" ? "Save failed" : "Saved"}
+            </span>
+          </div>
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="mb-2 flex shrink-0 items-center justify-end gap-1">
+              {selectedPage ? <span className="mr-1 text-xs text-slate-500">Page {selectedPage.pageIndex + 1} of {pages.length}</span> : null}
+              <button type="button" aria-label="Previous page" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) <= 0} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index > 0) setSelectedPageId(pages[index - 1].id); }} className="rounded border bg-white p-1 text-slate-600 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+              <button type="button" aria-label="Next page" disabled={!selectedPage || pages.findIndex((page) => page.id === selectedPage.id) >= pages.length - 1} onClick={() => { const index = pages.findIndex((page) => page.id === selectedPage?.id); if (index >= 0 && index < pages.length - 1) setSelectedPageId(pages[index + 1].id); }} className="rounded border bg-white p-1 text-slate-600 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            {selectedPage && isTeacher ? <details className="mb-3 shrink-0 rounded-lg border bg-white px-3 py-2 text-sm" open={worksheetOpen} onToggle={(event) => setWorksheetOpen(event.currentTarget.open)}><summary className="cursor-pointer font-medium text-slate-600">Worksheet text</summary><textarea value={background.text || ""} onChange={(event) => { setBackground({ ...background, text: event.target.value }); setPageDirty(true); }} placeholder="Optional worksheet text/content" className="mt-2 min-h-16 w-full rounded-lg border p-2 text-sm" /></details> : null}
             <div className="flex min-h-0 flex-1 gap-3">
               <div className={`flex min-h-0 shrink-0 flex-col ${tocOpen ? "w-36" : "w-9"}`}>
                 <button type="button" onClick={() => setTocOpen((open) => !open)} className="mb-2 rounded-lg border bg-white px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
                   {tocOpen ? "Hide pages" : "Pages"}
                 </button>
                 {tocOpen ? (
-                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                    {pages.map((page) => {
-                      const live = selectedPage?.id === page.id;
-                      return (
-                        <NotebookPageThumbnail
-                          key={page.id}
-                          page={page}
-                          active={live}
-                          studentAnnotations={live ? annotations : undefined}
-                          teacherAnnotations={live ? teacherAnnotations : undefined}
-                          title={live ? pageTitle : undefined}
-                          heading={live ? heading : undefined}
-                          onClick={() => setSelectedPageId(page.id)}
-                        />
-                      );
-                    })}
+                  <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                    {isTeacher ? (
+                      <Dropdown
+                        menu={{ items: [
+                          { key: "new", label: "New page", onClick: () => void addPage(false) },
+                          { key: "class", label: "New page for whole class", onClick: () => void addPage(true) },
+                        ] }}
+                        trigger={["click"]}
+                      >
+                        <button type="button" className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white"><Plus className="h-3.5 w-3.5" /> Add page</button>
+                      </Dropdown>
+                    ) : (
+                      <button type="button" onClick={() => void addPage(false)} className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white"><Plus className="h-3.5 w-3.5" /> Add page</button>
+                    )}
+                    <DragDropContext onDragEnd={(result) => void handleDragEnd(result)}>
+                      <Droppable droppableId="notebook-pages">
+                        {(provided) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                            {pages.map((page, index) => {
+                              const live = selectedPage?.id === page.id;
+                              return (
+                                <Draggable key={page.id} draggableId={String(page.id)} index={index}>
+                                  {(dragProvided) => (
+                                    <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} className="relative">
+                                      <NotebookPageThumbnail
+                                        page={page}
+                                        active={live}
+                                        studentAnnotations={live ? annotations : undefined}
+                                        teacherAnnotations={live ? teacherAnnotations : undefined}
+                                        title={live ? pageTitle : undefined}
+                                        heading={live ? heading : undefined}
+                                        material={live ? selectedPage?.material : page.material}
+                                        titleEditing={renamingPageId === page.id}
+                                        onTitleChange={setRenameValue}
+                                        onTitleCommit={commitRename}
+                                        dragHandleProps={dragProvided.dragHandleProps}
+                                        onClick={() => setSelectedPageId(page.id)}
+                                      />
+                                      <Dropdown menu={{ items: pageMenu(page) }} trigger={["click"]}>
+                                        <button type="button" aria-label={`Page ${index + 1} menu`} onClick={(event) => event.stopPropagation()} className="absolute right-3 top-3 rounded bg-white/90 p-1 text-slate-500 shadow hover:text-slate-800"><MoreVertical className="h-4 w-4" /></button>
+                                      </Dropdown>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
                   </div>
                 ) : null}
               </div>
-              {selectedPage ? <NotebookPageCanvas heading={heading} onHeadingChange={(next) => { setHeading(next.slice(0, 255)); setPageDirty(true); }} background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
+              {selectedPage ? <NotebookPageCanvas material={selectedPage.material} heading={heading} onHeadingChange={(next) => { setHeading(next.slice(0, 255)); setPageDirty(true); }} background={background} annotations={isTeacher ? teacherAnnotations : annotations} displayAnnotations={isTeacher ? [...annotations, ...teacherAnnotations] : annotations} readOnly={false} onChange={(next) => { if (isTeacher) setTeacherAnnotations(next); else setAnnotations(next); setPageDirty(true); }} /> : <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border bg-white p-8 text-center text-slate-500">No pages yet. Add a page to begin.</div>}
             </div>
           </section>
         </div>
       )}
-    </main>
+      <Modal
+        title="Worksheet text"
+        open={worksheetOpen}
+        onCancel={() => setWorksheetOpen(false)}
+        footer={null}
+        destroyOnHidden
+      >
+        <textarea
+          value={background.text || ""}
+          onChange={(event) => {
+            setBackground({ ...background, text: event.target.value });
+            setPageDirty(true);
+          }}
+          placeholder="Optional worksheet text/content"
+          className="min-h-32 w-full rounded-lg border p-2 text-sm"
+        />
+      </Modal>
+      <NotebookMaterialModal
+        open={materialModalOpen}
+        subjectId={subjectId}
+        subjectClassId={subjectClassId}
+        classId={classId}
+        students={students}
+        onClose={() => setMaterialModalOpen(false)}
+        onCompleted={() => {
+          setMaterialModalOpen(false);
+          void loadNotebook(notebookStudentId);
+        }}
+      />
+      </main>
+    </>
   );
 }

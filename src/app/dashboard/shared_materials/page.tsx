@@ -17,7 +17,10 @@ import { FileText, Eye, Download, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import dayjs from "dayjs";
 import { fetchStudentMaterials, uploadMaterial } from "@/services/materialApi";
+import { listNotebookMaterials } from "@/services/classNotebookApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { useSubjectContext } from "@/contexts/SubjectContext";
+import { useSearchParams } from "next/navigation";
 
 export default function SharedMaterialsPage() {
   const [sharedMaterials, setSharedMaterials] = useState<any[]>([]);
@@ -27,15 +30,22 @@ export default function SharedMaterialsPage() {
 
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const { activeSubjectId } = useSubjectContext();
+  const searchParams = useSearchParams();
+  const subjectId = Number(searchParams.get("subject_id") || activeSubjectId || 0);
 
   // Fetch shared materials
   const loadSharedMaterials = async () => {
     try {
       setLoading(true);
-      const data = await fetchStudentMaterials();
+      const [data, notebookResult] = await Promise.all([
+        fetchStudentMaterials(subjectId || undefined),
+        subjectId ? listNotebookMaterials(subjectId).catch(() => ({ materials: [] })) : Promise.resolve({ materials: [] }),
+      ]);
 
       const formatted = data?.map((m: any) => ({
         id: m?.id,
+        kind: "laravel",
         title: m?.title,
         teacher: m?.teacher?.teacher_name || "Unknown",
         class: m?.classes?.class_name || "N/A",
@@ -43,7 +53,16 @@ export default function SharedMaterialsPage() {
         file_path: `${IMG_BASE_URL || ""}/storage/${m?.file_path}`,
       }));
 
-      setSharedMaterials(formatted);
+      const notebookRows = (notebookResult.materials || []).map((material) => ({
+        id: `notebook-${material.id}`,
+        kind: "notebook",
+        title: material.name,
+        teacher: "Notebook material",
+        class: `${material.pageCount} page${material.pageCount === 1 ? "" : "s"}`,
+        date: dayjs(material.createdAt).format("MMM D, YYYY"),
+    materialUrl: `/dashboard/s/${subjectId}/class_notebook`,
+      }));
+      setSharedMaterials([...(formatted || []), ...notebookRows]);
     } catch (err: any) {
       message.error(err.message || "Failed to load shared materials");
     } finally {
@@ -53,7 +72,7 @@ export default function SharedMaterialsPage() {
 
   useEffect(() => {
     loadSharedMaterials();
-  }, []);
+  }, [subjectId]);
 
   const openUploadModal = (record: any) => {
     setSelectedMaterial(record);
@@ -103,7 +122,12 @@ export default function SharedMaterialsPage() {
       title: "View Material",
       key: "file_path",
       render: (_: any, record: any) =>
-        record.file_path ? (
+        record.kind === "notebook" ? (
+          <Link href={record.materialUrl} className="text-[#38C16C] hover:text-green-700 font-medium flex items-center gap-1">
+            <Eye size={16} />
+            Open notebook
+          </Link>
+        ) : record.file_path ? (
           <a
             href={record.file_path}
             target="_blank"
@@ -128,7 +152,11 @@ export default function SharedMaterialsPage() {
       key: "actions",
       render: (_: any, record: any) => (
         <Space>
-          {record.file_path ? (
+          {record.kind === "notebook" ? (
+            <Button type="text" onClick={() => window.location.assign(record.materialUrl)}>
+              <Eye size={18} className="text-green-600" />
+            </Button>
+          ) : record.file_path ? (
             <Button
               type="text"
               icon={<Download size={18} className="text-green-600" />}
@@ -139,11 +167,11 @@ export default function SharedMaterialsPage() {
               <Download size={18} />
             </Button>
           )}
-          <Button
+          {record.kind !== "notebook" ? <Button
             type="text"
             icon={<UploadCloud size={18} className="text-blue-600" />}
             onClick={() => openUploadModal(record)}
-          />
+          /> : null}
         </Space>
       ),
     },

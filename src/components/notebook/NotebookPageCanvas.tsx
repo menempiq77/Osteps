@@ -2,22 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { Popover } from "antd";
 import { uploadNotebookImage } from "@/services/classNotebookApi";
 import {
   Eraser,
   Highlighter,
   MousePointer2,
+  Palette,
   PenTool,
   Redo2,
   Type,
+  ZoomIn,
   Undo2,
 } from "lucide-react";
 import {
+  NOTEBOOK_DOCX_FLOW,
   NOTEBOOK_PAGE_HEIGHT,
   NOTEBOOK_PAGE_WIDTH,
   type NotebookAnnotation,
   type NotebookBackground,
   type NotebookImageAnnotation,
+  type NotebookMaterial,
   type NotebookPenAnnotation,
   type NotebookTextAnnotation,
 } from "@/lib/classNotebook";
@@ -27,6 +32,7 @@ type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 
 type Props = {
   background: NotebookBackground;
+  material?: NotebookMaterial | null;
   heading: string | null;
   annotations: NotebookAnnotation[];
   displayAnnotations?: NotebookAnnotation[];
@@ -173,6 +179,7 @@ const annotationHit = (annotation: NotebookAnnotation, point: { x: number; y: nu
 };
 
 export default function NotebookPageCanvas({
+  material,
   background,
   annotations,
   displayAnnotations,
@@ -588,25 +595,53 @@ export default function NotebookPageCanvas({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col gap-3">
       {!readOnly && (
-        <div className="flex shrink-0 items-center gap-2 overflow-x-auto rounded-xl border bg-white p-2 shadow-sm">
+        <div className="flex shrink-0 items-center gap-1 rounded-xl border bg-white p-2 shadow-sm">
           {toolButtons.map(([value, Icon, label]) => (
-            <button key={value} type="button" title={label} onClick={() => setTool(value)} className={`rounded-lg p-2 ${tool === value ? "bg-emerald-100 text-emerald-700" : "hover:bg-slate-100"}`}>
+            <button key={value} type="button" title={label} aria-label={label} onClick={() => setTool(value)} className={`rounded-lg p-2 ${tool === value ? "bg-emerald-100 text-emerald-700" : "hover:bg-slate-100"}`}>
               <Icon className="h-4 w-4" />
             </button>
           ))}
-          <button type="button" onClick={undo} title="Undo" className="rounded-lg p-2 hover:bg-slate-100"><Undo2 className="h-4 w-4" /></button>
-          <button type="button" onClick={redo} title="Redo" className="rounded-lg p-2 hover:bg-slate-100"><Redo2 className="h-4 w-4" /></button>
-          <div className="flex items-center gap-1">{COLORS.map((entry) => <button key={entry} type="button" aria-label={entry} onClick={() => setColor(entry)} className={`h-5 w-5 rounded-full border ${color === entry ? "ring-2 ring-emerald-500 ring-offset-1" : ""}`} style={{ backgroundColor: entry }} />)}</div>
-          <select value={tool === "highlighter" ? highlighterWidth : penWidth} onChange={(event) => tool === "highlighter" ? setHighlighterWidth(Number(event.target.value)) : setPenWidth(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">
-            {(tool === "highlighter" ? HIGHLIGHT_WIDTHS : PEN_WIDTHS).map((value) => <option key={value} value={value}>{value}px</option>)}
-          </select>
-          <select value={textSize} onChange={(event) => setTextSize(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">{TEXT_SIZES.map((value) => <option key={value} value={value}>{value}px</option>)}</select>
-          <button type="button" onClick={() => setBold((value) => !value)} className={`rounded px-2 py-1 text-xs font-bold ${bold ? "bg-emerald-100" : "hover:bg-slate-100"}`}>B</button>
-          <button type="button" onClick={() => setUnderline((value) => !value)} className={`rounded px-2 py-1 text-xs underline ${underline ? "bg-emerald-100" : "hover:bg-slate-100"}`}>U</button>
-          <select value={textAlign} onChange={(event) => setTextAlign(event.target.value as typeof textAlign)} className="rounded border px-1 py-1 text-xs"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
-          <label className="ml-auto flex shrink-0 items-center gap-1 text-xs">Zoom <input type="range" min="0.25" max="2" step="0.05" value={zoom} onChange={(event) => { manualZoomRef.current = true; setZoom(Number(event.target.value)); }} /></label>
-          <button type="button" onClick={() => { manualZoomRef.current = false; setZoom(fitWidthZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit width</button>
-          <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
+          <button type="button" onClick={undo} title="Undo" aria-label="Undo" className="rounded-lg p-2 hover:bg-slate-100"><Undo2 className="h-4 w-4" /></button>
+          <button type="button" onClick={redo} title="Redo" aria-label="Redo" className="rounded-lg p-2 hover:bg-slate-100"><Redo2 className="h-4 w-4" /></button>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="w-44 space-y-3">
+              <div className="flex flex-wrap gap-2">{COLORS.map((entry) => <button key={entry} type="button" aria-label={entry} onClick={() => setColor(entry)} className={`h-6 w-6 rounded-full border ${color === entry ? "ring-2 ring-emerald-500 ring-offset-1" : ""}`} style={{ backgroundColor: entry }} />)}</div>
+              <label className="flex items-center justify-between gap-2 text-xs">Stroke width
+                <select value={tool === "highlighter" ? highlighterWidth : penWidth} onChange={(event) => tool === "highlighter" ? setHighlighterWidth(Number(event.target.value)) : setPenWidth(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">
+                  {(tool === "highlighter" ? HIGHLIGHT_WIDTHS : PEN_WIDTHS).map((value) => <option key={value} value={value}>{value}px</option>)}
+                </select>
+              </label>
+            </div>
+          }>
+            <button type="button" title="Colour and stroke" aria-label="Colour and stroke" className="rounded-lg p-2 hover:bg-slate-100"><span className="relative block h-4 w-4"><span className="absolute inset-0 rounded-full border" style={{ backgroundColor: color }} /><Palette className="relative h-4 w-4 opacity-70" /></span></button>
+          </Popover>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="flex w-48 flex-col gap-2 text-xs">
+              <label className="flex items-center justify-between gap-2">Text size
+                <select value={textSize} onChange={(event) => setTextSize(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">{TEXT_SIZES.map((value) => <option key={value} value={value}>{value}px</option>)}</select>
+              </label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setBold((value) => !value)} className={`rounded px-2 py-1 font-bold ${bold ? "bg-emerald-100" : "hover:bg-slate-100"}`}>B</button>
+                <button type="button" onClick={() => setUnderline((value) => !value)} className={`rounded px-2 py-1 underline ${underline ? "bg-emerald-100" : "hover:bg-slate-100"}`}>U</button>
+                <select value={textAlign} onChange={(event) => setTextAlign(event.target.value as typeof textAlign)} className="rounded border px-1 py-1"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+              </div>
+            </div>
+          }>
+            <button type="button" title="Text options" aria-label="Text options" className="rounded-lg px-2 py-1 text-sm font-bold hover:bg-slate-100">T</button>
+          </Popover>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="flex w-48 flex-col gap-2 text-xs">
+              <label className="flex items-center justify-between gap-2">Zoom
+                <input type="range" min="0.25" max="2" step="0.05" value={zoom} onChange={(event) => { manualZoomRef.current = true; setZoom(Number(event.target.value)); }} />
+              </label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { manualZoomRef.current = false; setZoom(fitWidthZoom); }} className="rounded border px-2 py-1 hover:bg-slate-100">Fit width</button>
+                <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="rounded border px-2 py-1 hover:bg-slate-100">Fit page</button>
+              </div>
+            </div>
+          }>
+            <button type="button" title="Zoom" aria-label="Zoom" className="rounded-lg p-2 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
+          </Popover>
         </div>
       )}
       {pasteError ? (
@@ -636,6 +671,53 @@ export default function NotebookPageCanvas({
                 style={{ left: annotation.x * zoom, top: annotation.y * zoom, width: annotation.width * zoom, height: annotation.height * zoom }}
               />
             ))}
+            {background.text ? (
+              <div
+                className="pointer-events-none absolute whitespace-pre-wrap text-slate-800"
+                style={{
+                  left: 40 * zoom,
+                  top: 92 * zoom,
+                  width: 714 * zoom,
+                  fontSize: 18 * zoom,
+                  lineHeight: `${28 * zoom}px`,
+                }}
+              >
+                {background.text}
+              </div>
+            ) : null}
+            {material ? (
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {material.kind === "docx" ? (
+                  <div
+                    className="absolute left-0 top-0"
+                    style={{
+                      width: NOTEBOOK_PAGE_WIDTH,
+                      height: NOTEBOOK_PAGE_HEIGHT,
+                      transform: `scale(${zoom})`,
+                      transformOrigin: "top left",
+                      fontFamily: NOTEBOOK_DOCX_FLOW.fontFamily,
+                      fontSize: NOTEBOOK_DOCX_FLOW.fontSize,
+                      lineHeight: NOTEBOOK_DOCX_FLOW.lineHeight,
+                      padding: NOTEBOOK_DOCX_FLOW.padding,
+                      columnWidth: NOTEBOOK_DOCX_FLOW.columnWidth,
+                      columnGap: NOTEBOOK_DOCX_FLOW.columnGap,
+                      columnFill: NOTEBOOK_DOCX_FLOW.columnFill,
+                      boxSizing: "border-box",
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        material.pages[background.materialPage || 0]?.html || "",
+                    }}
+                  />
+                ) : material.pages[background.materialPage || 0]?.imageUrl ? (
+                  <AuthenticatedNotebookImage
+                    src={material.pages[background.materialPage || 0].imageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-contain object-top"
+                  />
+                ) : null}
+              </div>
+            ) : null}
             {!readOnly ? (
               <input
                 value={heading || ""}
