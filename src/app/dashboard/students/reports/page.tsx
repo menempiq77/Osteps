@@ -9,7 +9,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
-import { addStudentTaskMarks } from "@/services/api";
+import { addStudentTaskMarks, updateTask } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
@@ -292,7 +292,7 @@ export default function ReportsPage() {
         console.error(err);
       }
     };
-    loadGrades(schoolId);
+    loadGrades(String(schoolId ?? ""));
   }, [schoolId]);
 
   useEffect(() => {
@@ -403,8 +403,8 @@ export default function ReportsPage() {
         }
 
         const [assessmentResponse, reportData] = await Promise.all([
-          fetchWholeAssessmentsReport(schoolId, scopedSubjectId),
-          fetchReportAssessments(schoolId, scopedSubjectId),
+          fetchWholeAssessmentsReport(String(schoolId), scopedSubjectId),
+          fetchReportAssessments(String(schoolId), scopedSubjectId),
         ]);
 
         // A newer fetch started while this one was in flight — discard these
@@ -794,7 +794,10 @@ export default function ReportsPage() {
       fd.append("allocated_marks", String(col.allocatedMarks));
       fd.append("task_type", "null");
       await updateTask(String(col.taskId), fd);
-      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
+      const updated = await fetchWholeAssessmentsReport(
+        String(schoolId),
+        scopedSubjectId
+      );
       setWholeAssesmentData(updated);
     } finally {
       setSavingRename(false);
