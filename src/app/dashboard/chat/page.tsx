@@ -230,9 +230,10 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 2000);
   }, []);
 
-  useEffect(() => {
-    if (!currentUser) return;
-    const poll = async () => {
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: async () => {
+      if (!currentUser) return;
       const count = await fetchUnreadCount().catch(() => 0);
       if (count > prevUnreadRef.current) {
         playMessageSound("receive");
@@ -241,10 +242,9 @@ export default function ChatPage() {
         }
       }
       prevUnreadRef.current = count;
-    };
-    poll();
-    return undefined;
-  }, [currentUser]);
+    },
+    enabled: Boolean(currentUser),
+  });
 
   const loadConversations = useCallback(async () => {
     if (!currentUser) return;
