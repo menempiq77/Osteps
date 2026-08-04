@@ -34,6 +34,7 @@ import {
   ImportFromSimilarSubjectModal,
   type ImportableItem,
 } from "@/components/modals/ImportFromSimilarSubjectModal";
+import { asRecord } from "@/lib/safeRecord";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -72,6 +73,11 @@ type ClassDynamic = {
 };
 
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const getBackendMessage = (error: unknown, fallback: string) => {
+  const response = asRecord(asRecord(error)?.response);
+  const data = asRecord(response?.data);
+  return String(data?.msg ?? data?.message ?? (error instanceof Error ? error.message : "") ?? fallback);
+};
 
 const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
   id: String(row.id ?? ""),
@@ -609,10 +615,7 @@ useEffect(() => {
       messageApi.success("Class added successfully");
     } catch (err) {
       let backendMessage =
-        (err as any)?.response?.data?.msg ||
-        (err as any)?.response?.data?.message ||
-        (err as any)?.response?.data?.data?.message ||
-        (err instanceof Error ? err.message : "Failed to add class");
+        getBackendMessage(err, "Failed to add class");
       
       // Detect duplicate key constraint violation and provide friendly message
       const messageStr = String(backendMessage ?? "");
@@ -689,11 +692,10 @@ useEffect(() => {
         setClassToDelete(null);
         return;
       } catch (err) {
-        const backendMessage =
-          (err as any)?.response?.data?.msg ||
-          (err as any)?.response?.data?.message ||
-          (err as Error)?.message ||
-          (showArchived ? "Failed to delete class permanently." : "Failed to archive class.");
+        const backendMessage = getBackendMessage(
+          err,
+          showArchived ? "Failed to delete class permanently." : "Failed to archive class."
+        );
         setError(String(backendMessage));
         messageApi.error(String(backendMessage));
         return;
@@ -721,10 +723,7 @@ useEffect(() => {
       messageApi.success("Class restored.");
     } catch (err) {
       const backendMessage =
-        (err as any)?.response?.data?.msg ||
-        (err as any)?.response?.data?.message ||
-        (err as Error)?.message ||
-        "Failed to restore class.";
+        getBackendMessage(err, "Failed to restore class.");
       setError(String(backendMessage));
       messageApi.error(String(backendMessage));
     }
