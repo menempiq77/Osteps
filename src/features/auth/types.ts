@@ -9,6 +9,7 @@ export interface User {
   token?: string;
   name?: string;
   profile_path?: string;
+  logo?: string;
   studentClass?:number;
   student?:number;
   studentClassName?: string;

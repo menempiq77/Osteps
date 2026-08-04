@@ -14,6 +14,7 @@ import {
   message,
 } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { DropResult } from "@hello-pangea/dnd";
 import {
   fetchTrackerTopics,
   addTrackerTopic,
@@ -25,12 +26,17 @@ import { assignTrackerQuiz, fetchQuizes } from "@/services/quizApi";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 interface Topic {
   id: number;
   tracker_id: number;
   title: string;
   type: string;
+  position?: number;
+  marks?: number | null;
+  quiz_id?: number | string;
+  quiz?: Record<string, unknown>;
   status_progress: {
     id: number;
     topic_id: number;
@@ -48,6 +54,7 @@ interface TrackerData {
   name: string;
   type: string;
   topics: Topic[];
+  status_progress?: Record<string, unknown>[];
 }
 interface Quiz {
   id: string;
@@ -56,6 +63,9 @@ interface Quiz {
   options?: string[];
   correctAnswer?: string;
   answer?: string;
+  name?: string;
+  subject_id?: number;
+  subject?: Record<string, unknown>;
 }
 
 interface NewTopicDraft {
@@ -72,11 +82,11 @@ function readQuizSubjectMap(): Record<string, number> {
   catch { return {}; }
 }
 
-function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+function filterQuizzesBySubject(quizzes: Quiz[], subjectId: number): Quiz[] {
   const map = readQuizSubjectMap();
   return quizzes.filter((q) => {
     // Primary: backend subject_id field (works in InPrivate / across sessions)
-    const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
+    const backendSubjectId = q.subject_id ?? asRecord(q.subject)?.id ?? null;
     if (backendSubjectId != null && Number(backendSubjectId) !== 0) {
       return Number(backendSubjectId) === subjectId;
     }
@@ -99,7 +109,7 @@ const normalizeProgressOption = (value: string) =>
     .toUpperCase();
 
 export default function TrackerTopicsPage() {
-  const { trackerId } = useParams();
+  const { trackerId } = useParams() as Record<string, string | undefined>;
   const router = useRouter();
   const [visibleTopics, setVisibleTopics] = useState(10);
   const [editingTopic, setEditingTopic] = useState<number | null>(null);
@@ -126,19 +136,19 @@ export default function TrackerTopicsPage() {
   const schoolId = currentUser?.school;
 
   useEffect(() => {
-    loadQuizzes(schoolId);
+    loadQuizzes(String(schoolId));
   }, [trackerId, schoolId, activeSubjectId, canUseSubjectContext]);
 
   const queryClient = useQueryClient();
 
-  const { data: trackerData, isLoading, error } = useQuery({
+  const { data: trackerData, isLoading, error } = useQuery<TrackerData>({
     queryKey: ["tracker-topics", trackerId],
     queryFn: () => fetchTrackerTopics(Number(trackerId)),
     enabled: !!trackerId,
     retry: 1,
   });
 
-  const topics = trackerData?.topics?.slice().sort((a, b) => (a.position || 0) - (b.position || 0)) || [];
+  const topics = trackerData?.topics?.slice().sort((a: Topic, b: Topic) => (a.position ?? 0) - (b.position ?? 0)) || [];
 
   const loadQuizzes = async (schoolId: string) => {
     try {
@@ -153,7 +163,7 @@ export default function TrackerTopicsPage() {
           ? filterQuizzesBySubject(response, Number(activeSubjectId))
           : response;
       setQuizzes(filtered);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to load quizzes", error);
       // message.error("Failed to load quizzes");
     } finally {
@@ -169,11 +179,11 @@ export default function TrackerTopicsPage() {
   };
 
   const startEditing = (topicId: number) => {
-    const topic = topics.find((t) => t.id === topicId);
+    const topic = topics.find((t: Topic) => t.id === topicId);
     if (topic) {
       setEditingTopic(topicId);
       setNewTopicTitle(topic.title);
-      setNewTopicMarks(topic.marks);
+      setNewTopicMarks(topic.marks ?? 0);
     }
   };
 
@@ -184,10 +194,10 @@ export default function TrackerTopicsPage() {
           title: newTopicTitle.trim(),
           marks: newTopicMarks,
         });
-        queryClient.invalidateQueries(["tracker-topics", trackerId]);
+        queryClient.invalidateQueries({ queryKey: ["tracker-topics", trackerId] });
         setEditingTopic(null);
         message.success("Topic updated successfully");
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to update topic", error);
         message.error("Failed to update topic");
       }
@@ -212,8 +222,8 @@ export default function TrackerTopicsPage() {
       message.success("Quiz assigned successfully");
       setIsAddingQuiz(false);
       setSelectedQuiz("");
-      queryClient.invalidateQueries(["tracker-topics", trackerId]);
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["tracker-topics", trackerId] });
+    } catch (error: unknown) {
       console.error("Failed to assign quiz", error);
       message.error("Failed to assign quiz");
     } finally {
@@ -286,11 +296,8 @@ export default function TrackerTopicsPage() {
             continue;
           }
           addedCount += 1;
-        } catch (error: any) {
-          const backendMsg =
-            error?.response?.data?.msg ||
-            error?.response?.data?.message ||
-            "Failed to add topic";
+        } catch (error: unknown) {
+          const backendMsg = errorMessage(error, "Failed to add topic");
           failedTopics.push({
             title: topic.title,
             marks: topic.marks,
@@ -300,7 +307,7 @@ export default function TrackerTopicsPage() {
       }
 
       if (addedCount > 0) {
-        queryClient.invalidateQueries(["tracker-topics", trackerId]);
+        queryClient.invalidateQueries({ queryKey: ["tracker-topics", trackerId] });
       }
 
       if (failedTopics.length === 0) {
@@ -326,15 +333,15 @@ export default function TrackerTopicsPage() {
   const deleteTopic = async (topicId: number) => {
     try {
       await deleteTrackerTopic(topicId);
-      queryClient.invalidateQueries(["tracker-topics", trackerId]);
+      queryClient.invalidateQueries({ queryKey: ["tracker-topics", trackerId] });
       message.success("Topic deleted successfully");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to delete topic", error);
       message.error("Failed to delete topic");
     }
   };
 
-  const handleDragEnd = async (result: any) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
     const items = Array.from(topics);
@@ -347,7 +354,6 @@ export default function TrackerTopicsPage() {
       topics: items,
     });
 
-
     const orders = items.map((topic, index) => ({
       id: topic.id,
       position: index + 1,
@@ -356,8 +362,8 @@ export default function TrackerTopicsPage() {
     try {
       await reorderTrackerTopics(orders);
       message.success("Topics reordered successfully");
-      queryClient.invalidateQueries(["tracker-topics", trackerId]);
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["tracker-topics", trackerId] });
+    } catch (error: unknown) {
       console.error("Failed to reorder topics", error);
       message.error("Failed to reorder topics");
     }
@@ -371,7 +377,10 @@ export default function TrackerTopicsPage() {
   //     )
   //   )
   // );
-  const statusTypes = trackerData?.status_progress?.map((sp) => sp.name) || [];
+  const statusTypes =
+    trackerData?.status_progress?.map((sp: Record<string, unknown>) =>
+      String(asRecord(sp)?.name || "")
+    ) || [];
 
   if (isLoading)
     return (
@@ -386,7 +395,7 @@ export default function TrackerTopicsPage() {
       <div className="p-3 md:p-6 flex justify-center items-center h-64">
         <div className="text-center">
           <p className="text-red-600 text-lg mb-2">Error loading tracker data</p>
-          <p className="text-gray-600">{error?.message || "Unknown error occurred"}</p>
+          <p className="text-gray-600">{errorMessage(error) || "Unknown error occurred"}</p>
           <p className="text-gray-500 text-sm mt-2">Check console for details</p>
         </div>
       </div>
@@ -554,7 +563,7 @@ export default function TrackerTopicsPage() {
                       <th className="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                         Topics
                       </th>
-                      {statusTypes.map((statusName, index) => (
+                      {statusTypes.map((statusName: string, index: number) => (
                         <th
                           key={index}
                           className="p-4 text-center text-sm font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
@@ -570,7 +579,7 @@ export default function TrackerTopicsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {topics?.slice(0, visibleTopics)?.map((topic, index) => (
+                    {topics?.slice(0, visibleTopics)?.map((topic: Topic, index: number) => (
                       <Draggable
                         key={`topic-${topic?.id}`}
                         draggableId={topic?.id.toString()}
@@ -637,14 +646,14 @@ export default function TrackerTopicsPage() {
                                     </div>
                                     <div className="ml-4">
                                       <div className="text-sm font-medium text-gray-900">
-                                        {topic?.title || topic?.quiz?.name}
+                                        {String(topic?.title || asRecord(topic?.quiz)?.name || "")}
                                       </div>
                                     </div>
                                   </div>
                                 )}
                               </div>
                             </td>
-                            {statusTypes?.map((statusName, index) => {
+                            {statusTypes?.map((statusName: string, index: number) => {
                               return (
                                 <td
                                   key={index}
