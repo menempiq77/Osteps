@@ -86,11 +86,24 @@ export default function Page() {
     studentId: number,
     taskId: number
   ) => {
-    const newData = [...apiData];
     const numValue = value === "" ? null : parseInt(value, 10);
+    const previousMarks =
+      apiData[studentIndex]?.tasks[taskIndex]?.teacher_assessment_marks ?? null;
 
-    newData[studentIndex].tasks[taskIndex].teacher_assessment_marks =
+    const updatedMarks =
       numValue !== null && Number.isFinite(numValue) ? numValue : null;
+    const newData = apiData.map((student, index) =>
+      index !== studentIndex
+        ? student
+        : {
+            ...student,
+            tasks: student.tasks.map((task, taskIndexValue) =>
+              taskIndexValue === taskIndex
+                ? { ...task, teacher_assessment_marks: updatedMarks }
+                : task
+            ),
+          }
+    );
     setApiData(newData);
 
     if (numValue !== null && Number.isFinite(numValue)) {
@@ -105,9 +118,20 @@ export default function Page() {
       } catch (error) {
         console.error("Error updating marks:", error);
         messageApi.error("Failed to update marks");
-        newData[studentIndex].tasks[taskIndex].teacher_assessment_marks =
-          apiData[studentIndex].tasks[taskIndex].teacher_assessment_marks;
-        setApiData([...newData]);
+        setApiData(
+          newData.map((student, index) =>
+            index !== studentIndex
+              ? student
+              : {
+                  ...student,
+                  tasks: student.tasks.map((task, taskIndexValue) =>
+                    taskIndexValue === taskIndex
+                      ? { ...task, teacher_assessment_marks: previousMarks }
+                      : task
+                  ),
+                }
+          )
+        );
       }
     }
   };
