@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import TermsList from "@/components/dashboard/TermsList";
 import { useParams } from "next/navigation";
 import { Modal, Spin, Form, Input, Button, Breadcrumb, message } from "antd";
@@ -25,7 +25,11 @@ export default function TermsPage() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [termToDelete, setTermToDelete] = useState<number | null>(null);
   const [form] = Form.useForm();
-  const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [selectedYearId, setSelectedYearId] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const savedYearId = window.localStorage.getItem("selectedYearId");
+    return savedYearId ? Number(savedYearId) : null;
+  });
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
 
@@ -42,13 +46,6 @@ export default function TermsPage() {
     queryFn: () => fetchTerm(Number(classId)),
     enabled: !!classId,
   });
-
-  useEffect(() => {
-    const savedYearId = localStorage.getItem("selectedYearId");
-    if (savedYearId) {
-      setSelectedYearId(Number(savedYearId));
-    }
-  }, [classId]);
 
   const addMutation = useMutation({
     mutationFn: (termData: { name: string }) =>
