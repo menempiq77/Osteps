@@ -82,7 +82,7 @@ export default function Page() {
         messageApi.error("Failed to load grades");
       }
     };
-    loadGrades(schoolId);
+    loadGrades(String(schoolId ?? ""));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
@@ -107,7 +107,7 @@ export default function Page() {
         }
         messageApi.success("Grade updated successfully");
       } else {
-        const response = await addGrade(gradeData);
+      const response = await addGrade({ ...gradeData });
         const newId: number | undefined =
           response?.data?.id ?? response?.id ?? undefined;
         if (inSubjectContext && newId) {
@@ -116,7 +116,7 @@ export default function Page() {
         messageApi.success("Grade added successfully");
       }
 
-      const updatedGrades = await fetchGrades(schoolId);
+      const updatedGrades = await fetchGrades(String(schoolId ?? ""));
       setAllGrades(updatedGrades);
       setOpen(false);
       setCurrentGrade(null);

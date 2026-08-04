@@ -80,7 +80,9 @@ export default function AssignmentsPage() {
     const data = impersonating
       ? await fetchAssessment(termId, scopedSubjectId)
       : await fetchAssessmentByStudent(termId, scopedSubjectId);
-    return Array.isArray(data) ? data.sort((a, b) => a.position - b.position) : [];
+    return Array.isArray(data)
+      ? data.sort((a, b) => Number(a.position) - Number(b.position))
+      : [];
   };
 
   const hasVisibleAssignmentsForTerm = (items: any[], termId: number) => {

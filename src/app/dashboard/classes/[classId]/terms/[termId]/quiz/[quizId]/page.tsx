@@ -31,6 +31,8 @@ interface QuizQuestion {
   correct_answer: number | null;
   options: Option[];
   marks: number;
+  created_at?: string;
+  updated_at?: string;
 }
 interface Quiz {
   id: number;
@@ -183,6 +185,7 @@ export default function QuranQuizPage() {
           question_text: values.question_text,
           type: values.type,
           correct_answer: correctAnswer,
+          marks: Number(values.marks ?? 1),
           options: options.map((opt, index) => ({
             id: index + 1, // Temporary ID until we get real IDs from backend
             option_text: opt,
@@ -361,7 +364,7 @@ export default function QuranQuizPage() {
                                 icon={<Trash2 size={14} />}
                                 onClick={() => {
                                   const values = quizForm.getFieldsValue();
-                                  const updatedValues = {};
+                                  const updatedValues: Record<string, unknown> = {};
                                   let shiftIndex = 1;
 
                                   for (let i = 1; i <= optionCount; i++) {

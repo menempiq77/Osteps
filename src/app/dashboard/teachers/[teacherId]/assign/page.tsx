@@ -56,7 +56,7 @@ export default function AssignTeacherPage() {
           new Map(years?.map((year: any) => [year.id, year])).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
+        const res = await fetchYearsBySchool(Number(schoolId));
         yearsData = res;
       }
       setYears(yearsData);

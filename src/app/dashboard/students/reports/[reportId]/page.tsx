@@ -59,7 +59,7 @@ export default function Page() {
         console.error(err);
       }
     };
-    loadGrades(schoolId);
+    loadGrades(String(schoolId ?? ""));
   }, [schoolId]);
 
   useEffect(() => {
@@ -89,16 +89,13 @@ export default function Page() {
     const newData = [...apiData];
     const numValue = value === "" ? null : parseInt(value, 10);
 
-    newData[studentIndex].tasks[taskIndex].teacher_assessment_marks = isNaN(
-      numValue
-    )
-      ? null
-      : numValue;
+    newData[studentIndex].tasks[taskIndex].teacher_assessment_marks =
+      numValue !== null && Number.isFinite(numValue) ? numValue : null;
     setApiData(newData);
 
-    if (!isNaN(numValue) && numValue !== null) {
+    if (numValue !== null && Number.isFinite(numValue)) {
       try {
-        await addStudentTaskMarks(studentId, {
+        await addStudentTaskMarks(Number(studentId), {
           assessment_id: Number(reportId),
           task_id: taskId,
           teacher_assessment_marks: numValue,

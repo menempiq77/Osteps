@@ -184,7 +184,7 @@ export default function QuranQuizPage() {
 
       const res = await submitQuizByStudent(
         quizData.id,
-        currentUser.student,
+        Number(currentUser.student),
         formattedAnswers,
         "tracker"
       );
@@ -405,4 +405,3 @@ export default function QuranQuizPage() {
     </div>
   );
 }
-

@@ -64,7 +64,7 @@ export default function AssignAssessmentPage() {
           new Map(years?.map((year: any) => [year.id, year])).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
+        const res = await fetchYearsBySchool(Number(schoolId));
         yearsData = res;
       }
       const safeYears = Array.isArray(yearsData) ? yearsData : [];
@@ -106,7 +106,7 @@ export default function AssignAssessmentPage() {
           (cls: any) => cls.year_id === Number(selectedYear)
         );
       } else {
-        return await fetchClasses(Number(selectedYear));
+        return await fetchClasses(String(selectedYear));
       }
     },
     enabled: !!selectedYear,

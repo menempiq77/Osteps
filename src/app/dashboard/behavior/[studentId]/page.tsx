@@ -862,7 +862,11 @@ const StudentBehaviorPage = () => {
                             </div>
                             <p className="mt-2 font-medium">{item.description}</p>
                             <p className="text-sm text-gray-500">
-                              Recorded by {item.teacher?.teacher_name || "Teacher"}{" "}
+                              Recorded by {
+                                typeof item.teacher === "string"
+                                  ? item.teacher
+                                  : item.teacher?.teacher_name || "Teacher"
+                              }{" "}
                               on {item.date}
                             </p>
                           </>

@@ -213,7 +213,7 @@ export default function Page() {
         });
 
         if (Array.isArray(subjectClasses) && subjectClasses.length > 0) {
-          classesData = subjectClasses
+          classesData = (subjectClasses
             .map((row: SubjectClassRow) => {
               const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
               const yId = String(row.year_id ?? "");
@@ -230,8 +230,7 @@ export default function Page() {
                   String(matchedBase?.id ?? "").trim(),
               };
             })
-            .filter((cls): cls is ApiClass => Boolean(cls))
-            .filter(
+            .filter((cls) => Boolean(cls)) as ApiClass[]).filter(
               (row) => Boolean(row.id) && Boolean(row.is_active) !== showArchived
             );
         } else {

@@ -83,7 +83,7 @@ export default function QuranQuizPage() {
     []
   );
   const [customMarks, setCustomMarks] = useState<Record<number, number>>({});
-  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
     {}
   );
   const [messageApi, contextHolder] = message.useMessage();
@@ -240,7 +240,7 @@ export default function QuranQuizPage() {
         ? maxMarks
         : 0;
 
-      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse);
+      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse, "");
       messageApi.success("Answer marked successfully");
 
       setSubmittedAnswers((prev) =>

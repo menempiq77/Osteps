@@ -380,8 +380,8 @@ export default function QuranQuizPage() {
 
       const res = await submitTaskQuizByStudent(
         quizData.id,
-        currentUser.student,
-        Id,
+        Number(currentUser.student),
+        Number(Id),
         formattedAnswers,
         "task",
         undefined,

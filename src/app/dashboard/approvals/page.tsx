@@ -14,6 +14,12 @@ import {
 } from "@/services/trackersApi";
 
 export default function ApprovalsPage() {
+  type ApprovalItem = {
+    id: number;
+    name: string;
+    created_at: string;
+    status: string;
+  };
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState([]);
   const [trackerData, setTrackerData] = useState([]);
@@ -23,7 +29,7 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       const data = await fetchQuizRequests();
-      const formatted = data.map((item) => ({
+      const formatted = data.map((item: ApprovalItem) => ({
         key: item.id,
         id: item.id,
         title: item.name,
@@ -43,7 +49,7 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       const data = await fetchTrackerRequests();
-      const formatted = data.map((item) => ({
+      const formatted = data.map((item: ApprovalItem) => ({
         key: item.id,
         id: item.id,
         title: item.name,

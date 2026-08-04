@@ -9,7 +9,7 @@ export const fetchGrades = async (schoolId: string) => {
   return response.data.data;
 };
 // add Grade
-export const addGrade = async (gradeData: { name: string }) => {
+export const addGrade = async (gradeData: Record<string, unknown>) => {
   const response = await api.post('/add-grades', gradeData);
   return response.data;
 };

@@ -144,7 +144,7 @@ export default function QuizResultPage() {
       return (
         Array.isArray(answer.answer) &&
         correctOptionIds.length === answer.answer.length &&
-        correctOptionIds.every(id => answer.answer.includes(id))
+        correctOptionIds.every(id => (answer.answer as number[]).includes(id))
       );
     }
 

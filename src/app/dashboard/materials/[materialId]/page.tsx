@@ -19,7 +19,7 @@ export default function Page() {
     try {
       setLoading(true);
 
-      const data = await fetchStudentSubmiitedMaterials(materialId);
+      const data = await fetchStudentSubmiitedMaterials(Number(materialId));
 
       setMaterial(data.material);
       setSubmissions(

@@ -463,7 +463,8 @@ export default function DashboardPage() {
     try {
       const response = await searchStudentProfile(value);
       console.log("Student search response:", response);
-      setStudents(response.data || []);
+      const responseData = (response as unknown as { data?: unknown }).data;
+      setStudents(Array.isArray(responseData) ? responseData : []);
     } catch (error) {
       console.error("Search student error:", error);
     } finally {
@@ -621,7 +622,7 @@ export default function DashboardPage() {
       const studentCounts = await Promise.all(
         uniqueClassIds.map(async (classId) => {
           try {
-            const students = (await fetchStudents(classId)) ?? [];
+            const students = (await fetchStudents(String(classId))) ?? [];
             return Array.isArray(students) ? students.length : 0;
           } catch {
             return 0;
@@ -2022,7 +2023,7 @@ export default function DashboardPage() {
                           </p>
                           {item.metaParts?.length ? (
                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-500 md:text-sm">
-                              {item.metaParts.map((part: string, index: number) => (
+                              {item.metaParts.filter((part): part is string => part != null).map((part: string, index: number) => (
                                 <span key={`${item.key}-meta-${part}-${index}`} className="flex items-center gap-2">
                                   {index > 0 ? <span className="text-slate-300">•</span> : null}
                                   <span>{part}</span>
