@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CourseLesson, LessonSection } from "./LessonCourseStepper";
@@ -530,9 +531,11 @@ export default function LessonDeckClient({ lesson }: Props) {
     return (
       <div className={"rounded-xl border border-blue-200 bg-blue-50 " + (compact ? "p-3" : "p-3")}>
         <div className="flex items-start gap-3">
-          <img
+          <Image
             src="/lessons/bloom-taxonomy-badge.svg"
             alt="Bloom taxonomy badge"
+            width={32}
+            height={32}
             className="mt-0.5 h-8 w-8 flex-shrink-0 rounded-full border border-blue-200 bg-white p-1"
           />
           <div className="min-w-0">

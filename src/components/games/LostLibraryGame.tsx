@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1207,9 +1208,11 @@ export default function LostLibraryGame() {
               top: `${player.y}%`,
             }}
           >
-            <img
+            <Image
               src="/games/lost-library/explorer.webp"
               alt="Your library explorer"
+              width={512}
+              height={512}
               className="h-auto w-full drop-shadow-[0_14px_8px_rgba(0,0,0,.5)]"
             />
             <span className="absolute bottom-0 left-1/2 h-2 w-2/3 -translate-x-1/2 rounded-full bg-black/45 blur-[3px]" />
