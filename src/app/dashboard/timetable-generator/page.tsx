@@ -37,8 +37,7 @@ const TeacherAvailabilityModal = dynamic(
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-// SCHOOL_DAYS: loaded from localStorage (configured in Timetable Builder → Periods)
-const SCHOOL_DAYS = loadSchoolDays();
+// schoolDays: loaded from localStorage (configured in Timetable Builder → Periods)
 
 // ── Unique ID helper ────────────────────────────────────────────────────────
 let _uid = 1;
@@ -67,6 +66,8 @@ export default function TimetableGeneratorPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((s: RootState) => s.auth);
   const schoolId = currentUser?.school;
+  const settingsScope = schoolId ?? "unknown";
+  const schoolDays = useMemo(() => loadSchoolDays(settingsScope), [settingsScope]);
 
   // ── Wizard step ─────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -94,7 +95,7 @@ export default function TimetableGeneratorPage() {
   const [saveProgress, setSaveProgress] = useState(0);
 
   // ── Periods from localStorage ───────────────────────────────────────────
-  const periods = useMemo(() => loadPeriods(), []);
+  const periods = useMemo(() => loadPeriods(settingsScope), [settingsScope]);
   const teachingPeriods = useMemo(() => periods.filter((p) => p.isTeaching), [periods]);
 
   // ── Data queries (for pre-loading) ──────────────────────────────────────
@@ -163,7 +164,7 @@ export default function TimetableGeneratorPage() {
       id: String(t.id),
       name: t.teacher_name || t.name || `Teacher ${t.id}`,
       subjectIds: [],
-      maxPeriodsPerWeek: teachingPeriods.length * SCHOOL_DAYS.length,
+      maxPeriodsPerWeek: teachingPeriods.length * schoolDays.length,
       availability: {},
     }));
     setWizardTeachers(teachers);
@@ -212,7 +213,7 @@ export default function TimetableGeneratorPage() {
           allocations: allocations.filter((a) => a.periodsPerWeek > 0),
           teachers: wizardTeachers,
           periods,
-          days: SCHOOL_DAYS,
+          days: schoolDays,
           constraints: { ...constraints, splitClassRules: splitRules },
         };
 
@@ -253,7 +254,7 @@ export default function TimetableGeneratorPage() {
 
     try {
       for (const slot of genResult.slots) {
-        const dayIdx = SCHOOL_DAYS.indexOf(slot.day);
+        const dayIdx = schoolDays.indexOf(slot.day);
         const slotDate = nextSunday.add(dayIdx, "day").format("YYYY-MM-DD");
 
         try {
@@ -336,6 +337,7 @@ export default function TimetableGeneratorPage() {
             setWizardTeachers={setWizardTeachers}
             subjectOptions={subjectOptions}
             teachingPeriods={teachingPeriods}
+            schoolDays={schoolDays}
             availModalTeacherId={availModalTeacherId}
             setAvailModalTeacherId={setAvailModalTeacherId}
             onLoadDB={loadTeachersFromDB}
@@ -364,6 +366,7 @@ export default function TimetableGeneratorPage() {
             onSave={saveToAPI}
             teachingPeriods={teachingPeriods}
             wizardTeachers={wizardTeachers}
+            schoolDays={schoolDays}
           />
         )}
       </div>
@@ -686,12 +689,13 @@ function StepSubjects({
 // ═════════════════════════════════════════════════════════════════════════════
 function StepTeachers({
   wizardTeachers, setWizardTeachers, subjectOptions, teachingPeriods,
-  availModalTeacherId, setAvailModalTeacherId, onLoadDB, hasDBData,
+  schoolDays, availModalTeacherId, setAvailModalTeacherId, onLoadDB, hasDBData,
 }: {
   wizardTeachers: GenTeacher[];
   setWizardTeachers: React.Dispatch<React.SetStateAction<GenTeacher[]>>;
   subjectOptions: { value: string; label: string }[];
   teachingPeriods: SchoolPeriod[];
+  schoolDays: string[];
   availModalTeacherId: string | null;
   setAvailModalTeacherId: (id: string | null) => void;
   onLoadDB: () => void;
@@ -707,7 +711,7 @@ function StepTeachers({
         id: uid(),
         name: newTeacherName.trim(),
         subjectIds: [],
-        maxPeriodsPerWeek: teachingPeriods.length * SCHOOL_DAYS.length,
+        maxPeriodsPerWeek: teachingPeriods.length * schoolDays.length,
         availability: {},
       },
     ]);
@@ -825,7 +829,7 @@ function StepTeachers({
       <TeacherAvailabilityModal
         open={!!availModalTeacherId}
         teacher={availTeacher ?? null}
-        schoolDays={SCHOOL_DAYS}
+        schoolDays={schoolDays}
         teachingPeriods={teachingPeriods}
         onClose={() => setAvailModalTeacherId(null)}
         onToggleAvailability={toggleAvailability}
@@ -979,7 +983,7 @@ function StepConstraints({
 function StepGenerate({
   generating, genProgress, genMessage, genResult,
   saving, saveProgress, onGenerate, onSave,
-  teachingPeriods, wizardTeachers,
+  teachingPeriods, wizardTeachers, schoolDays,
 }: {
   generating: boolean;
   genProgress: number;
@@ -991,6 +995,7 @@ function StepGenerate({
   onSave: () => void;
   teachingPeriods: SchoolPeriod[];
   wizardTeachers: GenTeacher[];
+  schoolDays: string[];
 }) {
   return (
     <Card title="Step 5 — Generate & Review">
@@ -1111,7 +1116,7 @@ function StepGenerate({
                     <thead>
                       <tr>
                         <th className="border p-1 bg-slate-50">Period</th>
-                        {SCHOOL_DAYS.map((d) => (
+                        {schoolDays.map((d) => (
                           <th key={d} className="border p-1 bg-slate-50">{d.slice(0, 3)}</th>
                         ))}
                       </tr>
@@ -1122,7 +1127,7 @@ function StepGenerate({
                           <td className="border p-1 text-center font-medium bg-slate-50">
                             {period.label}
                           </td>
-                          {SCHOOL_DAYS.map((day) => {
+                          {schoolDays.map((day) => {
                             const daySlots = genResult.slots.filter(
                               (s) => s.day === day && s.periodIndex === pi
                             );

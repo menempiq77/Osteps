@@ -15,6 +15,7 @@ const { Option } = Select;
 interface PeriodsConfigModalProps {
   open: boolean;
   onClose: () => void;
+  storageScope?: number | string | null;
   periods: SchoolPeriod[];
   schoolDays: string[];
   dayOverrides: DayPeriodOverrides;
@@ -30,6 +31,7 @@ const ALL = "__all__";
 export default function PeriodsConfigModal({
   open,
   onClose,
+  storageScope,
   periods,
   schoolDays,
   dayOverrides,
@@ -300,13 +302,14 @@ export default function PeriodsConfigModal({
           <Button
             size="small"
             danger
+            title="Reset the schedule, then click Save to persist the reset."
             onClick={() => {
-              setLocal(resetPeriodsToDefault());
-              setLocalDays(resetSchoolDaysToDefault());
+              setLocal(resetPeriodsToDefault(storageScope));
+              setLocalDays(resetSchoolDaysToDefault(storageScope));
               setLocalOverrides({});
             }}
           >
-            Reset to Default
+            Reset to Default (then Save)
           </Button>
         )}
       </div>

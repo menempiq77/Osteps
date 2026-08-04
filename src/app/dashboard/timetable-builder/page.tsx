@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import dayjs from "dayjs";
 import {
@@ -64,6 +64,8 @@ import {
   WeekLabel,
 } from "@/lib/timetablePattern";
 import { detectConflicts, hasHardConflict } from "@/lib/timetableConflicts";
+import { getAuthHeader } from "@/lib/apiClient";
+import type { TimetableSettings } from "@/lib/timetableSettings";
 
 const PeriodsConfigModal = dynamic(
   () => import("@/components/timetable/PeriodsConfigModal"),
@@ -136,6 +138,7 @@ export default function TimetablePage() {
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const schoolId = currentUser?.school ?? null;
+  const settingsScope = schoolId ?? "unknown";
   const role = String(currentUser?.role ?? "").toUpperCase();
   const isAdmin = role === "SCHOOL_ADMIN";
   const isHOD = role === "HOD";
@@ -143,25 +146,141 @@ export default function TimetablePage() {
   const isStudent = role === "STUDENT";
 
   // ── Config (school days / periods / A-B pattern) ──────────────────────────
-  const [periods, setPeriods] = useState<SchoolPeriod[]>(() => loadPeriods());
-  const [schoolDays, setSchoolDays] = useState<string[]>(() => loadSchoolDays());
-  const [dayOverrides, setDayOverrides] = useState<DayPeriodOverrides>(() =>
-    loadDayPeriods()
+  const [periods, setPeriods] = useState<SchoolPeriod[]>(() =>
+    loadPeriods(settingsScope)
   );
-  const [pattern, setPattern] = useState<TimetablePattern>(() => loadPattern());
+  const [schoolDays, setSchoolDays] = useState<string[]>(() =>
+    loadSchoolDays(settingsScope)
+  );
+  const [dayOverrides, setDayOverrides] = useState<DayPeriodOverrides>(() =>
+    loadDayPeriods(settingsScope)
+  );
+  const [pattern, setPattern] = useState<TimetablePattern>(() =>
+    loadPattern(settingsScope)
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const [patternOpen, setPatternOpen] = useState(false);
+  const [activeWeek, setActiveWeek] = useState<WeekLabel>(() =>
+    weekLabelForDate(loadPattern(settingsScope))
+  );
+  const settingsLoadVersion = useRef(0);
+  const settingsSaveVersion = useRef(0);
+  const settingsSaveQueue = useRef<Promise<void>>(Promise.resolve());
 
   const orderedDays = useMemo(
-    () =>
-      DAYS_OF_WEEK.map((d) => d.value).filter((d) => schoolDays.includes(d)),
+    () => {
+      const validDays = new Set<string>(DAYS_OF_WEEK.map((day) => day.value));
+      return schoolDays.filter((day) => validDays.has(day));
+    },
     [schoolDays]
   );
 
-  // Active A/B week (defaults to whatever this calendar week is)
-  const [activeWeek, setActiveWeek] = useState<WeekLabel>(() =>
-    weekLabelForDate(loadPattern())
+  const cacheSettings = useCallback((settings: TimetableSettings) => {
+    try {
+      savePeriods(settings.periods, settingsScope);
+      saveSchoolDays(settings.schoolDays, settingsScope);
+      saveDayPeriods(settings.dayOverrides, settingsScope);
+      savePattern(settings.pattern, settingsScope);
+    } catch {
+      // The server remains authoritative if browser storage is unavailable.
+    }
+  }, [settingsScope]);
+
+  const applySettings = useCallback(
+    (settings: TimetableSettings) => {
+      setPeriods(settings.periods);
+      setSchoolDays(settings.schoolDays);
+      setDayOverrides(settings.dayOverrides);
+      setPattern(settings.pattern);
+      cacheSettings(settings);
+    },
+    [cacheSettings]
   );
+
+  const persistSettings = useCallback(
+    (settings: TimetableSettings): Promise<boolean> => {
+      const saveVersion = ++settingsSaveVersion.current;
+      const operation = settingsSaveQueue.current
+        .catch(() => undefined)
+        .then(async () => {
+          const response = await fetch("/api/timetable-settings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeader(),
+            },
+            body: JSON.stringify(settings),
+          });
+          if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+          }
+          const body = (await response.json()) as {
+            settings?: TimetableSettings;
+          };
+          const savedSettings = body.settings ?? settings;
+          if (saveVersion !== settingsSaveVersion.current) return false;
+          applySettings(savedSettings);
+          messageApi.success("Timetable settings saved");
+          return true;
+        })
+        .catch((error) => {
+          if (saveVersion === settingsSaveVersion.current) {
+            cacheSettings(settings);
+            messageApi.error(
+              "Timetable settings were saved locally, but the server save failed. Please retry."
+            );
+          }
+          console.error("Failed to save timetable settings:", error);
+          return false;
+        });
+      settingsSaveQueue.current = operation.then(() => undefined, () => undefined);
+      return operation;
+    },
+    [applySettings, cacheSettings, messageApi]
+  );
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const loadVersion = ++settingsLoadVersion.current;
+    const saveVersionAtStart = settingsSaveVersion.current;
+    let cancelled = false;
+
+    const loadSettings = async () => {
+      try {
+        const response = await fetch("/api/timetable-settings", {
+          headers: getAuthHeader(),
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        const body = (await response.json()) as {
+          settings?: TimetableSettings | null;
+        };
+        if (
+          cancelled ||
+          loadVersion !== settingsLoadVersion.current ||
+          saveVersionAtStart !== settingsSaveVersion.current ||
+          !body.settings
+        ) {
+          return;
+        }
+        applySettings(body.settings);
+        setActiveWeek(weekLabelForDate(body.settings.pattern));
+      } catch (error) {
+        if (!cancelled) {
+          messageApi.warning(
+            "Using cached timetable settings because the server settings could not be loaded."
+          );
+          console.error("Failed to load timetable settings:", error);
+        }
+      }
+    };
+
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [applySettings, messageApi, schoolId]);
+
   const thisCalendarWeek = useMemo(() => weekLabelForDate(pattern), [pattern]);
 
   // Date range of the current school week (first → last school day this week).
@@ -1254,11 +1373,17 @@ export default function TimetablePage() {
         title="Weekly pattern"
         open={patternOpen}
         onCancel={() => setPatternOpen(false)}
-        onOk={() => {
-          savePattern(pattern);
-          setActiveWeek(weekLabelForDate(pattern));
-          setPatternOpen(false);
-          messageApi.success("Pattern saved");
+        onOk={async () => {
+          const saved = await persistSettings({
+            periods,
+            schoolDays,
+            dayOverrides,
+            pattern,
+          });
+          if (saved) {
+            setActiveWeek(weekLabelForDate(pattern));
+            setPatternOpen(false);
+          }
         }}
         okText="Save"
       >
@@ -1311,16 +1436,20 @@ export default function TimetablePage() {
       <PeriodsConfigModal
         open={configOpen}
         onClose={() => setConfigOpen(false)}
+        storageScope={settingsScope}
         periods={periods}
         schoolDays={schoolDays}
         dayOverrides={dayOverrides}
         onChange={(p, d, ov) => {
           setPeriods(p);
-          savePeriods(p);
           setSchoolDays(d);
-          saveSchoolDays(d);
           setDayOverrides(ov);
-          saveDayPeriods(ov);
+          void persistSettings({
+            periods: p,
+            schoolDays: d,
+            dayOverrides: ov,
+            pattern,
+          });
         }}
       />
     </div>
