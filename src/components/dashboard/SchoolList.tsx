@@ -1,7 +1,7 @@
 "use client";
 import { DeleteOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 
-type School = {
+export type School = {
   id: string | number;
   name: string;
   adminEmail?: string;
