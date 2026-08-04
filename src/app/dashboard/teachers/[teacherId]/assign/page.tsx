@@ -9,12 +9,15 @@ import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assignTeacherToClass, unassignTeacherFromClass } from "@/services/teacherApi";
+type YearRecord = { id: string | number; name?: string };
+type TeacherClass = { id: number; class_name: string; year_id?: number | string; year?: YearRecord; assigned_teachers?: Array<{ teacher_id?: number | string; status?: string }> };
+type AssignmentYear = { classes?: TeacherClass; teacher_name?: string; teacher?: { name?: string }; year?: YearRecord };
 
 export default function AssignTeacherPage() {
   const { teacherId } = useParams<{ teacherId: string }>();
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
-  const [years, setYears] = useState<any[]>([]);
+  const [years, setYears] = useState<YearRecord[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -23,37 +26,20 @@ export default function AssignTeacherPage() {
   const isTeacher = currentUser?.role === "TEACHER";
   const schoolId = currentUser?.school;
 
-  if (!canManageAssignments) {
-    return (
-      <div className="p-3 md:p-6">
-        <Breadcrumb
-          items={[
-            { title: <Link href="/dashboard">Dashboard</Link> },
-            { title: <Link href="/dashboard/teachers">All Teacher</Link> },
-            { title: <span>Assign Teacher</span> },
-          ]}
-          className="!mb-4"
-        />
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          Only School Admin can assign or unassign teachers.
-        </div>
-      </div>
-    );
-  }
 
   const loadYears = async () => {
     try {
       setLoading(true);
-      let yearsData: any[] = [];
+      let yearsData: YearRecord[] = [];
 
       if (isTeacher) {
         const res = await fetchAssignYears();
-        const years = res
-          .map((item: any) => item?.classes?.year)
-          .filter((year: any) => year);
+        const years = (res as AssignmentYear[])
+          .map((item) => item?.classes?.year)
+          .filter((year): year is YearRecord => Boolean(year));
 
         yearsData = Array.from(
-          new Map(years?.map((year: any) => [year.id, year])).values()
+          new Map(years?.map((year) => [year.id, year] as const)).values()
         );
       } else {
         const res = await fetchYearsBySchool(Number(schoolId));
@@ -84,25 +70,25 @@ export default function AssignTeacherPage() {
     data: classes = [],
     isLoading,
     isError,
-  } = useQuery({
+  } = useQuery<TeacherClass[]>({
     queryKey: ["classes", selectedYear, isTeacher],
     queryFn: async () => {
       if (!selectedYear) return [];
       if (isTeacher) {
         const res = await fetchAssignYears();
-        let classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+        let classesData = (res as AssignmentYear[])
+          .map((item) => item.classes)
+          .filter((cls): cls is TeacherClass => Boolean(cls));
 
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+          new Map(classesData.map((cls) => [cls.id, cls] as const)).values()
         );
 
         return classesData.filter(
-          (cls: any) => cls.year_id === Number(selectedYear)
+          (cls) => cls.year_id === Number(selectedYear)
         );
       } else {
-        return await fetchClasses(selectedYear as string);
+        return (await fetchClasses(selectedYear as string)) as unknown as TeacherClass[];
       }
     },
     enabled: !!selectedYear,
@@ -133,6 +119,24 @@ export default function AssignTeacherPage() {
       messageApi.error("Failed to unassign teacher");
     }
   };
+
+  if (!canManageAssignments) {
+    return (
+      <div className="p-3 md:p-6">
+        <Breadcrumb
+          items={[
+            { title: <Link href="/dashboard">Dashboard</Link> },
+            { title: <Link href="/dashboard/teachers">All Teacher</Link> },
+            { title: <span>Assign Teacher</span> },
+          ]}
+          className="!mb-4"
+        />
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+          Only School Admin can assign or unassign teachers.
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -200,11 +204,11 @@ export default function AssignTeacherPage() {
           </thead>
           <tbody>
             {classes.length > 0 ? (
-              classes.map((cls: any, index: number) => {
+              classes.map((cls, index: number) => {
                 // pick the status of the teacher for this class (if any)
                 const status =
                     cls.assigned_teachers?.find(
-                      (t: any) => t.teacher_id === Number(teacherId)
+                      (t) => t.teacher_id === Number(teacherId)
                     )?.status || "N/A";
 
                 return (
