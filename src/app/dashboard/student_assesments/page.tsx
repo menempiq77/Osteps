@@ -22,11 +22,13 @@ import {
 } from "@/lib/teacherAssignedClasses";
 
 const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
-  const schoolYearById = new Map(
-    (Array.isArray(schoolYears) ? schoolYears : [])
-      .map((year: any) => [Number(year?.id), year])
-      .filter(([id]) => Number.isFinite(id) && id > 0)
-  );
+  const schoolYearById = new Map<number, { name?: string }>();
+  for (const year of Array.isArray(schoolYears) ? schoolYears : []) {
+    const id = Number(year?.id);
+    if (Number.isFinite(id) && id > 0) {
+      schoolYearById.set(id, year);
+    }
+  }
   const yearsById = new Map<number, any>();
 
   (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item: any) => {
@@ -127,7 +129,7 @@ export default function StudentAssessmentPage() {
         const teacherClasses = buildTeacherAssignedClassOptions(await fetchAssignYears());
         return buildYearOptionsFromTeacherClasses(teacherClasses);
       } else {
-        return await fetchYearsBySchool(schoolId);
+        return await fetchYearsBySchool(Number(schoolId));
       }
     },
     enabled: !subjectContextLoading && !(canUseSubjectContext && !activeSubjectId),
@@ -197,7 +199,7 @@ export default function StudentAssessmentPage() {
           selectedYear
         );
       } else {
-        return await fetchClasses(Number(selectedYear));
+        return await fetchClasses(String(selectedYear));
       }
     },
     enabled: !!selectedYear,
@@ -232,7 +234,7 @@ export default function StudentAssessmentPage() {
   const loadTerms = async () => {
     try {
       setLoading(true);
-      const response = await fetchTerm(selectedClass);
+      const response = await fetchTerm(Number(selectedClass));
       setTerms(response);
       if (response.length > 0) {
         setSelectedTermId(response[0].id);
@@ -374,8 +376,8 @@ export default function StudentAssessmentPage() {
               loading={classesLoading}
               disabled={!selectedYear}
             >
-              {classes?.map((cls) => (
-                <Select.Option key={cls?.id} value={cls?.id.toString()}>
+              {classes?.map((cls: { id?: string | number; class_name?: string }) => (
+                <Select.Option key={cls?.id} value={String(cls?.id ?? "")}>
                   {cls?.class_name}
                 </Select.Option>
               ))}
