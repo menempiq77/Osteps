@@ -30,6 +30,20 @@ import {
 } from "@/components/modals/ImportFromSimilarSubjectModal";
 
 type Assessment = AssessmentListItem;
+type QuizRecord = {
+  id: string | number;
+  name: string;
+  subject_id?: string | number | null;
+  subject?: { id?: string | number | null };
+};
+type AssessmentImportRow = {
+  id: string | number;
+  name?: string;
+  type?: string;
+  subject_id?: string | number | null;
+  subject?: { id?: string | number | null };
+  quiz?: { name?: string };
+};
 
 const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
@@ -40,7 +54,7 @@ function readQuizSubjectMap(): Record<string, number> {
   catch { return {}; }
 }
 
-function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+function filterQuizzesBySubject(quizzes: QuizRecord[], subjectId: number): QuizRecord[] {
   const map = readQuizSubjectMap();
   return quizzes.filter((q) => {
     const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
@@ -92,7 +106,7 @@ export default function Page() {
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [rawAssessments, setRawAssessments] = useState<Assessment[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [rawQuizzes, setRawQuizzes] = useState<any[]>([]);
+  const [rawQuizzes, setRawQuizzes] = useState<QuizRecord[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
     null
   );
@@ -266,11 +280,11 @@ export default function Page() {
   ): Promise<ImportableItem[]> => {
     const rows = await fetchSchoolAssessment(schoolIdNum, sourceSubjectId);
     return (Array.isArray(rows) ? rows : [])
-      .filter((row: any) => {
+      .filter((row: AssessmentImportRow) => {
         const rowSubjectId = Number(row?.subject_id ?? row?.subject?.id ?? 0);
         return rowSubjectId === 0 || rowSubjectId === sourceSubjectId;
       })
-      .map((row: any) => ({
+      .map((row: AssessmentImportRow) => ({
         id: row.id,
         name: row.name ?? row?.quiz?.name ?? "Untitled",
         description: row.type === "quiz" ? "Quiz" : undefined,

@@ -13,13 +13,20 @@ import {
   rejectTrackerRequest,
 } from "@/services/trackersApi";
 
+type ApprovalItem = {
+  id: number;
+  title: string;
+  date: string;
+  status: string;
+};
+type ApprovalApiItem = {
+  id: number;
+  name: string;
+  created_at: string;
+  status: string;
+};
+
 export default function ApprovalsPage() {
-  type ApprovalItem = {
-    id: number;
-    name: string;
-    created_at: string;
-    status: string;
-  };
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState([]);
   const [trackerData, setTrackerData] = useState([]);
@@ -29,7 +36,7 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       const data = await fetchQuizRequests();
-      const formatted = data.map((item: ApprovalItem) => ({
+      const formatted = data.map((item: ApprovalApiItem) => ({
         key: item.id,
         id: item.id,
         title: item.name,
@@ -49,7 +56,7 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       const data = await fetchTrackerRequests();
-      const formatted = data.map((item: ApprovalItem) => ({
+      const formatted = data.map((item: ApprovalApiItem) => ({
         key: item.id,
         id: item.id,
         title: item.name,
@@ -122,7 +129,7 @@ export default function ApprovalsPage() {
     return <Tag color={color}>{status.toUpperCase()}</Tag>;
   };
 
-  const renderActions = (record: any, approveFn: (id: number) => void, rejectFn: (id: number) => void) => (
+  const renderActions = (record: ApprovalItem, approveFn: (id: number) => void, rejectFn: (id: number) => void) => (
     <div className="flex gap-2">
       <Button
         type="primary"
@@ -147,14 +154,14 @@ export default function ApprovalsPage() {
     { title: "Title", dataIndex: "title", key: "title" },
     { title: "Date", dataIndex: "date", key: "date" },
     { title: "Status", dataIndex: "status", key: "status", render: renderStatusTag },
-    { title: "Actions", key: "actions", render: (_: any, record: any) => renderActions(record, handleQuizApprove, handleQuizReject) },
+    { title: "Actions", key: "actions", render: (_value: unknown, record: ApprovalItem) => renderActions(record, handleQuizApprove, handleQuizReject) },
   ];
 
   const trackerColumns = [
     { title: "Title", dataIndex: "title", key: "title" },
     { title: "Date", dataIndex: "date", key: "date" },
     { title: "Status", dataIndex: "status", key: "status", render: renderStatusTag },
-    { title: "Actions", key: "actions", render: (_: any, record: any) => renderActions(record, handleTrackerApprove, handleTrackerReject) },
+    { title: "Actions", key: "actions", render: (_value: unknown, record: ApprovalItem) => renderActions(record, handleTrackerApprove, handleTrackerReject) },
   ];
 
   const items = [
