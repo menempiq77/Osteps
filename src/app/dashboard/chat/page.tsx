@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { usePolling } from "@/hooks/usePolling";
 import ImageLightbox from "@/components/chat/ImageLightbox";
 import {
   fetchConversations,
@@ -193,8 +194,6 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevUnreadRef = useRef(0);
 
   const userId = currentUser?.id ? Number(currentUser.id) : 0;
@@ -244,8 +243,7 @@ export default function ChatPage() {
       prevUnreadRef.current = count;
     };
     poll();
-    const interval = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    return undefined;
   }, [currentUser]);
 
   const loadConversations = useCallback(async () => {
@@ -263,11 +261,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations();
-    pollRef.current = setInterval(loadConversations, POLL_INTERVAL);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
   }, [loadConversations]);
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: loadConversations,
+    enabled: Boolean(currentUser),
+    immediate: false,
+  });
 
   const loadMessages = useCallback(async (convId: number) => {
     const cached = loadCachedMessages(convId);
@@ -299,11 +299,22 @@ export default function ChatPage() {
         console.error("[Chat] poll messages error:", err);
       }
     };
-    activePollRef.current = setInterval(poll, POLL_INTERVAL);
-    return () => {
-      if (activePollRef.current) clearInterval(activePollRef.current);
-    };
+    void poll();
   }, [activeConversation]);
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: async () => {
+      if (!activeConversation) return;
+      const res = await fetchMessages(activeConversation.id);
+      const loaded = res.data.reverse();
+      setMessages(loaded);
+      setActiveParticipants(res.participants ?? []);
+      saveMessages(activeConversation.id, loaded);
+      await markConversationRead(activeConversation.id);
+    },
+    enabled: Boolean(activeConversation),
+    immediate: false,
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
