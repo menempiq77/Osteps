@@ -34,12 +34,15 @@ import {
 } from "@/lib/subjectClassResolution";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import { areSubjectsSimilar } from "@/lib/subjectSimilarity";
+import { errorMessage } from "@/lib/safeRecord";
+
+type TermRecord = { id?: string | number; name?: string };
 
 interface Year {
   id: number;
   name: string;
   school_id?: number;
-  terms?: any;
+  terms?: number;
   created_at?: string;
   updated_at?: string;
   color?: string;
@@ -640,7 +643,7 @@ export default function Page() {
                 // Delete excess terms beyond the new limit
                 if (Number.isFinite(termLimit) && termLimit > 0) {
                   try {
-                    const terms: any[] = (await fetchTerm(Number(cls.id))) ?? [];
+                    const terms: TermRecord[] = (await fetchTerm(Number(cls.id))) ?? [];
                     console.log("[YearEdit] terms for class", cls.id, ":", terms);
                     const sorted = [...terms].sort((a, b) => Number(a.id) - Number(b.id));
                     // Delete excess terms if reducing
@@ -671,11 +674,8 @@ export default function Page() {
                 }
               })
             );
-          } catch (e: any) {
-            console.error("[YearEdit] class update block failed:", e?.message ?? e);
-            if (e?.response?.data) {
-              console.error("[YearEdit] backend validation errors:", JSON.stringify(e.response.data));
-            }
+          } catch (e: unknown) {
+            console.error("[YearEdit] class update block failed:", errorMessage(e));
           }
         }
         writeYearColorMap({
