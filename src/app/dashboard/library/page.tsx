@@ -60,7 +60,7 @@ type LibraryItem = {
   size: string;
   category: "Quran" | "Hadees" | "Tafseer" | "Seerah" | "Fiqh" | "Dua";
   description?: string;
-  tags?: string[] | string;
+  tags?: string[];
   library_resources_id?: number;
   library_categories_id?: number;
   file_path?: string;
@@ -171,15 +171,11 @@ export default function LibraryPage() {
   const {
     data: libraryItems = [],
     isLoading,
-  } = useQuery({
+  } = useQuery<LibraryItem[]>({
     queryKey: ["libraryItems"],
     queryFn: async () => {
       const data = await fetchLibrary();
       return data;
-    },
-    onError: (err: any) => {
-      console.error(err);
-      messageApi.error("Failed to fetch Library Items");
     },
   });
 
@@ -231,7 +227,7 @@ export default function LibraryPage() {
       const tags = Array.isArray(values.tags)
         ? values.tags.map((tag: string) => tag.trim()).filter(Boolean)
         : typeof values.tags === "string"
-        ? values.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        ? values.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)
         : [];
       const formData = new FormData();
       formData.append("title", values.title);
@@ -302,7 +298,7 @@ export default function LibraryPage() {
 
     try {
       const item = libraryItems.find((i) => i.id === itemToDelete);
-      await deleteLibrary(itemToDelete, item?.file_path);
+      await deleteLibrary(Number(itemToDelete), item?.file_path);
       messageApi.success("Deleted successfully");
       await queryClient.invalidateQueries({ queryKey: ["libraryItems"] });
 
@@ -525,7 +521,7 @@ export default function LibraryPage() {
   const filteredItems = libraryItems?.filter((item) => {
     const typeMatch =
       activeTypeTab === "all" ||
-      getResourceName(item.library_resources_id).toLowerCase() ===
+      getResourceName(item.library_resources_id ?? "").toLowerCase() ===
         activeTypeTab;
 
     const categoryMatch =
@@ -538,8 +534,8 @@ export default function LibraryPage() {
       [
         item.title,
         item.description,
-        getCategoryName(item.library_categories_id),
-        getResourceName(item.library_resources_id),
+        getCategoryName(item.library_categories_id ?? ""),
+        getResourceName(item.library_resources_id ?? ""),
         parseTags(item.tags).join(" "),
       ]
         .filter(Boolean)
@@ -774,7 +770,7 @@ export default function LibraryPage() {
           >
             {filteredItems?.map((item) => {
               const resourceType = getResourceName(
-                item.library_resources_id
+                item.library_resources_id ?? ""
               ).toLowerCase();
               const cleanPath = cleanFilePath(item.file_path);
               const isExternal = isExternalLink(cleanPath);
@@ -848,7 +844,7 @@ export default function LibraryPage() {
 
                     <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm backdrop-blur">
                       <span>{getEmojiForType(resourceType)}</span>
-                      {getResourceName(item.library_resources_id)}
+                      {getResourceName(item.library_resources_id ?? "")}
                     </span>
 
                     {isExternal && coverUrl && (
@@ -915,10 +911,10 @@ export default function LibraryPage() {
 
                   <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
                     <Tag
-                      color={getCategoryColor(item.library_categories_id)}
+                      color={getCategoryColor(item.library_categories_id ?? "")}
                       className="m-0 rounded-full px-2.5 py-[1px]"
                     >
-                      {getCategoryName(item.library_categories_id)}
+                      {getCategoryName(item.library_categories_id ?? "")}
                     </Tag>
                     <span className="text-xs text-slate-400">
                       {item.updated_at
