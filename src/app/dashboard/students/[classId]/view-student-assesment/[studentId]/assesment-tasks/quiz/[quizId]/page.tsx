@@ -118,7 +118,7 @@ export default function QuranQuizPage() {
 
         // Initialize custom marks with existing marks from submitted answers
         const marksMap: Record<number, number> = {};
-        response.forEach((ans) => {
+        response.forEach((ans: SubmittedAnswer) => {
           marksMap[ans.question_id] = ans.marks;
         });
         setCustomMarks(marksMap);
@@ -245,7 +245,12 @@ export default function QuranQuizPage() {
 
       const commentToUse = isTextType ? customComments[questionId] || "" : undefined;
 
-      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse, commentToUse);
+      await quizAnswerMarks(
+        answerId,
+        isCorrect ? 1 : 0,
+        marksToUse,
+        commentToUse ?? ""
+      );
       messageApi.success("Answer marked successfully");
 
       setSubmittedAnswers((prev) =>
