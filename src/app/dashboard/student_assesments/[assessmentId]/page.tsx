@@ -19,7 +19,11 @@ import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
-import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
+import {
+  buildTaskTypeValue,
+  resolveExamWindow,
+  type StructuredTaskType,
+} from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 import dayjs from "dayjs";
 
@@ -43,7 +47,7 @@ interface Task {
   task_name: string;
   allocated_marks: string | number;
   task_type: string;
-  task_type_config?: unknown;
+  task_type_config?: StructuredTaskType | null;
   description: string;
   due_date?: string | null;
   file_path: string | null;
@@ -465,14 +469,14 @@ export default function AssessmentDrawer() {
     try {
       setLoading(true);
       let studentsData = await fetchStudents(
-        classId,
+        String(classId ?? ""),
         canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
         subjectClassId ?? undefined
       );
 
       if (!studentsData?.length && subjectClassId) {
         studentsData = await fetchStudents(
-          classId,
+          String(classId ?? ""),
           canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
           undefined
         );
@@ -626,7 +630,7 @@ export default function AssessmentDrawer() {
       const task = displayTasks.find((t) => t.id === taskId);
       setFormValues({
         marks: String(task ? pickTeacherMarkValue(task) ?? "" : ""),
-        feedback: task?.teacher_assessment_feedback || "",
+        feedback: task?.teacher_feedback || "",
       });
     }
   };
@@ -659,7 +663,7 @@ export default function AssessmentDrawer() {
       if (!task) return;
 
       const markStudentId = selectedStudentId ?? String(task.student_id);
-      await addStudentTaskMarks(markStudentId, {
+      await addStudentTaskMarks(Number(markStudentId), {
         assessment_id: task.assessment_id,
         task_id: task.task_id,
         teacher_assessment_marks: parseInt(formValues.marks || "0"),
