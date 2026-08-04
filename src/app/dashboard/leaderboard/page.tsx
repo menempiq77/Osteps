@@ -58,19 +58,56 @@ interface CurrentUser {
   studentClassName?: string;
 }
 
-const getClassId = (cls: any): string => {
+type LeaderboardApiRecord = {
+  id?: string | number;
+  student_id?: string | number;
+  studentId?: string | number;
+  year_id?: string | number;
+  yearId?: string | number;
+  class_id?: string | number;
+  classId?: string | number;
+  total_marks?: number | string;
+  points?: number | string;
+  name?: string;
+  student_name?: string;
+  user_name?: string;
+  classes?: LeaderboardApiRecord | LeaderboardApiRecord[];
+  year?: LeaderboardApiRecord;
+  user?: LeaderboardApiRecord;
+  [key: string]: unknown;
+};
+
+type LeaderboardRecord = {
+  id?: string | number;
+  class_id?: string | number;
+  classId?: string | number;
+  year_id?: string | number;
+  yearId?: string | number;
+  school_id?: string | number;
+  student_id?: string | number;
+  student_name?: string;
+  user_name?: string;
+  name?: string;
+  classes?: LeaderboardRecord | LeaderboardRecord[];
+  year?: LeaderboardRecord;
+  school?: LeaderboardRecord;
+  user?: LeaderboardRecord;
+  [key: string]: unknown;
+};
+
+const getClassId = (cls: LeaderboardRecord): string => {
   const rawId = cls?.id ?? cls?.class_id ?? cls?.classId ?? null;
   if (rawId === null || rawId === undefined || String(rawId).trim() === "") return "";
   return String(rawId);
 };
 
-const getClassYearId = (cls: any): string => {
+const getClassYearId = (cls: LeaderboardRecord): string => {
   const rawYearId = cls?.year_id ?? cls?.year?.id ?? cls?.yearId ?? null;
   if (rawYearId === null || rawYearId === undefined || String(rawYearId).trim() === "") return "";
   return String(rawYearId);
 };
 
-const getClassSchoolId = (cls: any): string => {
+const getClassSchoolId = (cls: LeaderboardRecord): string => {
   const rawSchoolId =
     cls?.school_id ??
     cls?.school?.id ??
@@ -83,8 +120,8 @@ const getClassSchoolId = (cls: any): string => {
   return String(rawSchoolId);
 };
 
-const extractAssignedClasses = (assignYears: any[]): any[] => {
-  const flattened = (assignYears ?? []).flatMap((item: any) => {
+const extractAssignedClasses = (assignYears: LeaderboardRecord[]): LeaderboardRecord[] => {
+  const flattened = (assignYears ?? []).flatMap((item: LeaderboardRecord) => {
     const classesValue = item?.classes;
     if (Array.isArray(classesValue)) return classesValue;
     if (classesValue) return [classesValue];
@@ -94,13 +131,13 @@ const extractAssignedClasses = (assignYears: any[]): any[] => {
   return Array.from(
     new Map(
       flattened
-        .map((cls: any) => [getClassId(cls), cls] as const)
+        .map((cls: LeaderboardRecord) => [getClassId(cls), cls] as const)
         .filter(([id]) => !!id)
     ).values()
   );
 };
 
-const buildStudentNameMap = (students: any[]): Record<string, string> => {
+const buildStudentNameMap = (students: LeaderboardRecord[]): Record<string, string> => {
   const mapping: Record<string, string> = {};
   for (const student of students ?? []) {
     const rawId = student?.id ?? student?.student_id;
@@ -130,7 +167,7 @@ const LeaderBoard = () => {
     activeSubjectId ? Number(activeSubjectId) : null
   );
   const pickedSubject = pickedSubjectId
-    ? (subjects ?? []).find((s: any) => Number(s.id) === pickedSubjectId) ?? activeSubject
+    ? (subjects ?? []).find((s) => Number(s.id) === pickedSubjectId) ?? activeSubject
     : activeSubject;
   const roleKey = (currentUser?.role ?? "")
     .trim()
@@ -144,15 +181,15 @@ const LeaderBoard = () => {
   const isStudent = roleKey === "STUDENT";
   const isTeachingStaff = isTeacher || isHod;
   const [loading, setLoading] = useState(true);
-  const [years, setYears] = useState<any[]>([]);
+  const [years, setYears] = useState<LeaderboardApiRecord[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false);
   const [leaderboardScope, setLeaderboardScope] = useState<"school" | "year" | "class">("school");
   const authSchoolId = (() => {
-    const schoolValue = (currentUser as any)?.school;
+    const schoolValue = currentUser?.school;
     if (typeof schoolValue === "object" && schoolValue !== null && "id" in schoolValue) {
-      const nestedId = (schoolValue as any)?.id;
+      const nestedId = typeof schoolValue === "object" && schoolValue ? schoolValue.id : undefined;
       if (nestedId !== null && nestedId !== undefined && String(nestedId).trim() !== "") {
         return String(nestedId);
       }
@@ -160,8 +197,8 @@ const LeaderBoard = () => {
 
     const candidate =
       schoolValue ??
-      (currentUser as any)?.school_id ??
-      (currentUser as any)?.schoolId ??
+      currentUser?.school_id ??
+      currentUser?.schoolId ??
       null;
 
     if (candidate === null || candidate === undefined || String(candidate).trim() === "") {
@@ -171,7 +208,7 @@ const LeaderBoard = () => {
     return String(candidate);
   })();
 
-  const [assignYearsData, setAssignYearsData] = useState<any[]>([]);
+  const [assignYearsData, setAssignYearsData] = useState<LeaderboardApiRecord[]>([]);
   const loadYearsInProgressRef = React.useRef(false);
   const lastLoadedScopeRef = React.useRef<string>("");
   const teacherAssignedClasses = isTeachingStaff ? extractAssignedClasses(assignYearsData) : [];
@@ -201,19 +238,19 @@ const LeaderBoard = () => {
     // If we got 0 years (teacher doesn't have permission), extract years from assigned classes
     if (yearsData.length === 0 && isTeachingStaff && teacherAssignedClasses.length > 0) {
       const assignedYears = teacherAssignedClasses
-        .map((cls: any) => cls?.year)
-        .filter((year: any) => year);
+        .map((cls: LeaderboardApiRecord) => cls?.year)
+        .filter((year): year is LeaderboardApiRecord => Boolean(year));
       yearsData = Array.from(
-        new Map(assignedYears?.map((year: any) => [year.id, year])).values()
+        new Map(assignedYears?.map((year) => [year.id, year] as const)).values()
       );
     }
     
     const yearIds = Array.from(
       new Set(
         (yearsData ?? [])
-          .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
-          .filter((id: any) => id !== null && id !== undefined)
-          .map((id: any) => String(id))
+          .map((y: LeaderboardApiRecord) => y?.id ?? y?.year_id ?? y?.yearId)
+          .filter((id: unknown): id is string | number => id !== null && id !== undefined)
+          .map((id: string | number) => String(id))
       )
     );
     
@@ -236,7 +273,7 @@ const LeaderBoard = () => {
     lastLoadedScopeRef.current = scopeKey;
     try {
       setLoading(true);
-      let yearsData: any[] = [];
+      let yearsData: LeaderboardApiRecord[] = [];
 
       if (isStudent) {
         // Student view uses derived year + school leaderboards (no dropdowns)
@@ -253,10 +290,10 @@ const LeaderBoard = () => {
           yearsData = await loadSchoolYearsForStaff();
         } else {
           const years = extractAssignedClasses(res)
-            .map((cls: any) => cls?.year)
-            .filter((year: any) => year);
+            .map((cls: LeaderboardApiRecord) => cls?.year)
+            .filter((year): year is LeaderboardApiRecord => Boolean(year));
           yearsData = Array.from(
-            new Map(years?.map((year: any) => [year.id, year])).values()
+            new Map(years?.map((year) => [year.id, year] as const)).values()
           );
         }
       } else {
@@ -274,11 +311,11 @@ const LeaderBoard = () => {
           const subjectClasses = await fetchSubjectClasses({ subject_id: pickedSubjectId });
           const subjectYearIds = new Set(
             (Array.isArray(subjectClasses) ? subjectClasses : [])
-              .map((r: any) => String(r.year_id ?? ""))
+              .map((r: LeaderboardApiRecord) => String(r.year_id ?? ""))
               .filter(Boolean)
           );
           if (subjectYearIds.size > 0) {
-            yearsData = yearsData.filter((y: any) => subjectYearIds.has(String(y?.id ?? "")));
+            yearsData = yearsData.filter((y) => subjectYearIds.has(String(y?.id ?? "")));
           }
         } catch {
           // fall through with unfiltered years
@@ -287,7 +324,7 @@ const LeaderBoard = () => {
       setYears(yearsData);
       if (yearsData.length > 0) {
         if (leaderboardScope === "year" || (isTeachingStaff && leaderboardScope === "class")) {
-          setSelectedYear(yearsData[0].id.toString());
+          setSelectedYear(String(yearsData[0].id ?? ""));
         } else {
           setSelectedYear("__all__");
         }
@@ -342,7 +379,7 @@ const LeaderBoard = () => {
         if (selectedYear === "__all__") {
           return teacherAssignedClasses;
         }
-        return teacherAssignedClasses.filter((cls: any) => {
+        return teacherAssignedClasses.filter((cls) => {
           const yearId = getClassYearId(cls);
           return !!yearId && yearId === String(selectedYear);
         });
@@ -373,7 +410,7 @@ const LeaderBoard = () => {
       return;
     }
 
-    const hasSelectedInList = normalizedClasses.some((cls: any) => {
+    const hasSelectedInList = normalizedClasses.some((cls) => {
       const id = getClassId(cls);
       return id && id === String(selectedClass ?? "");
     });
@@ -403,17 +440,20 @@ const LeaderBoard = () => {
       //  4. Intersect enrolled roster with school-self scores (0 marks for unenrolled = hidden).
       if (isSubjectWorkspaceMode && pickedSubjectId) {
         // Step 1: subject_class records
-        let subjectClassRecords: any[] = [];
+        let subjectClassRecords: LeaderboardApiRecord[] = [];
         try {
           subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
         } catch { /* fall through */ }
 
         // Step 2: resolve linked school-class IDs and find the one matching selectedClass
-        let matchedRecord: any = null;
+        let matchedRecord: LeaderboardApiRecord | null = null;
         let urlClassId = String(selectedClass);
 
         for (const record of subjectClassRecords) {
-          const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+          const linkedId = await resolveSubjectClassLinkedIdWithFallback(
+            record as Parameters<typeof resolveSubjectClassLinkedIdWithFallback>[0],
+            pickedSubjectId
+          );
           const candidates = [
             linkedId,
             String(record.class_id ?? ""),
@@ -434,17 +474,17 @@ const LeaderBoard = () => {
           fetchSchoolSelfLeaderBoardData().catch(() => ({ data: [] })),
         ]);
 
-        const enrolled: any[] = Array.isArray(enrolledStudents) ? enrolledStudents : [];
+        const enrolled: LeaderboardApiRecord[] = Array.isArray(enrolledStudents) ? enrolledStudents : [];
 
         // Step 4: build score map and intersect
-        const schoolScoreMap: Record<string, any> = {};
+        const schoolScoreMap: Record<string, LeaderboardApiRecord> = {};
         for (const entry of (schoolRes?.data ?? [])) {
           const sid = String(entry?.student_id ?? "");
-          if (sid) schoolScoreMap[sid] = entry;
+          if (sid) schoolScoreMap[sid] = entry as LeaderboardApiRecord;
         }
 
         const mapped = enrolled
-          .map((s: any) => {
+          .map((s: LeaderboardApiRecord) => {
             const sid = String(s?.id ?? s?.student_id ?? "");
             const scoreEntry = schoolScoreMap[sid];
             return {
@@ -457,8 +497,8 @@ const LeaderBoard = () => {
               class_name: scoreEntry?.class_name ?? "",
             };
           })
-          .filter((s: any) => !!s.student_id)
-          .sort((a: any, b: any) => (b.total_marks ?? 0) - (a.total_marks ?? 0));
+          .filter((s: LeaderboardApiRecord) => !!s.student_id)
+          .sort((a: LeaderboardApiRecord, b: LeaderboardApiRecord) => Number(b.total_marks ?? 0) - Number(a.total_marks ?? 0));
 
         return { status_code: 200, msg: "OK", data: mapped };
       }
@@ -535,7 +575,7 @@ const LeaderBoard = () => {
     queryFn: async () => {
       const res = await fetchSchoolSelfLeaderBoardData(pickedSubjectId ?? undefined);
       const rows = res?.data ?? [];
-      return rows.map((student: any, index: number) => ({
+      return rows.map((student, index: number) => ({
         key: String(student?.student_id ?? ""),
         rank: index + 1,
         name: student?.student_name ?? "Unknown",
@@ -569,9 +609,9 @@ const LeaderBoard = () => {
       const yearIds = Array.from(
         new Set(
           (years ?? [])
-            .map((y: any) => y?.id ?? y?.year_id ?? y?.yearId)
-            .filter((id: any) => id !== null && id !== undefined)
-            .map((id: any) => String(id))
+            .map((y: LeaderboardApiRecord) => y?.id ?? y?.year_id ?? y?.yearId)
+            .filter((id: unknown): id is string | number => id !== null && id !== undefined)
+            .map((id: string | number) => String(id))
         )
       );
 
@@ -587,20 +627,21 @@ const LeaderBoard = () => {
       const classByStudentId: Record<string, string> = {};
       const nameByStudentId: Record<string, string> = {};
 
-      await mapWithConcurrency(classes, 4, async (cls: any) => {
+      await mapWithConcurrency(classes, 4, async (cls: LeaderboardApiRecord) => {
         const classId = cls?.id ?? cls?.class_id ?? cls?.classId;
-        const className = cls?.class_name ?? cls?.name ?? `Class ${classId}`;
+        const className = String(cls?.class_name ?? cls?.name ?? `Class ${classId}`);
         if (!classId) return null;
         try {
           const students = (await fetchStudents(String(classId))) ?? [];
-          const classNameForStudents = className;
-          for (const s of students) {
+              const classNameForStudents = className;
+              for (const s of students) {
             const sid = s?.id ?? s?.student_id;
             if (sid !== null && sid !== undefined) {
               const key = String(sid);
               classByStudentId[key] = classNameForStudents;
-              const resolvedName =
-                s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "";
+              const resolvedName = String(
+                s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? ""
+              );
               if (resolvedName) {
                 nameByStudentId[key] = resolvedName;
               }
@@ -620,7 +661,7 @@ const LeaderBoard = () => {
 
   const unresolvedSchoolStudentIds = isStudent
     ? (schoolLeaderboardRows ?? [])
-        .map((row: any) => String(row?.key ?? row?.student_id ?? ""))
+        .map((row) => String(row?.key ?? ""))
         .filter((id: string) => !!id)
         .filter((id: string) => !studentSchoolMaps?.classByStudentId?.[id])
     : [];
@@ -1581,7 +1622,7 @@ const LeaderBoard = () => {
                       style={{ minWidth: 160 }}
                     >
                       {years?.map((year) => (
-                        <Select.Option key={year.id} value={year.id.toString()}>{year.name}</Select.Option>
+                        <Select.Option key={year.id ?? ""} value={String(year.id ?? "")}>{year.name}</Select.Option>
                       ))}
                     </Select>
                   </div>
