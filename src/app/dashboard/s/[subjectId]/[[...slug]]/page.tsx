@@ -41,6 +41,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "school-admin",
   "admins",
   "assessment-document",
+  "class_notebook",
 ]);
 
 const appendSearchParams = (path: string, searchParams: SearchParams): string => {
