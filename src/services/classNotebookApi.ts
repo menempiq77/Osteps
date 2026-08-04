@@ -66,6 +66,7 @@ export const saveNotebookPage = async (params: {
   teacherAnnotations?: NotebookAnnotation[];
   background?: NotebookBackground;
   title?: string;
+  heading?: string | null;
 }) =>
   request("/api/class-notebook", {
     method: "POST",
