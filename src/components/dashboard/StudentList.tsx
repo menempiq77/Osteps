@@ -2253,7 +2253,7 @@ export default function StudentList() {
 
     for (const payload of payloads) {
       try {
-        // eslint-disable-next-line no-await-in-loop
+         
         const result = await createStudentInCurrentClass(payload);
         rememberRecentAddedStudent(result.added, payload);
         successCount += 1;
@@ -2704,7 +2704,7 @@ export default function StudentList() {
         let failedCount = 0;
         for (const student of selectedStudentsInView) {
           try {
-            // eslint-disable-next-line no-await-in-loop
+             
             await addBehaviour({
               student_id: student.id,
               behaviour_id: selectedType.id,
@@ -2746,7 +2746,7 @@ export default function StudentList() {
         let failedCount = 0;
         for (const student of presentStudents) {
           try {
-            // eslint-disable-next-line no-await-in-loop
+             
             await addBehaviour({
               student_id: student.id,
               behaviour_id: selectedType.id,
@@ -3161,7 +3161,7 @@ export default function StudentList() {
     setAttendanceSyncing(true);
     try {
       for (const student of orderedStudents) {
-        // eslint-disable-next-line no-await-in-loop
+         
         await setStudentAttendance(student, markPresent, {
           silent: true,
           skipSyncFlag: true,

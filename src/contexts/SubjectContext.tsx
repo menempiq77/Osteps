@@ -149,7 +149,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         });
         if (!mounted) return;
 
-        let available = context.assigned_subjects ?? [];
+        const available = context.assigned_subjects ?? [];
         setSubjects(available);
 
         const fromPath = extractSubjectIdFromPath(pathname);

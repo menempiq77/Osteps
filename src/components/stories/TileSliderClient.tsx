@@ -38,7 +38,7 @@ function isSolvable(arr: number[], size: number) {
 
 function shuffledBoard(base: number[], size: number) {
   if (size <= 1) return base;
-  let next = [...base];
+  const next = [...base];
   let attempts = 0;
   do {
     for (let i = next.length - 1; i > 0; i--) {

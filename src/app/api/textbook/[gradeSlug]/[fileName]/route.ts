@@ -7,9 +7,9 @@ const TEXTBOOK_DIR = path.join(DATA_DIR, "textbooks");
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { gradeSlug: string; fileName: string } },
+  { params }: { params: Promise<{ gradeSlug: string; fileName: string }> },
 ) {
-  const { gradeSlug, fileName } = params;
+  const { gradeSlug, fileName } = await params;
   const filePath = path.join(TEXTBOOK_DIR, gradeSlug, decodeURIComponent(fileName));
 
   try {

@@ -4,7 +4,7 @@ import { fetchSubjectClasses, fetchStaffSubjectAssignments } from "@/services/su
 import { fetchAssignYears } from "@/services/yearsApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
-import type { SubjectBrief, SubjectContextResponse } from "@/types/subjectContext";
+import type { SubjectBrief, SubjectContextResponse, SubjectRole, SubjectRoleScope } from "@/types/subjectContext";
 
 const normalizeSubjects = (raw: any): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
@@ -43,7 +43,14 @@ const normalizeStaffAssignmentSubjects = (raw: any): SubjectBrief[] => {
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
-const normalizeSubjectRoles = (raw: any): Array<{ subject_id: number; role_scope: string }> => {
+const VALID_ROLE_SCOPES = new Set<SubjectRoleScope>([
+  "SCHOOL_ADMIN",
+  "HOD",
+  "TEACHER",
+  "STUDENT",
+]);
+
+const normalizeSubjectRoles = (raw: unknown): SubjectRole[] => {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => ({
@@ -54,16 +61,20 @@ const normalizeSubjectRoles = (raw: any): Array<{ subject_id: number; role_scope
       (item) =>
         Number.isFinite(item.subject_id) &&
         item.subject_id > 0 &&
-        item.role_scope.length > 0
-    );
+        VALID_ROLE_SCOPES.has(item.role_scope as SubjectRoleScope)
+    )
+    .map((item) => ({
+      subject_id: item.subject_id,
+      role_scope: item.role_scope as SubjectRoleScope,
+    })) as SubjectRole[];
 };
 
-const dedupeSubjectRoles = (roles: Array<{ subject_id: number; role_scope: string }>) =>
+const dedupeSubjectRoles = (roles: SubjectRole[]): SubjectRole[] =>
   Array.from(new Map(roles.map((role) => [`${role.subject_id}:${role.role_scope}`, role])).values());
 
 const filterSubjectsBySubjectRoles = (
   subjects: SubjectBrief[],
-  subjectRoles: Array<{ subject_id: number; role_scope: string }>
+  subjectRoles: SubjectRole[]
 ) => {
   if (subjectRoles.length === 0) return subjects;
   const allowedSubjectIds = new Set(subjectRoles.map((role) => role.subject_id));
@@ -275,14 +286,14 @@ export const fetchMySubjectContext = async (options?: {
 
     // Source 1: backend /subjects/my-context
     let apiDefaultId: number | null = null;
-    let apiSubjectRoles: Array<{ subject_id: number; role_scope: string }> = [];
+    let apiSubjectRoles: SubjectRole[] = [];
     try {
       const res = await api.get("/subjects/my-context");
       const normalized = extractContext(res.data);
       console.log("[SubjectContext] /subjects/my-context returned", normalized.assigned_subjects.length, "subjects:", normalized.assigned_subjects.map(s => s.name));
       addUnique(normalized.assigned_subjects);
-      apiDefaultId = normalized.default_subject_id;
-      apiSubjectRoles = normalized.subject_roles;
+      apiDefaultId = normalized.default_subject_id ?? null;
+      apiSubjectRoles = normalized.subject_roles ?? [];
     } catch (err: any) {
       console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
     }
@@ -292,7 +303,7 @@ export const fetchMySubjectContext = async (options?: {
         const currentUserId = Number(options?.userId ?? 0);
         const assignmentRows = await fetchStaffSubjectAssignments("HOD");
         const ownAssignmentRows = (Array.isArray(assignmentRows) ? assignmentRows : []).filter(
-          (row: any) =>
+          (row: Record<string, unknown>) =>
             Number(row?.user_id ?? row?.userId ?? 0) === currentUserId &&
             String(row?.role_scope ?? "").trim().toUpperCase() === "HOD"
         );
@@ -300,8 +311,8 @@ export const fetchMySubjectContext = async (options?: {
         if (authoritativeSubjects.length > 0) {
           const authoritativeRoles = authoritativeSubjects.map((subject) => ({
             subject_id: subject.id,
-            role_scope: "HOD",
-          }));
+            role_scope: "HOD" as const,
+          })) as SubjectRole[];
           const finalSubjectRoles = dedupeSubjectRoles([
             ...apiSubjectRoles,
             ...knownSubjectRoles,
@@ -374,12 +385,12 @@ export const fetchMySubjectContext = async (options?: {
   // We still call /subjects/my-context just to get default_subject_id / subject_roles.
   if (isSchoolAdmin) {
     let apiDefaultId: number | null = null;
-    let apiSubjectRoles: any[] = [];
+    let apiSubjectRoles: SubjectRole[] = [];
     try {
       const res = await api.get("/subjects/my-context");
       const ctx = extractContext(res.data);
-      apiDefaultId = ctx.default_subject_id;
-      apiSubjectRoles = ctx.subject_roles;
+      apiDefaultId = ctx.default_subject_id ?? null;
+      apiSubjectRoles = ctx.subject_roles ?? [];
     } catch { /* not critical — we still fall back to fetchSubjects */ }
     try {
       const all = normalizeSubjects(await fetchSubjects());

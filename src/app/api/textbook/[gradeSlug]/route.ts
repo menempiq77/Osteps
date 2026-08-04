@@ -7,9 +7,9 @@ const TEXTBOOK_DIR = path.join(DATA_DIR, "textbooks");
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { gradeSlug: string } },
+  { params }: { params: Promise<{ gradeSlug: string }> },
 ) {
-  const { gradeSlug } = params;
+  const { gradeSlug } = await params;
   const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
 
   try {
@@ -34,9 +34,9 @@ export async function GET(
 
 export async function HEAD(
   _req: NextRequest,
-  { params }: { params: { gradeSlug: string } },
+  { params }: { params: Promise<{ gradeSlug: string }> },
 ) {
-  const { gradeSlug } = params;
+  const { gradeSlug } = await params;
   const gradeDir = path.join(TEXTBOOK_DIR, gradeSlug);
 
   try {

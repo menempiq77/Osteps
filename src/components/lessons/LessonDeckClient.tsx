@@ -329,7 +329,7 @@ export default function LessonDeckClient({ lesson }: Props) {
 
   useEffect(() => {
     return () => { stopPlenaryPolling(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   useEffect(() => {

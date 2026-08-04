@@ -707,7 +707,7 @@ const LeaderBoard = () => {
 
           if (allEnrolledStudents.length === 0) return [];
 
-          let schoolScoreMap: Record<string, any> = {};
+          const schoolScoreMap: Record<string, any> = {};
           try {
             const schoolRes = await fetchSchoolSelfLeaderBoardData();
             for (const entry of (schoolRes?.data ?? [])) {
@@ -798,7 +798,7 @@ const LeaderBoard = () => {
 
         // Step 3: fetch school-self scores once (no subject filter — backend doesn't enforce it yet)
         // We have the correct roster, so the intersection is correct regardless.
-        let schoolScoreMap: Record<string, any> = {};
+        const schoolScoreMap: Record<string, any> = {};
         try {
           const schoolRes = await fetchSchoolSelfLeaderBoardData();
           for (const entry of (schoolRes?.data ?? [])) {

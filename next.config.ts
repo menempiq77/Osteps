@@ -26,13 +26,7 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: false,
+  reactStrictMode: true,
   compress: process.env.NODE_ENV === 'production',
   productionBrowserSourceMaps: false,
   images: {
