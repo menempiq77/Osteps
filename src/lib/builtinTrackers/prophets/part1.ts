@@ -7,7 +7,7 @@ export const PROPHETS_PART_1: BuiltInLesson[] = [
     arabicName: "آدَم",
     title: "The first human and the first prophet",
     emoji: "🌍",
-    accent: "from-emerald-400 to-teal-500",
+  accent: "from-emerald-600 to-teal-700",
     summary:
       "Allah created Adam from clay, taught him the names of everything, and made him the first prophet.",
     story: [
@@ -148,7 +148,7 @@ export const PROPHETS_PART_1: BuiltInLesson[] = [
     arabicName: "إِدْرِيس",
     title: "The patient prophet raised to a high station",
     emoji: "📜",
-    accent: "from-sky-400 to-indigo-500",
+  accent: "from-sky-600 to-indigo-700",
     summary:
       "Idris was known for truthfulness and patience, and Allah raised him to a high place.",
     story: [
@@ -284,7 +284,7 @@ export const PROPHETS_PART_1: BuiltInLesson[] = [
     arabicName: "نُوح",
     title: "The prophet of the ark and the great flood",
     emoji: "🚢",
-    accent: "from-blue-400 to-cyan-500",
+  accent: "from-blue-600 to-cyan-700",
     summary:
       "Nuh called his people for 950 years, then built an ark by Allah's command and was saved from the flood.",
     story: [
@@ -420,7 +420,7 @@ export const PROPHETS_PART_1: BuiltInLesson[] = [
     arabicName: "هُود",
     title: "The prophet sent to the mighty people of 'Ad",
     emoji: "🏜️",
-    accent: "from-amber-400 to-orange-500",
+  accent: "from-amber-600 to-orange-700",
     summary:
       "Hud warned the strong people of 'Ad about their pride, and they were destroyed by a fierce wind.",
     story: [
@@ -566,7 +566,7 @@ export const PROPHETS_PART_1: BuiltInLesson[] = [
     arabicName: "صَالِح",
     title: "The prophet of Thamud and the she-camel",
     emoji: "🐪",
-    accent: "from-rose-400 to-pink-500",
+  accent: "from-rose-600 to-pink-700",
     summary:
       "Salih was sent to Thamud, who carved homes in mountains; they killed the she-camel sign and were destroyed.",
     story: [

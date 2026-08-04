@@ -1,0 +1,759 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { Popover } from "antd";
+import { uploadNotebookImage } from "@/services/classNotebookApi";
+import {
+  Eraser,
+  Highlighter,
+  MousePointer2,
+  Palette,
+  PenTool,
+  Redo2,
+  Type,
+  ZoomIn,
+  Undo2,
+} from "lucide-react";
+import {
+  NOTEBOOK_DOCX_FLOW,
+  NOTEBOOK_PAGE_HEIGHT,
+  NOTEBOOK_PAGE_WIDTH,
+  type NotebookAnnotation,
+  type NotebookBackground,
+  type NotebookImageAnnotation,
+  type NotebookMaterial,
+  type NotebookPenAnnotation,
+  type NotebookTextAnnotation,
+} from "@/lib/classNotebook";
+import AuthenticatedNotebookImage from "./AuthenticatedNotebookImage";
+
+type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
+
+type Props = {
+  background: NotebookBackground;
+  material?: NotebookMaterial | null;
+  heading: string | null;
+  annotations: NotebookAnnotation[];
+  displayAnnotations?: NotebookAnnotation[];
+  readOnly?: boolean;
+  onChange: (annotations: NotebookAnnotation[]) => void;
+  onHeadingChange: (heading: string) => void;
+};
+
+const COLORS = ["#111827", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#8b5cf6", "#ffffff"];
+const PEN_WIDTHS = [2, 4, 6, 8];
+const HIGHLIGHT_WIDTHS = [10, 16, 24];
+const TEXT_SIZES = [14, 18, 24, 36];
+const TEXT_BOX_WIDTH = 300;
+const PASTED_IMAGE_SIZE = 360;
+
+const cloneAnnotations = (items: NotebookAnnotation[]) =>
+  items.map((item) =>
+    item.type === "pen"
+      ? { ...item, points: item.points.map((point) => ({ ...point })) }
+      : { ...item }
+  );
+
+const smoothPath = (context: CanvasRenderingContext2D, points: Array<{ x: number; y: number }>) => {
+  if (!points.length) return;
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) {
+    context.arc(points[0].x, points[0].y, 1, 0, Math.PI * 2);
+    return;
+  }
+  if (points.length === 2) {
+    context.lineTo(points[1].x, points[1].y);
+    return;
+  }
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    context.quadraticCurveTo(current.x, current.y, (current.x + next.x) / 2, (current.y + next.y) / 2);
+  }
+  const last = points[points.length - 1];
+  context.lineTo(last.x, last.y);
+};
+
+const wrapText = (context: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+  const output: string[] = [];
+  text.split(/\r?\n/).forEach((paragraph) => {
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      output.push("");
+      return;
+    }
+    let line = "";
+    words.forEach((word) => {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && context.measureText(candidate).width > maxWidth) {
+        output.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    });
+    output.push(line);
+  });
+  return output;
+};
+
+export const drawTextAnnotation = (context: CanvasRenderingContext2D, annotation: NotebookTextAnnotation) => {
+  context.save();
+  context.font = `${annotation.fontWeight === "bold" ? "700" : "400"} ${annotation.fontSize}px Arial`;
+  context.fillStyle = annotation.color;
+  context.textBaseline = "top";
+  const lines = wrapText(context, annotation.text, annotation.width);
+  const lineHeight = annotation.fontSize * 1.22;
+  lines.forEach((line, index) => {
+    const lineWidth = context.measureText(line).width;
+    const x =
+      annotation.textAlign === "center"
+        ? annotation.x + (annotation.width - lineWidth) / 2
+        : annotation.textAlign === "right"
+          ? annotation.x + annotation.width - lineWidth
+          : annotation.x;
+    const y = annotation.y + index * lineHeight;
+    context.fillText(line, x, y);
+    if (annotation.underline) {
+      context.fillRect(x, y + annotation.fontSize + 2, lineWidth, Math.max(1, annotation.fontSize / 14));
+    }
+  });
+  context.restore();
+};
+
+export const drawPenAnnotation = (context: CanvasRenderingContext2D, annotation: NotebookPenAnnotation) => {
+  if (!annotation.points.length) return;
+  context.save();
+  context.strokeStyle = annotation.color;
+  context.fillStyle = annotation.color;
+  context.lineWidth = annotation.width;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  if (annotation.tool === "highlighter") {
+    context.globalAlpha = 0.3;
+    context.globalCompositeOperation = "multiply";
+  }
+  if (annotation.points.length === 1) {
+    context.beginPath();
+    context.arc(annotation.points[0].x, annotation.points[0].y, Math.max(1, annotation.width / 2), 0, Math.PI * 2);
+    context.fill();
+  } else {
+    smoothPath(context, annotation.points);
+    context.stroke();
+  }
+  context.restore();
+};
+
+export const drawNotebookAnnotations = (
+  context: CanvasRenderingContext2D,
+  annotations: NotebookAnnotation[]
+) => {
+  annotations.forEach((annotation) => {
+    if (annotation.type === "pen") drawPenAnnotation(context, annotation);
+    else if (annotation.type === "text") drawTextAnnotation(context, annotation);
+  });
+};
+
+const textHitHeight = (annotation: NotebookTextAnnotation) =>
+  Math.max(
+    annotation.fontSize * 1.6,
+    Math.ceil(annotation.text.length / Math.max(1, annotation.width / annotation.fontSize)) *
+      annotation.fontSize *
+      1.22
+  );
+
+const annotationHit = (annotation: NotebookAnnotation, point: { x: number; y: number }) => {
+  if (annotation.type === "text") {
+    return point.x >= annotation.x && point.x <= annotation.x + annotation.width &&
+      point.y >= annotation.y && point.y <= annotation.y + textHitHeight(annotation);
+  }
+  if (annotation.type === "image") {
+    return point.x >= annotation.x && point.x <= annotation.x + annotation.width &&
+      point.y >= annotation.y && point.y <= annotation.y + annotation.height;
+  }
+  return annotation.points.some(
+    (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < annotation.width + 14
+  );
+};
+
+export default function NotebookPageCanvas({
+  material,
+  background,
+  annotations,
+  displayAnnotations,
+  readOnly = false,
+  heading,
+  onChange,
+  onHeadingChange,
+}: Props) {
+  const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activeStrokeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef<NotebookPenAnnotation | null>(null);
+  const draggingRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const pageAreaRef = useRef<HTMLDivElement | null>(null);
+  const manualZoomRef = useRef(false);
+  const historyRef = useRef<NotebookAnnotation[][]>([]);
+  const redoRef = useRef<NotebookAnnotation[][]>([]);
+  const [tool, setTool] = useState<Tool>("pen");
+  const [color, setColor] = useState("#111827");
+  const [penWidth, setPenWidth] = useState(4);
+  const [highlighterWidth, setHighlighterWidth] = useState(16);
+  const [textSize, setTextSize] = useState(24);
+  const [bold, setBold] = useState(false);
+  const [underline, setUnderline] = useState(false);
+  const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("left");
+  const [zoom, setZoom] = useState(1);
+  const [fitWidthZoom, setFitWidthZoom] = useState(1);
+  const [fitPageZoom, setFitPageZoom] = useState(1);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const visibleAnnotations = displayAnnotations ?? annotations;
+  const editingText = annotations.find(
+    (annotation): annotation is NotebookTextAnnotation =>
+      annotation.type === "text" && annotation.id === editingTextId
+  );
+  const pageDimensions = useMemo(
+    () => ({ width: NOTEBOOK_PAGE_WIDTH * zoom, height: NOTEBOOK_PAGE_HEIGHT * zoom }),
+    [zoom]
+  );
+
+  const calculateFitZoom = useCallback(() => {
+    const pageArea = pageAreaRef.current;
+    if (!pageArea) return;
+    const availableWidth = pageArea.clientWidth - 32;
+    const availableHeight = pageArea.clientHeight - 32;
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+    const nextFitWidthZoom = Math.max(
+      0.25,
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH)
+    );
+    const nextFitPageZoom = Math.max(
+      0.25,
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH, availableHeight / NOTEBOOK_PAGE_HEIGHT)
+    );
+    setFitWidthZoom(nextFitWidthZoom);
+    setFitPageZoom(nextFitPageZoom);
+    if (!manualZoomRef.current) setZoom(nextFitWidthZoom);
+  }, []);
+
+  useEffect(() => {
+    const pageArea = pageAreaRef.current;
+    if (!pageArea) return;
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(calculateFitZoom);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(pageArea);
+    measure();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [calculateFitZoom]);
+
+  const remember = useCallback(() => {
+    historyRef.current.push(cloneAnnotations(annotations));
+    if (historyRef.current.length > 50) historyRef.current.shift();
+    redoRef.current = [];
+  }, [annotations]);
+
+  const prepareCanvas = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      if (!canvas) return null;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(pageDimensions.width * ratio);
+      canvas.height = Math.round(pageDimensions.height * ratio);
+      canvas.style.width = `${pageDimensions.width}px`;
+      canvas.style.height = `${pageDimensions.height}px`;
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+      context.setTransform(ratio * zoom, 0, 0, ratio * zoom, 0, 0);
+      context.clearRect(0, 0, NOTEBOOK_PAGE_WIDTH, NOTEBOOK_PAGE_HEIGHT);
+      return context;
+    },
+    [pageDimensions.height, pageDimensions.width, zoom]
+  );
+
+  const redraw = useCallback(() => {
+    const context = prepareCanvas(annotationCanvasRef.current);
+    if (!context) return;
+    drawNotebookAnnotations(context, visibleAnnotations);
+    prepareCanvas(activeStrokeCanvasRef.current);
+  }, [prepareCanvas, visibleAnnotations]);
+
+  useEffect(() => redraw(), [redraw]);
+
+  const paintActiveStroke = useCallback(() => {
+    const context = prepareCanvas(activeStrokeCanvasRef.current);
+    if (context && drawingRef.current) drawPenAnnotation(context, drawingRef.current);
+  }, [prepareCanvas]);
+
+  const pointFromEvent = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(NOTEBOOK_PAGE_WIDTH, ((event.clientX - rect.left) / rect.width) * NOTEBOOK_PAGE_WIDTH)),
+      y: Math.max(0, Math.min(NOTEBOOK_PAGE_HEIGHT, ((event.clientY - rect.top) / rect.height) * NOTEBOOK_PAGE_HEIGHT)),
+    };
+  };
+
+  const removeAnnotation = (id: string) => {
+    remember();
+    onChange(annotations.filter((annotation) => annotation.id !== id));
+    setEditingTextId(null);
+    setSelectedTextId(null);
+  };
+
+  const finishStroke = () => {
+    if (drawingRef.current) {
+      const stroke = drawingRef.current;
+      drawingRef.current = null;
+      if (stroke.points.length) {
+        remember();
+        onChange([...annotations, stroke]);
+      }
+    }
+    prepareCanvas(activeStrokeCanvasRef.current);
+    draggingRef.current = null;
+  };
+
+  const findTextAt = (point: { x: number; y: number }) =>
+    [...annotations].reverse().find(
+      (annotation): annotation is NotebookTextAnnotation =>
+        annotation.type === "text" &&
+        point.x >= annotation.x &&
+        point.x <= annotation.x + annotation.width &&
+        point.y >= annotation.y &&
+        point.y <= annotation.y + textHitHeight(annotation)
+    );
+
+  const createTextAt = (point: { x: number; y: number }) => {
+    const text: NotebookTextAnnotation = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: "text",
+      x: point.x,
+      y: point.y,
+      width: TEXT_BOX_WIDTH,
+      text: "",
+      color,
+      fontSize: textSize,
+      fontWeight: bold ? "bold" : "normal",
+      underline,
+      textAlign,
+    };
+    remember();
+    onChange([...annotations, text]);
+    setEditingTextId(text.id);
+    setSelectedTextId(text.id);
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    pageAreaRef.current?.focus();
+    if (readOnly) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = pointFromEvent(event);
+    setSelectedTextId(null);
+    if (tool === "cursor") {
+      const selected = [...annotations].reverse().find(
+        (annotation): annotation is NotebookTextAnnotation | NotebookImageAnnotation =>
+          (annotation.type === "text" || annotation.type === "image") &&
+          annotationHit(annotation, point)
+      );
+      if (selected) {
+        remember();
+        setSelectedTextId(selected.id);
+        draggingRef.current = {
+          id: selected.id,
+          offsetX: point.x - selected.x,
+          offsetY: point.y - selected.y,
+        };
+      }
+    } else if (tool === "pen" || tool === "highlighter") {
+      drawingRef.current = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        type: "pen",
+        tool,
+        color,
+        width: tool === "highlighter" ? highlighterWidth : penWidth,
+        points: [point],
+      };
+      paintActiveStroke();
+    } else if (tool === "eraser") {
+      const nearest = [...annotations].reverse().find((annotation) => {
+        if (annotation.type === "pen") {
+          return annotation.points.some(
+            (candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < annotation.width + 14
+          );
+        }
+        return annotationHit(annotation, point);
+      });
+      if (nearest) removeAnnotation(nearest.id);
+    } else if (tool === "text") {
+      event.preventDefault();
+      createTextAt(point);
+    }
+  };
+
+  const onDoubleClick = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (readOnly || tool !== "cursor") return;
+    const selected = findTextAt(pointFromEvent(event));
+    if (selected) {
+      setSelectedTextId(selected.id);
+      setEditingTextId(selected.id);
+    }
+  };
+
+  const pasteAt = () => {
+    const pageArea = pageAreaRef.current;
+    const x = NOTEBOOK_PAGE_WIDTH / 2 - TEXT_BOX_WIDTH / 2;
+    const y = pageArea
+      ? Math.max(40, pageArea.scrollTop / zoom + pageArea.clientHeight / zoom / 2 - 80)
+      : 120;
+    return { x: Math.max(0, x), y: Math.min(NOTEBOOK_PAGE_HEIGHT - 80, y) };
+  };
+
+  const onPaste = useCallback(async (event: ClipboardEvent) => {
+    if (readOnly) return;
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return;
+    const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+    const itemImages = Array.from(clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    const fileImages = Array.from(clipboardData.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    const image = [...itemImages, ...fileImages].find((file) => allowedImageTypes.has(file.type));
+    const unsupportedImage = [...itemImages, ...fileImages].find(
+      (file) => !allowedImageTypes.has(file.type)
+    );
+    if (image) {
+      event.preventDefault();
+      setPasteError(null);
+      try {
+        const uploaded = await uploadNotebookImage(image);
+        const bitmap = await createImageBitmap(image);
+        const width = Math.min(PASTED_IMAGE_SIZE, bitmap.width);
+        const height = width * (bitmap.height / bitmap.width);
+        bitmap.close();
+        const point = pasteAt();
+        remember();
+        onChange([
+          ...annotations,
+          {
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            type: "image",
+            x: Math.max(0, point.x - width / 2),
+            y: point.y,
+            width,
+            height,
+            url: uploaded.url,
+            name: uploaded.name,
+          },
+        ]);
+      } catch (pasteError) {
+        console.error("Notebook image paste failed:", pasteError);
+        setPasteError("We couldn't paste that image. Please try PNG, JPG, or WebP.");
+      }
+      return;
+    }
+    if (unsupportedImage) {
+      event.preventDefault();
+      setPasteError("Only PNG, JPG, and WebP images can be pasted.");
+      return;
+    }
+    const text = clipboardData.getData("text/plain").trim();
+    if (!text) return;
+    event.preventDefault();
+    setPasteError(null);
+    const point = pasteAt();
+    const isLink = /^https?:\/\/\S+$/i.test(text);
+    const pasted: NotebookTextAnnotation = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: "text",
+      x: point.x,
+      y: point.y,
+      width: TEXT_BOX_WIDTH,
+      text,
+      color: isLink ? "#2563eb" : color,
+      fontSize: textSize,
+      fontWeight: bold ? "bold" : "normal",
+      underline: isLink || underline,
+      textAlign,
+    };
+    remember();
+    onChange([...annotations, pasted]);
+    setSelectedTextId(pasted.id);
+  }, [annotations, bold, color, onChange, readOnly, remember, textAlign, textSize, underline, zoom]);
+
+  useEffect(() => {
+    const handleDocumentPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      void onPaste(event);
+    };
+    document.addEventListener("paste", handleDocumentPaste);
+    return () => document.removeEventListener("paste", handleDocumentPaste);
+  }, [onPaste]);
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const point = pointFromEvent(event);
+    if (drawingRef.current) {
+      drawingRef.current.points.push(point);
+      paintActiveStroke();
+      return;
+    }
+    if (draggingRef.current) {
+      const drag = draggingRef.current;
+      onChange(
+        annotations.map((annotation) =>
+          annotation.id === drag.id && (annotation.type === "text" || annotation.type === "image")
+            ? { ...annotation, x: point.x - drag.offsetX, y: point.y - drag.offsetY }
+            : annotation
+        )
+      );
+    }
+  };
+
+  const undo = () => {
+    const previous = historyRef.current.pop();
+    if (!previous) return;
+    redoRef.current.push(cloneAnnotations(annotations));
+    onChange(previous);
+  };
+  const redo = () => {
+    const next = redoRef.current.pop();
+    if (!next) return;
+    historyRef.current.push(cloneAnnotations(annotations));
+    onChange(next);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "TEXTAREA" || target?.tagName === "INPUT") return;
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedTextId) {
+        event.preventDefault();
+        removeAnnotation(selectedTextId);
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey) return;
+      const key = event.key.toLowerCase();
+      if (key === "m") setTool("cursor");
+      else if (key === "p") setTool("pen");
+      else if (key === "h") setTool("highlighter");
+      else if (key === "e") setTool("eraser");
+      else if (key === "q") setTool("text");
+      else if (key === "z") {
+        event.preventDefault();
+        event.shiftKey ? redo() : undo();
+      } else if (key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  const toolButtons = useMemo(
+    () =>
+      [
+        ["cursor", MousePointer2, "Cursor"],
+        ["pen", PenTool, "Pen"],
+        ["highlighter", Highlighter, "Highlighter"],
+        ["eraser", Eraser, "Eraser"],
+        ["text", Type, "Text"],
+      ] as const,
+    []
+  );
+  const textareaStyle = editingText
+    ? {
+        left: editingText.x * zoom,
+        top: editingText.y * zoom,
+        width: editingText.width * zoom,
+        minHeight: editingText.fontSize * 2 * zoom,
+        fontSize: editingText.fontSize * zoom,
+        color: editingText.color,
+        fontWeight: editingText.fontWeight,
+        textDecoration: editingText.underline ? "underline" : "none",
+        textAlign: editingText.textAlign,
+      }
+    : undefined;
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col gap-3">
+      {!readOnly && (
+        <div className="flex shrink-0 items-center gap-1 rounded-xl border bg-white p-2 shadow-sm">
+          {toolButtons.map(([value, Icon, label]) => (
+            <button key={value} type="button" title={label} aria-label={label} onClick={() => setTool(value)} className={`rounded-lg p-2 ${tool === value ? "bg-emerald-100 text-emerald-700" : "hover:bg-slate-100"}`}>
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+          <button type="button" onClick={undo} title="Undo" aria-label="Undo" className="rounded-lg p-2 hover:bg-slate-100"><Undo2 className="h-4 w-4" /></button>
+          <button type="button" onClick={redo} title="Redo" aria-label="Redo" className="rounded-lg p-2 hover:bg-slate-100"><Redo2 className="h-4 w-4" /></button>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="w-44 space-y-3">
+              <div className="flex flex-wrap gap-2">{COLORS.map((entry) => <button key={entry} type="button" aria-label={entry} onClick={() => setColor(entry)} className={`h-6 w-6 rounded-full border ${color === entry ? "ring-2 ring-emerald-500 ring-offset-1" : ""}`} style={{ backgroundColor: entry }} />)}</div>
+              <label className="flex items-center justify-between gap-2 text-xs">Stroke width
+                <select value={tool === "highlighter" ? highlighterWidth : penWidth} onChange={(event) => tool === "highlighter" ? setHighlighterWidth(Number(event.target.value)) : setPenWidth(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">
+                  {(tool === "highlighter" ? HIGHLIGHT_WIDTHS : PEN_WIDTHS).map((value) => <option key={value} value={value}>{value}px</option>)}
+                </select>
+              </label>
+            </div>
+          }>
+            <button type="button" title="Colour and stroke" aria-label="Colour and stroke" className="rounded-lg p-2 hover:bg-slate-100"><span className="relative block h-4 w-4"><span className="absolute inset-0 rounded-full border" style={{ backgroundColor: color }} /><Palette className="relative h-4 w-4 opacity-70" /></span></button>
+          </Popover>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="flex w-48 flex-col gap-2 text-xs">
+              <label className="flex items-center justify-between gap-2">Text size
+                <select value={textSize} onChange={(event) => setTextSize(Number(event.target.value))} className="rounded border px-1 py-1 text-xs">{TEXT_SIZES.map((value) => <option key={value} value={value}>{value}px</option>)}</select>
+              </label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setBold((value) => !value)} className={`rounded px-2 py-1 font-bold ${bold ? "bg-emerald-100" : "hover:bg-slate-100"}`}>B</button>
+                <button type="button" onClick={() => setUnderline((value) => !value)} className={`rounded px-2 py-1 underline ${underline ? "bg-emerald-100" : "hover:bg-slate-100"}`}>U</button>
+                <select value={textAlign} onChange={(event) => setTextAlign(event.target.value as typeof textAlign)} className="rounded border px-1 py-1"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+              </div>
+            </div>
+          }>
+            <button type="button" title="Text options" aria-label="Text options" className="rounded-lg px-2 py-1 text-sm font-bold hover:bg-slate-100">T</button>
+          </Popover>
+          <Popover trigger="click" placement="bottomLeft" content={
+            <div className="flex w-48 flex-col gap-2 text-xs">
+              <label className="flex items-center justify-between gap-2">Zoom
+                <input type="range" min="0.25" max="2" step="0.05" value={zoom} onChange={(event) => { manualZoomRef.current = true; setZoom(Number(event.target.value)); }} />
+              </label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { manualZoomRef.current = false; setZoom(fitWidthZoom); }} className="rounded border px-2 py-1 hover:bg-slate-100">Fit width</button>
+                <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="rounded border px-2 py-1 hover:bg-slate-100">Fit page</button>
+              </div>
+            </div>
+          }>
+            <button type="button" title="Zoom" aria-label="Zoom" className="rounded-lg p-2 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
+          </Popover>
+        </div>
+      )}
+      {pasteError ? (
+        <div role="alert" className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {pasteError}
+        </div>
+      ) : null}
+      <div
+        ref={pageAreaRef}
+        tabIndex={0}
+        className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4 outline-none"
+      >
+        <div className="flex min-h-full min-w-full items-start justify-center">
+          <div className="relative shrink-0 overflow-hidden bg-white shadow-xl" style={pageDimensions}>
+            <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
+            <AuthenticatedNotebookImage
+              src={background.imageUrl}
+              alt=""
+              className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top"
+            />
+            {visibleAnnotations.filter((annotation): annotation is NotebookImageAnnotation => annotation.type === "image").map((annotation) => (
+              <AuthenticatedNotebookImage
+                key={annotation.id}
+                src={annotation.url}
+                alt={annotation.name || ""}
+                className="pointer-events-none absolute object-contain object-top"
+                style={{ left: annotation.x * zoom, top: annotation.y * zoom, width: annotation.width * zoom, height: annotation.height * zoom }}
+              />
+            ))}
+            {background.text ? (
+              <div
+                className="pointer-events-none absolute whitespace-pre-wrap text-slate-800"
+                style={{
+                  left: 40 * zoom,
+                  top: 92 * zoom,
+                  width: 714 * zoom,
+                  fontSize: 18 * zoom,
+                  lineHeight: `${28 * zoom}px`,
+                }}
+              >
+                {background.text}
+              </div>
+            ) : null}
+            {material ? (
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {material.kind === "docx" ? (
+                  <div
+                    className="absolute left-0 top-0"
+                    style={{
+                      width: NOTEBOOK_PAGE_WIDTH,
+                      height: NOTEBOOK_PAGE_HEIGHT,
+                      transform: `scale(${zoom})`,
+                      transformOrigin: "top left",
+                      fontFamily: NOTEBOOK_DOCX_FLOW.fontFamily,
+                      fontSize: NOTEBOOK_DOCX_FLOW.fontSize,
+                      lineHeight: NOTEBOOK_DOCX_FLOW.lineHeight,
+                      padding: NOTEBOOK_DOCX_FLOW.padding,
+                      columnWidth: NOTEBOOK_DOCX_FLOW.columnWidth,
+                      columnGap: NOTEBOOK_DOCX_FLOW.columnGap,
+                      columnFill: NOTEBOOK_DOCX_FLOW.columnFill,
+                      boxSizing: "border-box",
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        material.pages[background.materialPage || 0]?.html || "",
+                    }}
+                  />
+                ) : material.pages[background.materialPage || 0]?.imageUrl ? (
+                  <AuthenticatedNotebookImage
+                    src={material.pages[background.materialPage || 0].imageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-contain object-top"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            {!readOnly ? (
+              <input
+                value={heading || ""}
+                onChange={(event) => onHeadingChange(event.target.value)}
+                placeholder="Title / date"
+                aria-label="Notebook headline"
+                className="absolute z-10 border-0 border-b-2 border-slate-400 bg-transparent px-1 text-center font-[cursive] outline-none placeholder:text-slate-400"
+                style={{
+                  left: 40 * zoom,
+                  top: 24 * zoom,
+                  width: 714 * zoom,
+                  height: 46 * zoom,
+                  fontSize: 30 * zoom,
+                }}
+              />
+            ) : heading ? (
+              <div
+                className="pointer-events-none absolute z-10 truncate border-b-2 border-slate-400 text-center font-[cursive] text-slate-700"
+                style={{
+                  left: 40 * zoom,
+                  top: 24 * zoom,
+                  width: 714 * zoom,
+                  height: 46 * zoom,
+                  fontSize: 30 * zoom,
+                  lineHeight: `${40 * zoom}px`,
+                }}
+              >
+                {heading}
+              </div>
+            ) : null}
+            <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
+            <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
+            {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

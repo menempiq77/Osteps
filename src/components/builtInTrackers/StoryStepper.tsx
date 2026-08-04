@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check } from "lucide-react";
+import { withHonorifics } from "@/lib/islamicHonorifics";
 
 export type StoryStepperProps = {
   title: string;
@@ -34,19 +35,20 @@ export function StoryStepper({
       <div
         className={`relative overflow-hidden bg-gradient-to-r ${accent} p-6 text-white`}
       >
-        <div className="relative z-10 flex items-center gap-2 text-sm font-bold text-white/90">
+        <div className="pointer-events-none absolute inset-0 bg-slate-950/20" />
+        <div className="relative z-10 flex items-center gap-2 text-sm font-bold text-white drop-shadow">
           <BookOpen className="h-4 w-4" />
-          {title}
+          {withHonorifics(title)}
         </div>
         <div className="relative z-10 mt-3 flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur">
             {emoji}
           </span>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/80">
+            <div className="text-xs font-semibold uppercase tracking-wider text-white drop-shadow">
               Step {step + 1} of {total}
             </div>
-            <h3 className="text-lg font-extrabold">The story continues...</h3>
+            <h3 className="text-lg font-extrabold drop-shadow-md">The story continues...</h3>
           </div>
         </div>
 
@@ -71,7 +73,7 @@ export function StoryStepper({
             {emoji}
           </span>
           <p className="text-[16px] leading-8 text-slate-700 md:text-[17px] md:leading-9">
-            {current}
+            {withHonorifics(current)}
           </p>
         </div>
 

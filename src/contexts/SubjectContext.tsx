@@ -161,9 +161,12 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         })();
         const fallback = context.default_subject_id ?? available[0]?.id ?? null;
 
-        const candidate = [fromPath, fromQuery, fromStorage, fallback]
-          .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
-          .find((value) => available.some((subject) => subject.id === value)) ?? null;
+        const candidate =
+          fromPath ??
+          [fromQuery, fromStorage, fallback]
+            .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
+            .find((value) => available.some((subject) => subject.id === value)) ??
+          null;
 
         setActiveSubjectIdState(candidate);
         if (candidate) {
@@ -198,6 +201,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
     const pathSubjectId = extractSubjectIdFromPath(pathname);
     if (pathSubjectId && !subjects.some((subject) => subject.id === pathSubjectId)) {
+      if (activeSubjectId === pathSubjectId) {
+        return;
+      }
       const fallback = subjects[0]?.id;
       if (fallback) {
         setActiveSubjectIdState(fallback);

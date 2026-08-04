@@ -7,7 +7,7 @@ export const PROPHETS_PART_3: BuiltInLesson[] = [
     arabicName: "يُوسُف",
     title: "From the well to the treasury of Egypt",
     emoji: "👑",
-    accent: "from-yellow-400 to-amber-500",
+  accent: "from-yellow-600 to-amber-700",
     summary:
       "Yusuf was thrown into a well, sold as a slave, jailed unjustly, then made a minister who forgave his brothers.",
     story: [
@@ -158,7 +158,7 @@ export const PROPHETS_PART_3: BuiltInLesson[] = [
     arabicName: "أَيُّوب",
     title: "The prophet of patience through illness and loss",
     emoji: "🌾",
-    accent: "from-emerald-400 to-green-600",
+  accent: "from-emerald-600 to-green-700",
     summary:
       "Ayyub lost his wealth, children and health, yet never stopped praising Allah — and was restored.",
     story: [
@@ -304,7 +304,7 @@ export const PROPHETS_PART_3: BuiltInLesson[] = [
     arabicName: "شُعَيْب",
     title: "The prophet of honest trade in Madyan",
     emoji: "⚖️",
-    accent: "from-indigo-400 to-blue-600",
+  accent: "from-indigo-600 to-blue-700",
     summary:
       "Shu'ayb called the people of Madyan to worship Allah and to stop cheating in weights and measures.",
     story: [
@@ -445,7 +445,7 @@ export const PROPHETS_PART_3: BuiltInLesson[] = [
     arabicName: "مُوسَى",
     title: "The prophet who spoke with Allah",
     emoji: "🌊",
-    accent: "from-blue-500 to-indigo-600",
+  accent: "from-blue-600 to-indigo-700",
     summary:
       "Musa was saved as a baby, given the staff and the Tawrah, and led Bani Israil through the parted sea.",
     story: [
@@ -581,7 +581,7 @@ export const PROPHETS_PART_3: BuiltInLesson[] = [
     arabicName: "هَارُون",
     title: "The eloquent brother and helper of Musa",
     emoji: "🗣️",
-    accent: "from-purple-400 to-fuchsia-500",
+  accent: "from-purple-600 to-fuchsia-700",
     summary:
       "Harun was given to Musa as a helper; he spoke clearly and stayed gentle when his people went astray.",
     story: [

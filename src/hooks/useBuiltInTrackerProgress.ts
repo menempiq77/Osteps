@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store/store";
 import {
@@ -8,14 +8,20 @@ import {
   submitBuiltInLessonAttempt,
   type BuiltInLessonProgress,
 } from "@/services/studentWalletApi";
+import { submitMindQuizCompletion } from "@/services/mindUpgradeApi";
 
 const STORAGE_KEY = "osteps_builtin_tracker_progress_v1";
+const STORIES_OF_THE_PROPHETS_COURSE_KEY = "stories_of_the_prophets";
+const PASSING_QUIZ_POINTS = 100;
+const PERFECT_QUIZ_POINTS = 150;
 
 export type BuiltInAttemptOutcome = {
   passed: boolean;
   awarded: boolean;
   coinsEarned: number;
   coinBalance: number | null;
+  pointsEarned: number;
+  pointsSubmitted: boolean;
   synced: boolean;
 };
 
@@ -91,6 +97,7 @@ export function useBuiltInTrackerProgress(
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(isStudent);
   const [synced, setSynced] = useState(false);
+  const pointsSubmittedRef = useRef(new Set<string>());
 
   // Reset local state synchronously during render when the student/tracker
   // changes, rather than in an effect — this avoids an extra cascading
@@ -166,6 +173,18 @@ export function useBuiltInTrackerProgress(
         } catch {
           didSync = false;
         }
+
+        if (passed && !pointsSubmittedRef.current.has(lessonId)) {
+          pointsSubmittedRef.current.add(lessonId);
+          void submitMindQuizCompletion({
+            course_key: STORIES_OF_THE_PROPHETS_COURSE_KEY,
+            unit_key: `${STORIES_OF_THE_PROPHETS_COURSE_KEY}:${lessonId}:quiz`,
+            score,
+            total: totalQuestions,
+          }).catch(() => {
+            // Non-blocking: the service queues failed progress for retry.
+          });
+        }
       }
 
       setProgress((current) => {
@@ -193,6 +212,13 @@ export function useBuiltInTrackerProgress(
         awarded,
         coinsEarned,
         coinBalance: balance,
+        pointsEarned:
+          isStudent && passed
+            ? score === totalQuestions
+              ? PERFECT_QUIZ_POINTS
+              : PASSING_QUIZ_POINTS
+            : 0,
+        pointsSubmitted: isStudent && passed,
         synced: didSync,
       };
     },

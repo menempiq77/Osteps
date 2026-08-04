@@ -98,6 +98,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "timetable-generator",
   "assessment-document",
   "ai",
+  "class_notebook",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
