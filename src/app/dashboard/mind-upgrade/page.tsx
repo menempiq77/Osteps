@@ -21,6 +21,23 @@ import {
   fetchStudentMindAssignments,
   unassignMindUpgrade,
 } from "@/services/mindUpgradeApi";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
+
+type MindRow = {
+  id?: string | number;
+  name?: string;
+  student_name?: string;
+  user_name?: string;
+  class_id?: string | number;
+  base_class_id?: string | number;
+  year_id?: string | number;
+  class_name?: string;
+  class?: MindRow;
+  classes?: MindRow;
+  base_class?: MindRow;
+  year?: MindRow;
+  [key: string]: unknown;
+};
 
 type CurrentUser = {
   role?: string;
@@ -136,11 +153,11 @@ export default function MindUpgradePage() {
         ]);
 
         const yearMap = new Map<number, string>(
-          (Array.isArray(years) ? years : []).map((year: any) => [Number(year?.id), String(year?.name ?? `Year ${year?.id}`)])
+          (Array.isArray(years) ? years : []).map((year: MindRow) => [Number(year?.id), String(year?.name ?? `Year ${year?.id}`)])
         );
 
         const rows = await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: MindRow) => {
             const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
               row,
               Number(activeSubjectId)
@@ -179,9 +196,9 @@ export default function MindUpgradePage() {
       if (schoolId) {
         const years = (await fetchYearsBySchool(Number(schoolId))) ?? [];
         const classBuckets = await Promise.all(
-          years.map(async (year: any) => {
+          years.map(async (year: MindRow) => {
             const classes = (await fetchClasses(String(year.id))) ?? [];
-            return classes.map((cls: any) => ({
+            return classes.map((cls: MindRow) => ({
               id: Number(cls.id),
               year_id: Number(year.id),
               class_name: cls.class_name ?? cls.name ?? `Class ${cls.id}`,
@@ -193,7 +210,7 @@ export default function MindUpgradePage() {
       }
 
       const assignedYears = (await fetchAssignYears()) ?? [];
-      const flattened = assignedYears.flatMap((item: any) => {
+      const flattened = assignedYears.flatMap((item: MindRow) => {
         const cls = item?.classes;
         if (!cls) return [];
         return Array.isArray(cls) ? cls : [cls];
@@ -249,13 +266,14 @@ export default function MindUpgradePage() {
       );
       const merged = rowsByClass.flat();
       const byId = new Map<number, StudentOption>();
-      for (const student of merged as any[]) {
+      for (const student of merged as MindRow[]) {
         const id = Number(student?.id ?? student?.student_id);
         if (!id) continue;
         byId.set(id, {
           id,
-          student_name:
-            student?.student_name ?? student?.user_name ?? student?.name ?? `Student ${id}`,
+          student_name: String(
+            student?.student_name ?? student?.user_name ?? student?.name ?? `Student ${id}`
+          ),
         });
       }
       return Array.from(byId.values());
@@ -297,8 +315,8 @@ export default function MindUpgradePage() {
       queryClient.invalidateQueries({ queryKey: ["mind-upgrade-manage-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["mind-upgrade-student-assignments"] });
     },
-    onError: (error: any) => {
-      messageApi.error(error?.response?.data?.message || error?.message || "Failed to remove assignment.");
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to remove assignment."));
     },
   });
 
@@ -367,8 +385,8 @@ export default function MindUpgradePage() {
         queryClient.invalidateQueries({ queryKey: ["mind-upgrade-manage-assignments"] });
         queryClient.invalidateQueries({ queryKey: ["mind-upgrade-student-assignments"] });
       })
-      .catch((error: any) => {
-        messageApi.error(error?.response?.data?.message || error?.message || "Failed to assign courses.");
+      .catch((error: unknown) => {
+        messageApi.error(errorMessage(error, "Failed to assign courses."));
       });
   };
 
@@ -754,4 +772,3 @@ export default function MindUpgradePage() {
     </div>
   );
 }
-
