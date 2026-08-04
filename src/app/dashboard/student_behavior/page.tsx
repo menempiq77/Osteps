@@ -82,7 +82,11 @@ interface CurrentUser {
   name?: string;
   class?: string;
   role?: string;
-  school?: number | string;
+  school?: number | string | Record<string, unknown>;
+  school_id?: number | string;
+  school_timezone?: string;
+  schoolTimeZone?: string;
+  timezone?: string;
   id?: string;
 }
 
@@ -109,14 +113,15 @@ const StudentBehaviorPage = () => {
   const [years, setYears] = useState<Record<string, unknown>[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const schoolId = currentUser?.school;
+  const schoolId =
+    Number(asRecord(currentUser?.school)?.id ?? currentUser?.school ?? 0);
   const schoolTimeZone = useMemo(() => {
     const userAny = currentUser;
     return (
       userAny?.school_timezone ||
       userAny?.schoolTimeZone ||
       userAny?.timezone ||
-      userAny?.school?.timezone ||
+      asRecord(userAny?.school)?.timezone ||
       process.env.NEXT_PUBLIC_SCHOOL_TIMEZONE ||
       Intl.DateTimeFormat().resolvedOptions().timeZone
     );
@@ -684,7 +689,7 @@ const StudentBehaviorPage = () => {
     if (item?.created_at || item?.updated_at) {
       return new Date(
         item?.created_at || item?.updated_at || 0
-      ).toLocaleString(undefined, schoolTimeZone ? { timeZone: schoolTimeZone } : undefined);
+      ).toLocaleString(undefined, schoolTimeZone ? { timeZone: String(schoolTimeZone) } : undefined);
     }
     return "N/A";
   };

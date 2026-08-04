@@ -78,6 +78,11 @@ const OLLAMA_KEEP_ALIVE = process.env.OSTEPS_AI_MARKING_KEEP_ALIVE || "5m";
 const OLLAMA_ENABLE_REASONER = process.env.OSTEPS_AI_MARKING_USE_REASONER === "1";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+
+interface PDFParser {
+  getText(): Promise<{ pages?: unknown[] } | undefined>;
+  destroy(): Promise<void>;
+}
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile";
 // Faster fallback text model with a separate 500k TPD quota — used when the primary model is rate-limited
 const GROQ_FALLBACK_TEXT_MODEL = process.env.GROQ_FALLBACK_TEXT_MODEL || "llama-3.1-8b-instant";
@@ -580,17 +585,19 @@ const getPaperPages = async (normalizedUrl: string) => {
     pdfBuffer = Buffer.from(await response.arrayBuffer());
   }
 
-  const { PDFParse } = (await loadPdfParse()) as unknown as { PDFParse: Record<string, unknown> };
+  const { PDFParse } = await loadPdfParse() as unknown as {
+    PDFParse: new (opts: { data: Buffer }) => PDFParser;
+  };
   const parser = new PDFParse({ data: pdfBuffer });
   try {
     const parsed = await parser.getText();
-    const pages: Record<string, unknown>[] = Array.isArray(parsed?.pages)
+    const pages = Array.isArray(parsed?.pages)
       ? parsed.pages
-          .map((page: Record<string, unknown>) => ({
-            num: Number(page?.num || 0),
-            text: normalizeWhitespace(asText(page?.text)),
+          .map((page) => ({
+            num: Number(asRecord(page)?.num || 0),
+            text: normalizeWhitespace(asText(asRecord(page)?.text)),
           }))
-          .filter((page: Record<string, unknown>) => page.num > 0 && page.text.length > 0)
+          .filter((page) => page.num > 0 && page.text.length > 0)
       : [];
     paperTextCache.set(normalizedUrl, { pages, cachedAt: Date.now() });
     return pages;
