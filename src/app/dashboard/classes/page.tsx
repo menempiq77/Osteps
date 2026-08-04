@@ -63,6 +63,9 @@ type SubjectClassRow = {
 
 type ClassDynamic = {
   id?: string | number;
+  class_name?: string;
+  teacher_id?: number | string;
+  teacher_name?: string;
   year_id?: string | number;
   classes?: ClassDynamic;
   name?: string;
@@ -71,6 +74,8 @@ type ClassDynamic = {
   subjects?: Array<string | ClassDynamic>;
   [key: string]: unknown;
 };
+
+type AssignmentRecord = { classes?: ClassDynamic; teacher_name?: string; teacher?: { name?: string } };
 
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
 const getBackendMessage = (error: unknown, fallback: string) => {
@@ -183,13 +188,13 @@ export default function Page() {
  useEffect(() => {
   if (subjectContextLoading) return;
   const loadClasses = async () => {
-    let classesData: any[] = [];
+    let classesData: ApiClass[] = [];
     try {
       setLoading(true);
 
       if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
-        let res: any[];
-        let subjectClasses: any[];
+        let res: AssignmentRecord[];
+        let subjectClasses: SubjectClassRow[];
         try {
           [res, subjectClasses] = await Promise.all([
             fetchAssignYears(),
@@ -217,9 +222,9 @@ export default function Page() {
                 undefined,
             };
           })
-          .filter((cls) => Boolean(cls));
+          .filter((cls): cls is NonNullable<typeof cls> => Boolean(cls));
 
-        const assignedByKey = new Map<string, any[]>();
+        const assignedByKey = new Map<string, ClassDynamic[]>();
         assignedBaseRows.forEach((cls) => {
           const className = String(cls.class_name ?? "").trim().toLowerCase();
           const yId = String(cls.year_id ?? "");
@@ -251,7 +256,7 @@ export default function Page() {
               (row) => Boolean(row.id) && Boolean(row.is_active) !== showArchived
             );
         } else {
-          classesData = assignedBaseRows;
+          classesData = assignedBaseRows as ApiClass[];
           if (year_id) {
             classesData = classesData.filter(
               (cls) => cls.year_id === Number(year_id)
@@ -262,8 +267,8 @@ export default function Page() {
       } else
       if (false && isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
         // Teacher + subject workspace: intersect by base_class_label + year_id
-        let res: any[];
-        let subjectClasses: any[];
+        let res: AssignmentRecord[];
+        let subjectClasses: SubjectClassRow[];
         try {
           [res, subjectClasses] = await Promise.all([
             fetchAssignYears(),
@@ -287,7 +292,7 @@ export default function Page() {
           })
         );
 
-        let filtered: any[];
+        let filtered: AssignmentRecord[];
         if (subjectLabelKeys.size > 0) {
           filtered = (Array.isArray(res) ? res : []).filter((item) => {
             const cls = item?.classes;
@@ -304,7 +309,7 @@ export default function Page() {
 
         classesData = filtered
           .map((item: { classes?: ClassDynamic }) => item.classes)
-          .filter((cls: ClassDynamic | undefined): cls is ClassDynamic => Boolean(cls));
+          .filter((cls: ClassDynamic | undefined): cls is ClassDynamic => Boolean(cls)) as unknown as ApiClass[];
 
         classesData = Array.from(
           new Map(classesData.map((cls) => [String(cls.id), cls] as const)).values()
@@ -394,10 +399,10 @@ useEffect(() => {
       return;
     }
 
-    const baseClassesByYear = new Map<number, any[]>();
+    const baseClassesByYear = new Map<number, ApiClass[]>();
     const getBaseClassesForYear = async (yearId: number) => {
       if (baseClassesByYear.has(yearId)) {
-        return baseClassesByYear.get(yearId) as any[];
+        return baseClassesByYear.get(yearId) as ApiClass[];
       }
       try {
         const rows = await fetchClasses(String(yearId));
@@ -440,7 +445,7 @@ useEffect(() => {
               )
             );
 
-            let finalRows: Array<Record<string, any>> = [];
+            let finalRows: Array<Record<string, unknown>> = [];
 
             // The subject-class enrollment is the source of truth. Do not fall
             // back to broad subject/base-class rosters because archive/restore
