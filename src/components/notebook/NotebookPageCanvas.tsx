@@ -168,7 +168,8 @@ export default function NotebookPageCanvas({
   const [underline, setUnderline] = useState(false);
   const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("left");
   const [zoom, setZoom] = useState(1);
-  const [fitZoom, setFitZoom] = useState(1);
+  const [fitWidthZoom, setFitWidthZoom] = useState(1);
+  const [fitPageZoom, setFitPageZoom] = useState(1);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -188,16 +189,17 @@ export default function NotebookPageCanvas({
     const availableWidth = pageArea.clientWidth - 32;
     const availableHeight = pageArea.clientHeight - 32;
     if (availableWidth <= 0 || availableHeight <= 0) return;
-    const nextFitZoom = Math.max(
+    const nextFitWidthZoom = Math.max(
       0.25,
-      Math.min(
-        2,
-        availableWidth / NOTEBOOK_PAGE_WIDTH,
-        availableHeight / NOTEBOOK_PAGE_HEIGHT
-      )
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH)
     );
-    setFitZoom(nextFitZoom);
-    if (!manualZoomRef.current) setZoom(nextFitZoom);
+    const nextFitPageZoom = Math.max(
+      0.25,
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH, availableHeight / NOTEBOOK_PAGE_HEIGHT)
+    );
+    setFitWidthZoom(nextFitWidthZoom);
+    setFitPageZoom(nextFitPageZoom);
+    if (!manualZoomRef.current) setZoom(nextFitWidthZoom);
   }, []);
 
   useEffect(() => {
@@ -501,7 +503,8 @@ export default function NotebookPageCanvas({
           <button type="button" onClick={() => setUnderline((value) => !value)} className={`rounded px-2 py-1 text-xs underline ${underline ? "bg-emerald-100" : "hover:bg-slate-100"}`}>U</button>
           <select value={textAlign} onChange={(event) => setTextAlign(event.target.value as typeof textAlign)} className="rounded border px-1 py-1 text-xs"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
           <label className="ml-auto flex shrink-0 items-center gap-1 text-xs">Zoom <input type="range" min="0.25" max="2" step="0.05" value={zoom} onChange={(event) => { manualZoomRef.current = true; setZoom(Number(event.target.value)); }} /></label>
-          <button type="button" onClick={() => { manualZoomRef.current = false; calculateFitZoom(); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit</button>
+          <button type="button" onClick={() => { manualZoomRef.current = false; setZoom(fitWidthZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit width</button>
+          <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
         </div>
       )}
       <div ref={pageAreaRef} className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4">
