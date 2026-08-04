@@ -477,7 +477,7 @@ const StudentBehaviorPage = () => {
               actions={
                 isStudent
                   ? [
-                      <div className="">
+                      <div key={`edit-${item.id}`} className="">
                         <Button
                           icon={<EditOutlined />}
                           onClick={() => showBehaviorModal(item)}
@@ -536,13 +536,13 @@ const StudentBehaviorPage = () => {
             renderItem={(type) => (
               <List.Item
                 actions={[
-                  <Button
+                  <Button key={`edit-${type.id}`}
                     icon={<EditOutlined />}
                     onClick={() => showTypeModal(type)}
                   >
                     Edit
                   </Button>,
-                  <Popconfirm
+                  <Popconfirm key={`delete-${type.id}`}
                     title="Delete this behavior type?"
                     onConfirm={() => deleteBehaviorType(type.id)}
                     okText="Yes"
