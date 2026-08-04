@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { message } from "antd";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { QRCodeSVG } from "qrcode.react";
@@ -39,6 +40,11 @@ const CHART_COLORS = [
 
 const allowedRoles = new Set(["SCHOOL_ADMIN", "HOD", "TEACHER"]);
 
+const pollErrorMessage = (err: unknown, fallback: string) => {
+  const backend = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+  return typeof backend === "string" && backend.trim() ? backend : fallback;
+};
+
 type View = "list" | "create" | "edit" | "present" | "join" | "results";
 type PresentMode = "presenter_led" | "self_paced";
 
@@ -49,7 +55,9 @@ const syncPresenter = async (pollId: number, questionIndex: number, mode: Presen
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pollId: String(pollId), questionIndex, mode }),
     });
-  } catch { /* ignore */ }
+  } catch {
+    // Best-effort background presenter sync; the next tick retries.
+  }
 };
 
 export default function LivePollsPage() {
@@ -94,7 +102,9 @@ export default function LivePollsPage() {
     try {
       const data = await fetchPolls();
       setPolls(data);
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to load polls."));
+    }
     setLoading(false);
   }, []);
 
@@ -150,7 +160,9 @@ export default function LivePollsPage() {
       const poll = await fetchPoll(res.id);
       setActivePoll(poll);
       setView("edit");
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to create poll."));
+    }
     setLoading(false);
   };
 
@@ -177,7 +189,11 @@ export default function LivePollsPage() {
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
       resetQuestionForm();
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(
+        pollErrorMessage(err, editingQ ? "Failed to update question." : "Failed to add question.")
+      );
+    }
     setLoading(false);
   };
 
@@ -195,7 +211,9 @@ export default function LivePollsPage() {
       await deleteQuestion(activePoll.id, qId);
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to delete question."));
+    }
   };
 
   const handleEditQuestion = (q: PollQuestion) => {
@@ -212,7 +230,9 @@ export default function LivePollsPage() {
       await updatePoll(activePoll.id, { status: "active" });
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to start the poll."));
+    }
   };
 
   const handleClosePoll = async () => {
@@ -221,7 +241,9 @@ export default function LivePollsPage() {
       await updatePoll(activePoll.id, { status: "closed" });
       const updated = await fetchPoll(activePoll.id);
       setActivePoll(updated);
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to close the poll."));
+    }
   };
 
   const handleDeletePoll = async (id: number) => {
@@ -233,7 +255,9 @@ export default function LivePollsPage() {
         setActivePoll(null);
         setView("list");
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to delete the poll."));
+    }
   };
 
   const openPresent = async (pollId: number) => {
@@ -246,7 +270,9 @@ export default function LivePollsPage() {
       setShowQR(false);
       setView("present");
       startResultsPolling(pollId);
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to open the presenter view."));
+    }
   };
 
   const openResults = async (pollId: number) => {
@@ -256,7 +282,9 @@ export default function LivePollsPage() {
       const res = await fetchResults(pollId);
       setResults({ questions: res.questions, total_participants: res.total_participants });
       setView("results");
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to load poll results."));
+    }
   };
 
   const startResultsPolling = (pollId: number) => {
@@ -265,7 +293,9 @@ export default function LivePollsPage() {
       try {
         const res = await fetchResults(pollId);
         setResults({ questions: res.questions, total_participants: res.total_participants });
-      } catch { /* ignore */ }
+      } catch {
+        // Best-effort live refresh; the next interval tick retries.
+      }
     }, 3000);
   };
 
@@ -306,7 +336,9 @@ export default function LivePollsPage() {
       if (currentQIndex < joinedPoll.questions.length - 1) {
         setCurrentQIndex((i) => i + 1);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      message.error(pollErrorMessage(err, "Failed to submit your answer. Please try again."));
+    }
     setLoading(false);
   };
 
