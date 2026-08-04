@@ -23,6 +23,7 @@ import { fetchClasses } from "@/services/classesApi";
 import { fetchSubjects } from "@/services/subjectsApi";
 import { addTimetableSlot } from "@/services/timetableApi";
 import { loadPeriods, loadSchoolDays, SchoolPeriod, DAYS_OF_WEEK } from "@/lib/schoolPeriods";
+import { errorMessage } from "@/lib/safeRecord";
 import type {
   GeneratorInput, GeneratorOutput, GeneratorSlot,
   GenYear, GenClass, GenSubjectAllocation, GenTeacher, GenConstraints,
@@ -98,18 +99,18 @@ export default function TimetableGeneratorPage() {
   const teachingPeriods = useMemo(() => periods.filter((p) => p.isTeaching), [periods]);
 
   // ── Data queries (for pre-loading) ──────────────────────────────────────
-  const { data: dbYears = [] } = useQuery<any[]>({
+  const { data: dbYears = [] } = useQuery<Record<string, unknown>[]>({
     queryKey: ["years", schoolId],
     enabled: !!schoolId,
     queryFn: () => fetchYearsBySchool(schoolId as number),
   });
 
-  const { data: dbSubjects = [] } = useQuery<any[]>({
+  const { data: dbSubjects = [] } = useQuery<Record<string, unknown>[]>({
     queryKey: ["subjects"],
     queryFn: () => fetchSubjects(),
   });
 
-  const { data: dbTeachers = [] } = useQuery<any[]>({
+  const { data: dbTeachers = [] } = useQuery<Record<string, unknown>[]>({
     queryKey: ["teachers", "all"],
     queryFn: () => fetchTeachers("all"),
   });
@@ -123,15 +124,15 @@ export default function TimetableGeneratorPage() {
         const classes = await fetchClasses(String(y.id));
         years.push({
           id: String(y.id),
-          name: y.name,
-          classes: (classes as any[]).map((c: any) => ({
+          name: String(y.name ?? ""),
+          classes: (classes as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({
             id: String(c.id),
-            name: c.class_name,
+            name: String(c.class_name ?? ""),
             yearId: String(y.id),
           })),
         });
       } catch {
-        years.push({ id: String(y.id), name: y.name, classes: [] });
+        years.push({ id: String(y.id), name: String(y.name ?? ""), classes: [] });
       }
     }
     // Only include years that have classes
@@ -146,7 +147,7 @@ export default function TimetableGeneratorPage() {
       for (const yr of wizardYears) {
         allocs.push({
           subjectId: String(subj.id),
-          subjectName: subj.name,
+          subjectName: String(subj.name ?? ""),
           yearId: yr.id,
           periodsPerWeek: 3, // sensible default
           room: "",
@@ -159,10 +160,14 @@ export default function TimetableGeneratorPage() {
 
   const loadTeachersFromDB = useCallback(() => {
     if (!dbTeachers.length) return;
-    const teachers: GenTeacher[] = dbTeachers.map((t: any) => ({
+    const teachers: GenTeacher[] = dbTeachers.map((t: Record<string, unknown>) => ({
       id: String(t.id),
-      name: t.teacher_name || t.name || `Teacher ${t.id}`,
-      subjectIds: [],
+      name: t.teacher_name
+        ? String(t.teacher_name)
+        : t.name
+        ? String(t.name)
+        : `Teacher ${t.id}`,
+      subjectIds: [] as string[],
       maxPeriodsPerWeek: teachingPeriods.length * SCHOOL_DAYS.length,
       availability: {},
     }));
@@ -227,8 +232,8 @@ export default function TimetableGeneratorPage() {
         } else {
           messageApi.warning(`${result.stats.placed} placed, ${result.stats.unplacedCount} could not be placed`);
         }
-      } catch (err: any) {
-        messageApi.error(`Generation failed: ${err.message}`);
+      } catch (err: unknown) {
+        messageApi.error(`Generation failed: ${errorMessage(err)}`);
       } finally {
         setGenerating(false);
       }
@@ -259,7 +264,6 @@ export default function TimetableGeneratorPage() {
         try {
           await addTimetableSlot({
             subject: slot.subjectName,
-            subject_id: slot.subjectId,
             teacher_id: slot.teacherId,
             year_id: slot.yearId,
             class_id: slot.classId,
@@ -269,7 +273,7 @@ export default function TimetableGeneratorPage() {
             start_time: slot.startTime,
             end_time: slot.endTime,
             school_id: schoolId ?? undefined,
-          } as any, "all");
+          }, "all");
         } catch {
           errors++;
         }
@@ -570,7 +574,7 @@ function StepSubjects({
     setAllocations((prev) => prev.filter((a) => a.subjectId !== subjectId));
   };
 
-  const updateAlloc = (subjectId: string, yearId: string, field: string, value: any) => {
+  const updateAlloc = (subjectId: string, yearId: string, field: string, value: unknown) => {
     setAllocations((prev) =>
       prev.map((a) =>
         a.subjectId === subjectId && a.yearId === yearId ? { ...a, [field]: value } : a
@@ -718,7 +722,7 @@ function StepTeachers({
     setWizardTeachers((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const updateTeacher = (id: string, field: string, value: any) => {
+  const updateTeacher = (id: string, field: string, value: unknown) => {
     setWizardTeachers((prev) =>
       prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
     );
@@ -877,7 +881,7 @@ function StepConstraints({
             <Text strong>Spread subjects across different days</Text>
           </Checkbox>
           <Paragraph type="secondary" className="text-xs !mt-0.5">
-            Prefer placing the same subject's lessons on different days rather than clustering them.
+            Prefer placing the same subject&apos;s lessons on different days rather than clustering them.
           </Paragraph>
         </div>
 
