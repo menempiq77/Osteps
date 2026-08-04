@@ -26,6 +26,7 @@ import {
 } from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
 import dayjs from "dayjs";
+import { asRecord } from "@/lib/safeRecord";
 
 interface Student {
   id?: number | string;
@@ -133,17 +134,20 @@ const isPlaceholderStudentName = (value: string) =>
 
 const toStudentOption = (value: unknown): StudentOption | null => {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, any>;
-  const id = row?.student_id ?? row?.student?.id ?? row?.id;
+  const row = asRecord(value);
+  if (!row) return null;
+  const student = asRecord(row.student);
+  const user = asRecord(row.user);
+  const id = row.student_id ?? student?.id ?? row.id;
   if (id == null || String(id).trim() === "") return null;
 
   const studentName = String(
     row?.student_name ??
       row?.name ??
-      row?.student?.student_name ??
-      row?.student?.name ??
-      row?.student?.user_name ??
-      row?.user?.name ??
+      student?.student_name ??
+      student?.name ??
+      student?.user_name ??
+      user?.name ??
       ""
   ).trim();
   if (!studentName || isPlaceholderStudentName(studentName)) return null;
@@ -359,8 +363,8 @@ export default function AssessmentDrawer() {
       );
       setAssessmentTaskDefinitions(
         (data || [])
-          .filter((task: any) => String(task?.type || "task") === "task")
-          .map((task: any) => ({
+          .filter((task: Task & { type?: string; name?: string }) => String(task?.type || "task") === "task")
+          .map((task: Task & { type?: string; name?: string }) => ({
             id: Number(task?.id),
             assessment_id: Number(task?.assessment_id ?? assessmentId),
             task_name: String(task?.task_name || task?.name || "Assessment task"),
@@ -1012,7 +1016,8 @@ export default function AssessmentDrawer() {
   const initialDataReady =
     studentTasksLoaded && taskDefinitionsLoaded && (!classId || studentsLoaded);
 
-  const handleViewQuiz = (task: any) => {
+  const handleViewQuiz = (task: StudentAssessmentTask) => {
+    if (!task.quiz?.id) return;
     const params = new URLSearchParams();
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
@@ -1368,7 +1373,7 @@ export default function AssessmentDrawer() {
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Students by assessment task</h1>
               <p className="text-sm text-slate-500">
-                Choose a task tab to see every student's submission for that specific task.
+                Choose a task tab to see every student&apos;s submission for that specific task.
               </p>
             </div>
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
