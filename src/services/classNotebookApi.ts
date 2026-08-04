@@ -3,6 +3,7 @@ import type {
   NotebookAnnotation,
   NotebookBackground,
   NotebookClassResponse,
+  NotebookMaterial,
   NotebookPageResponse,
 } from "@/lib/classNotebook";
 
@@ -81,11 +82,57 @@ export const deleteNotebookPage = async (pageId: number) =>
     body: JSON.stringify({ action: "delete_page", pageId }),
   });
 
+export const duplicateNotebookPage = async (pageId: number) =>
+  request("/api/class-notebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "duplicate_page", pageId }),
+  });
+
 export const reorderNotebookPages = async (notebookId: number, pageIds: number[]) =>
   request("/api/class-notebook", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "reorder_pages", notebookId, pageIds }),
+  });
+
+export const createNotebookMaterial = async (params: {
+  subjectId: number;
+  name: string;
+  kind: "docx" | "pdf" | "image";
+  pages: Array<{ html?: string; imageUrl?: string; width?: number; height?: number }>;
+}) =>
+  request("/api/class-notebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "create_material", ...params }),
+  });
+
+export const listNotebookMaterials = async (subjectId: number) =>
+  request("/api/class-notebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "list_materials", subjectId }),
+  }) as Promise<{ materials: NotebookMaterial[] }>;
+
+export const shareNotebookMaterial = async (params: {
+  materialId: number;
+  subjectClassId: number;
+  classId: number;
+  allStudents?: boolean;
+  studentIds?: Array<string | number>;
+}) =>
+  request("/api/class-notebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "share_material", ...params }),
+  });
+
+export const deleteNotebookMaterial = async (materialId: number, subjectId: number) =>
+  request("/api/class-notebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete_material", materialId, subjectId }),
   });
 
 export const uploadNotebookImage = async (file: File) => {

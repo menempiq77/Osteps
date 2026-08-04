@@ -1,5 +1,14 @@
 export const NOTEBOOK_PAGE_WIDTH = 794;
 export const NOTEBOOK_PAGE_HEIGHT = 1123;
+export const NOTEBOOK_DOCX_FLOW = {
+  fontFamily: "Arial, Helvetica, sans-serif",
+  fontSize: 16,
+  lineHeight: 1.35,
+  padding: 24,
+  columnWidth: NOTEBOOK_PAGE_WIDTH,
+  columnGap: 0,
+  columnFill: "auto" as const,
+} as const;
 
 export type NotebookPoint = { x: number; y: number };
 
@@ -46,9 +55,34 @@ export type NotebookBackground = {
   imageUrl?: string;
   imageName?: string;
   imageMime?: string;
+  imageName?: string;
+  imageMime?: string;
   imageWidth?: number;
   imageHeight?: number;
   text?: string;
+  materialId?: number;
+  materialPage?: number;
+};
+
+export type NotebookMaterialKind = "docx" | "pdf" | "image";
+
+export type NotebookMaterialPage = {
+  html?: string;
+  imageUrl?: string;
+  width?: number;
+  height?: number;
+};
+
+export type NotebookMaterial = {
+  id: number;
+  schoolId: number;
+  subjectId: number;
+  name: string;
+  kind: NotebookMaterialKind;
+  pages: NotebookMaterialPage[];
+  pageCount: number;
+  createdBy: number;
+  createdAt?: string;
 };
 
 export type NotebookPage = {
@@ -58,6 +92,7 @@ export type NotebookPage = {
   title: string;
   heading: string | null;
   background: NotebookBackground;
+  material?: NotebookMaterial | null;
   studentAnnotations: NotebookAnnotation[];
   teacherAnnotations: NotebookAnnotation[];
   createdAt?: string;
