@@ -68,6 +68,7 @@ type Student = {
 };
 
 interface CurrentUser {
+  id?: string | number;
   student?: string;
   avatar?: string;
   name?: string;
@@ -76,14 +77,14 @@ interface CurrentUser {
 }
 
 const StudentBehaviorPage = () => {
-  const { classId, studentId } = useParams();
+  const { classId, studentId } = useParams<{ classId: string; studentId: string }>();
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [isBehaviorModalVisible, setIsBehaviorModalVisible] = useState(false);
   const [isTypeModalVisible, setIsTypeModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [typeForm] = Form.useForm();
   const [filter, setFilter] = useState("all");
-  const [editingType, setEditingType] = useState(null);
+  const [editingType, setEditingType] = useState<BehaviorType | null>(null);
   // const { currentUser } = useSelector((state: RootState) => state.auth);
   const { currentUser } = useSelector((state: RootState) => state.auth) as { currentUser: CurrentUser };
   const [behaviorTypes, setBehaviorTypes] = useState<BehaviorType[]>([]);
@@ -91,7 +92,7 @@ const StudentBehaviorPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isStudent = currentUser?.role !== "STUDENT";
-  const [editingBehavior, setEditingBehavior] = useState(null);
+  const [editingBehavior, setEditingBehavior] = useState<Behavior | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   // console.log(students, "students");
 
@@ -132,7 +133,7 @@ const StudentBehaviorPage = () => {
   const loadBehavior = async () => {
     try {
       setIsLoading(true);
-      const behaviourData = await fetchBehaviour(selectedStudentId);
+      const behaviourData = await fetchBehaviour(Number(selectedStudentId));
       setBehaviors(behaviourData);
     } catch (err) {
       setError("Failed to load behaviour");
@@ -171,7 +172,7 @@ const StudentBehaviorPage = () => {
   }, [students, selectedStudentId]);
 
   const showBehaviorModal = (behavior?: Behavior | null) => {
-    setEditingBehavior(behavior);
+    setEditingBehavior(behavior ?? null);
     if (behavior) {
       form.setFieldsValue({
         type: behavior.behaviour_id,
@@ -278,7 +279,7 @@ const StudentBehaviorPage = () => {
 
   const deleteBehavior = async (behaviorId: string) => {
     try {
-      await deleteBehaviour(behaviorId);
+      await deleteBehaviour(Number(behaviorId));
       await loadBehavior();
       message.success("Behavior deleted successfully!");
     } catch (error) {
@@ -287,9 +288,9 @@ const StudentBehaviorPage = () => {
     }
   };
 
-  const deleteBehaviorType = async (typeId) => {
+  const deleteBehaviorType = async (typeId: string) => {
     try {
-      await deleteBehaviourType(typeId);
+      await deleteBehaviourType(Number(typeId));
       setBehaviorTypes(behaviorTypes.filter((type) => type.id !== typeId));
       message.success("Behavior type deleted successfully!");
     } catch (error) {
