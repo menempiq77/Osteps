@@ -50,11 +50,15 @@ interface Task {
   obtained_marks?: number;
   additional_notes?: string;
   quiz_comments?: { question_id: number; question_text: string; comment: string }[];
-  quiz?: any;
+  quiz?: QuizRecord;
 }
 interface CurrentUser {
   student?: string;
 }
+type AnswerRecord = { marks?: string | number; comment?: string; quiz_question_id?: string | number };
+type QuestionRecord = { id?: string | number; marks?: string | number; question_text?: string };
+type SubmissionRecord = { student_id?: string | number; task_id?: string | number; student?: { id?: string | number }; task?: { id?: string | number }; answers?: AnswerRecord[]; self_assessment_mark?: number | string; self_assessment_marks?: number | string; status?: string; [key: string]: unknown };
+type QuizRecord = { id?: string | number; name?: string; submissions?: SubmissionRecord[]; quiz_queston?: QuestionRecord[] };
 
 const ONLINE_DOCUMENT_TYPES = new Set([
   "pdf",
@@ -77,14 +81,14 @@ const getCurrentReturnToPath = () => {
   return `${window.location.pathname}${window.location.search}`;
 };
 
-const getTaskSubmissionStudentId = (submission: any) =>
+const getTaskSubmissionStudentId = (submission: SubmissionRecord) =>
   submission?.student_id ?? submission?.student?.id ?? null;
 
-const getTaskSubmissionTaskId = (submission: any) =>
+const getTaskSubmissionTaskId = (submission: SubmissionRecord) =>
   submission?.task_id ?? submission?.task?.id ?? null;
 
-const buildStudentSubmissionByTaskId = (submissions: any[], studentId: unknown) => {
-  const byTaskId = new Map<string, any>();
+const buildStudentSubmissionByTaskId = (submissions: SubmissionRecord[], studentId: unknown) => {
+  const byTaskId = new Map<string, SubmissionRecord>();
   const targetStudentId = String(studentId ?? "").trim();
   if (!targetStudentId) return byTaskId;
 
@@ -211,7 +215,7 @@ export default function AssignmentDetailPage() {
   };
 
   const hydrateTaskSelfAssessmentMark = async (
-    task: any,
+    task: Record<string, unknown> & { id?: number | string; task_type?: string; type?: string; file_path?: string },
     fallbackSelfAssessmentMark: unknown
   ) => {
     const normalizedFallback = normalizeMarkValue(fallbackSelfAssessmentMark);
@@ -227,7 +231,7 @@ export default function AssignmentDetailPage() {
     }
 
     try {
-      const documentState = await fetchAssessmentDocument(assignmentId, task.id, studentId);
+      const documentState = await fetchAssessmentDocument(assignmentId, String(task.id ?? ""), studentId);
       const savedSelfAssessmentMark = normalizeMarkValue(
         documentState?.metadata?.selfAssessmentMark
       );
@@ -239,19 +243,22 @@ export default function AssignmentDetailPage() {
   };
 
   const mapTaskWithStudentData = async (
-    task: any,
-    submittedTaskByTaskId: Map<string, any>
+    task: Record<string, unknown>,
+    submittedTaskByTaskId: Map<string, SubmissionRecord>
   ) => {
     const normalizedTask = normalizeTaskRecord(task);
 
     if (normalizedTask.type === "task") {
-      const nestedStudentTask = normalizedTask.student_assessment_tasks?.find(
-        (st: any) => String(st.student_id) === String(studentId)
+      const nestedStudentTasks = Array.isArray(normalizedTask.student_assessment_tasks)
+        ? (normalizedTask.student_assessment_tasks as SubmissionRecord[])
+        : [];
+      const nestedStudentTask = nestedStudentTasks.find(
+        (st: SubmissionRecord) => String(st.student_id) === String(studentId)
       );
       const studentTask = nestedStudentTask ?? submittedTaskByTaskId.get(String(normalizedTask.id));
       const hasSubmission = Boolean(studentTask);
       const selfAssessmentMark = await hydrateTaskSelfAssessmentMark(
-        normalizedTask,
+        normalizedTask as Record<string, unknown> & { id?: number | string; task_type?: string; type?: string; file_path?: string },
         studentTask?.self_assessment_mark ?? studentTask?.self_assessment_marks
       );
 
@@ -270,27 +277,28 @@ export default function AssignmentDetailPage() {
     }
 
     if (normalizedTask.type === "quiz" && normalizedTask.quiz) {
-      const submission = normalizedTask.quiz.submissions?.find(
-        (sub: any) => String(sub.student_id) === String(studentId)
+      const quiz = normalizedTask.quiz as QuizRecord;
+      const submission = quiz.submissions?.find(
+        (sub: SubmissionRecord) => String(sub.student_id) === String(studentId)
       );
       const hasSubmission = Boolean(submission);
 
       const totalMarks = submission?.answers?.reduce(
-        (sum: number, ans: any) => sum + (parseFloat(ans.marks) || 0),
+        (sum: number, ans: AnswerRecord) => sum + (parseFloat(String(ans.marks ?? 0)) || 0),
         0
       );
 
-      const totalPossibleMarks = normalizedTask.quiz.quiz_queston?.reduce(
-        (sum: number, q: any) => sum + (parseFloat(q.marks) || 0),
+      const totalPossibleMarks = quiz.quiz_queston?.reduce(
+        (sum: number, q: QuestionRecord) => sum + (parseFloat(String(q.marks ?? 0)) || 0),
         0
       );
 
       const comments =
         submission?.answers
-          ?.filter((a: any) => a.comment)
-          ?.map((a: any) => {
-            const question = normalizedTask.quiz.quiz_queston?.find(
-              (q: any) => q.id === a.quiz_question_id
+          ?.filter((a: AnswerRecord) => a.comment)
+          ?.map((a: AnswerRecord) => {
+            const question = quiz.quiz_queston?.find(
+              (q: QuestionRecord) => q.id === a.quiz_question_id
             );
             return {
               question_id: a.quiz_question_id,
@@ -324,8 +332,8 @@ export default function AssignmentDetailPage() {
   };
 
   const enrichTasksWithStudentData = async (
-    fetchedTasks: any[] | null | undefined,
-    submittedTaskRows: any[] = []
+    fetchedTasks: Array<Record<string, unknown>> | null | undefined,
+    submittedTaskRows: SubmissionRecord[] = []
   ) => {
     const submittedTaskByTaskId = buildStudentSubmissionByTaskId(submittedTaskRows, studentId);
     return Promise.all(
@@ -342,7 +350,7 @@ export default function AssignmentDetailPage() {
       const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
 
       console.log(tasksWithStudentData, "tasksWithStudentData");
-      setTasks(tasksWithStudentData);
+      setTasks(tasksWithStudentData as unknown as Task[]);
     } catch (error) {
       console.error("Error loading tasks:", error);
       setError("Failed to load tasks");
@@ -360,7 +368,7 @@ export default function AssignmentDetailPage() {
       const fetchedTasks = await fetchTasks(Number(assignmentId));
       const submittedTaskRows = await loadSubmittedTaskRows();
       const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
-      setTasks(tasksWithStudentData);
+      setTasks(tasksWithStudentData as unknown as Task[]);
     } catch (error) {
       console.error("Error refreshing tasks:", error);
     }
@@ -730,7 +738,7 @@ export default function AssignmentDetailPage() {
                 {Boolean(task?.quiz_comments?.length) && (
                   <div className="mt-2 space-y-1 text-sm text-gray-600">
                     <strong className="block text-gray-800">Comments:</strong>
-                    {task?.quiz_comments?.map((c: any, idx: number) => (
+                    {task?.quiz_comments?.map((c, idx: number) => (
                       <div key={idx} className="mb-1">
                         <p className="font-medium text-gray-800">
                           Q{idx + 1}: {c.question_text}
