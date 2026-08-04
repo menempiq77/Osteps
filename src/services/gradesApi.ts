@@ -14,7 +14,7 @@ export const addGrade = async (gradeData: { name: string }) => {
   return response.data;
 };
 // edit Grade
-export const updateGrade = async (id: string, gradeData: any) => {
+export const updateGrade = async (id: string, gradeData: Record<string, unknown>) => {
   const response = await api.post(`/update-grades/${id}`, gradeData);
   return response.data;
 };

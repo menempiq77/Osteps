@@ -21,24 +21,29 @@ const buildClassYearKey = (classLabel: unknown, yearId: unknown) => {
   return `${normalizedLabel}::${normalizedYearId}`;
 };
 
-export const getAssignedClassesFromRows = (assignedYears: any[]): any[] =>
+type AnyRow = Record<string, unknown>;
+
+export const getAssignedClassesFromRows = (assignedYears: AnyRow[]): AnyRow[] =>
   (Array.isArray(assignedYears) ? assignedYears : [])
-    .flatMap((item: any) => {
+    .flatMap((item: AnyRow) => {
       const classesValue = item?.classes;
       return Array.isArray(classesValue) ? classesValue : classesValue ? [classesValue] : [];
     })
-    .filter((cls: any) => Boolean(cls));
+    .filter((cls: AnyRow) => Boolean(cls));
 
 const toTeacherAssignedClassOption = (
-  assignedClass: any,
-  subjectClass?: any
+  assignedClass: AnyRow,
+  subjectClass?: AnyRow
 ): TeacherAssignedClassOption | null => {
+  const assignedYear = assignedClass?.year as AnyRow | undefined;
+  const subjectClassYear = subjectClass?.year as AnyRow | undefined;
+
   const classId = String(assignedClass?.id ?? assignedClass?.class_id ?? "").trim();
   const yearId = Number(
     assignedClass?.year_id ??
-      assignedClass?.year?.id ??
+      assignedYear?.id ??
       subjectClass?.year_id ??
-      subjectClass?.year?.id ??
+      subjectClassYear?.id ??
       0
   );
 
@@ -63,25 +68,26 @@ const toTeacherAssignedClassOption = (
     year_id: yearId,
     year_name:
       String(
-        assignedClass?.year?.name ??
+        assignedYear?.name ??
           assignedClass?.year_name ??
-          subjectClass?.year?.name ??
+          subjectClassYear?.name ??
           ""
       ).trim() || `Year ${yearId}`,
   };
 };
 
 export const buildTeacherAssignedClassOptions = (
-  assignedYears: any[],
-  subjectClasses?: any[]
+  assignedYears: AnyRow[],
+  subjectClasses?: AnyRow[]
 ): TeacherAssignedClassOption[] => {
   const assignedClasses = getAssignedClassesFromRows(assignedYears);
-  const subjectClassByKey = new Map<string, any>();
+  const subjectClassByKey = new Map<string, AnyRow>();
 
-  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row: any) => {
+  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row: AnyRow) => {
+    const rowYear = row?.year as AnyRow | undefined;
     const key = buildClassYearKey(
       row?.base_class_label ?? row?.name ?? "",
-      row?.year_id ?? row?.year?.id
+      row?.year_id ?? rowYear?.id
     );
     if (key && !subjectClassByKey.has(key)) {
       subjectClassByKey.set(key, row);
@@ -89,10 +95,11 @@ export const buildTeacherAssignedClassOptions = (
   });
 
   const scopedOptions = assignedClasses
-    .map((assignedClass: any) => {
+    .map((assignedClass: AnyRow) => {
+      const assignedYear = assignedClass?.year as AnyRow | undefined;
       const key = buildClassYearKey(
         assignedClass?.class_name ?? assignedClass?.name ?? "",
-        assignedClass?.year_id ?? assignedClass?.year?.id
+        assignedClass?.year_id ?? assignedYear?.id
       );
       const subjectClass = key ? subjectClassByKey.get(key) : undefined;
 

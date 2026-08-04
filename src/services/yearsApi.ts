@@ -32,7 +32,7 @@ export const addYear = async (yearData: { name: string }) => {
   return response.data;
 };
 // edit Year
-export const updateYear = async (id: string, yearData: any) => {
+export const updateYear = async (id: string, yearData: Record<string, unknown>) => {
   const response = await api.post(`/update-year/${id}`, yearData);
   return response.data;
 };

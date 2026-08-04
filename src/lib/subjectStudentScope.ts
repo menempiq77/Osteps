@@ -4,7 +4,7 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-const extractSubjectsArray = (student: Record<string, any>) => {
+const extractSubjectsArray = (student: Record<string, unknown>): unknown[] => {
   if (Array.isArray(student?.subjects)) return student.subjects;
   if (student?.subject_name) return [student.subject_name];
   if (student?.subject) return [student.subject];
@@ -12,7 +12,7 @@ const extractSubjectsArray = (student: Record<string, any>) => {
 };
 
 export const studentMatchesSubjectScope = (
-  student: Record<string, any>,
+  student: Record<string, unknown>,
   options: {
     subjectId?: number | null;
     subjectName?: string | null;
@@ -23,10 +23,11 @@ export const studentMatchesSubjectScope = (
   const wantedSubjectName = normalizeText(options.subjectName);
   const wantedSubjectClassId = String(options.subjectClassId ?? "").trim();
 
+  const pivot = student?.pivot as Record<string, unknown> | undefined;
   const candidateSubjectClassIds = [
     student?.subject_class_id,
     student?.subjectClassId,
-    student?.pivot?.subject_class_id,
+    pivot?.subject_class_id,
   ]
     .flatMap((value) => (Array.isArray(value) ? value : [value]))
     .map((value) => String(value ?? "").trim())
@@ -38,9 +39,10 @@ export const studentMatchesSubjectScope = (
 
   const subjects = extractSubjectsArray(student);
   const subjectIds = subjects
-    .map((item: any) => {
+    .map((item) => {
       if (item && typeof item === "object") {
-        const value = Number(item.id ?? item.subject_id);
+        const record = item as Record<string, unknown>;
+        const value = Number(record.id ?? record.subject_id);
         return Number.isFinite(value) && value > 0 ? value : null;
       }
       return null;
@@ -52,10 +54,11 @@ export const studentMatchesSubjectScope = (
   }
 
   const subjectNames = subjects
-    .map((item: any) => {
+    .map((item) => {
       if (typeof item === "string") return item;
       if (item && typeof item === "object") {
-        return String(item.name ?? item.subject_name ?? "");
+        const record = item as Record<string, unknown>;
+        return String(record.name ?? record.subject_name ?? "");
       }
       return "";
     })
@@ -69,7 +72,7 @@ export const studentMatchesSubjectScope = (
   return false;
 };
 
-export const filterStudentsBySubjectScope = <T extends Record<string, any>>(
+export const filterStudentsBySubjectScope = <T extends Record<string, unknown>>(
   students: T[],
   options: {
     subjectId?: number | null;

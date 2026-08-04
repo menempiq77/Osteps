@@ -9,12 +9,12 @@ export const fetchAdmins = async () => {
   return response.data.data;
 };
 // add admin
-export const addAdmin = async (adminData: any) => {
+export const addAdmin = async (adminData: Record<string, unknown>) => {
   const response = await api.post('/add-admin', adminData);
   return response.data;
 };
 // edit admin
-export const updateAdmin = async (id: string, adminData: any) => {
+export const updateAdmin = async (id: string, adminData: Record<string, unknown>) => {
   const response = await api.post(`/update-admin/${id}`, adminData);
   return response.data;
 };

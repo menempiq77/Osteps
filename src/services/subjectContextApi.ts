@@ -6,16 +6,19 @@ import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResol
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
 import type { SubjectBrief, SubjectContextResponse, SubjectRole, SubjectRoleScope } from "@/types/subjectContext";
 
-const normalizeSubjects = (raw: any): SubjectBrief[] => {
+const normalizeSubjects = (raw: unknown): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item) => ({
-      id: Number(item?.id),
-      name: String(item?.name ?? ""),
-      code: item?.code ?? null,
-      class_label: item?.class_label ?? null,
-      dashboard_image_url: normalizeSubjectImageUrl(item?.dashboard_image_url),
-    }))
+    .map((entry) => {
+      const item = entry as Record<string, unknown> | null | undefined;
+      return {
+        id: Number(item?.id),
+        name: String(item?.name ?? ""),
+        code: (item?.code as string | null | undefined) ?? null,
+        class_label: (item?.class_label as string | null | undefined) ?? null,
+        dashboard_image_url: normalizeSubjectImageUrl(item?.dashboard_image_url),
+      };
+    })
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
@@ -28,18 +31,22 @@ const dedupeSubjects = (subjects: SubjectBrief[]): SubjectBrief[] =>
     ).values()
   );
 
-const normalizeStaffAssignmentSubjects = (raw: any): SubjectBrief[] => {
+const normalizeStaffAssignmentSubjects = (raw: unknown): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item) => ({
-      id: Number(item?.subject_id ?? item?.subject?.id ?? 0),
-      name: String(item?.subject_name ?? item?.subject?.name ?? ""),
-      code: item?.subject_code ?? item?.subject?.code ?? null,
-      class_label: null,
-      dashboard_image_url: normalizeSubjectImageUrl(
-        item?.dashboard_image_url ?? item?.subject?.dashboard_image_url
-      ),
-    }))
+    .map((entry) => {
+      const item = entry as Record<string, unknown> | null | undefined;
+      const subject = item?.subject as Record<string, unknown> | undefined;
+      return {
+        id: Number(item?.subject_id ?? subject?.id ?? 0),
+        name: String(item?.subject_name ?? subject?.name ?? ""),
+        code: (item?.subject_code as string | null | undefined) ?? (subject?.code as string | null | undefined) ?? null,
+        class_label: null,
+        dashboard_image_url: normalizeSubjectImageUrl(
+          item?.dashboard_image_url ?? subject?.dashboard_image_url
+        ),
+      };
+    })
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
@@ -117,12 +124,12 @@ const fetchTeacherAssignedSubjectsFromClasses = async (): Promise<SubjectBrief[]
 
   const assignedClassIds = new Set<number>(
     (Array.isArray(assignYears) ? assignYears : [])
-      .flatMap((item: any) => {
+      .flatMap((item: Record<string, unknown>) => {
         const classesValue = item?.classes;
         if (Array.isArray(classesValue)) return classesValue;
         return classesValue ? [classesValue] : [];
       })
-      .map((cls: any) => Number(cls?.id ?? cls?.class_id ?? cls?.classId ?? 0))
+      .map((cls: Record<string, unknown>) => Number(cls?.id ?? cls?.class_id ?? cls?.classId ?? 0))
       .filter((id: number) => Number.isFinite(id) && id > 0)
   );
 
@@ -137,8 +144,9 @@ const fetchTeacherAssignedSubjectsFromClasses = async (): Promise<SubjectBrief[]
         });
 
         const linkedClassIds = await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row: any) =>
-            resolveSubjectClassLinkedIdWithFallback(row, Number(subject.id))
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(
+            (row: Parameters<typeof resolveSubjectClassLinkedIdWithFallback>[0]) =>
+              resolveSubjectClassLinkedIdWithFallback(row, Number(subject.id))
           )
         );
 
@@ -156,8 +164,9 @@ const fetchTeacherAssignedSubjectsFromClasses = async (): Promise<SubjectBrief[]
   return matchingSubjects.filter((subject): subject is SubjectBrief => Boolean(subject));
 };
 
-const extractContext = (payload: any): SubjectContextResponse => {
-  const root = payload?.data ?? payload ?? {};
+const extractContext = (payload: unknown): SubjectContextResponse => {
+  const body = payload as Record<string, unknown> | null | undefined;
+  const root = (body?.data ?? body ?? {}) as Record<string, unknown>;
   const assigned = normalizeSubjects(root?.assigned_subjects ?? root?.subjects ?? []);
   const defaultId = Number(root?.default_subject_id ?? root?.last_subject_id ?? 0);
   const subjectRoles = normalizeSubjectRoles(root?.subject_roles);
@@ -179,7 +188,7 @@ const filterToSubjectsWithActiveClasses = async (
   if (subjects.length === 0) return [];
   // undefined is_active => backend has no column, treat as active (don't hide);
   // null/0 => archived; 1 => active. Mirrors the Classes/Years/subject-cards pages.
-  const isActive = (row: any) =>
+  const isActive = (row: Record<string, unknown>) =>
     row?.is_active === undefined ? true : Number(row?.is_active) === 1;
   const results = await Promise.all(
     subjects.map(async (subject) => {
@@ -210,9 +219,12 @@ const fetchStudentSubjectsFromBaseClass = async (studentClassId: number): Promis
     allSubjects.map(async (subject) => {
       try {
         const subjectClasses = await fetchSubjectClasses({ subject_id: Number(subject.id) });
-        const linked = (Array.isArray(subjectClasses) ? subjectClasses : []).some((sc: any) => {
+        const linked = (Array.isArray(subjectClasses) ? subjectClasses : []).some((sc: Record<string, unknown>) => {
+          const scClass = sc.class as Record<string, unknown> | undefined;
+          const scClasses = sc.classes as Record<string, unknown> | undefined;
+          const scBaseClass = sc.base_class as Record<string, unknown> | undefined;
           const linkedId = Number(
-            sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? sc.base_class?.id ?? 0
+            sc.class_id ?? sc.base_class_id ?? scClass?.id ?? scClasses?.id ?? scBaseClass?.id ?? 0
           );
           return linkedId === studentClassId;
         });
@@ -294,8 +306,9 @@ export const fetchMySubjectContext = async (options?: {
       addUnique(normalized.assigned_subjects);
       apiDefaultId = normalized.default_subject_id ?? null;
       apiSubjectRoles = normalized.subject_roles ?? [];
-    } catch (err: any) {
-      console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number }; message?: string };
+      console.warn("[SubjectContext] /subjects/my-context failed:", e?.response?.status, e?.message);
     }
 
     if (roleKey === "HOD") {
@@ -338,8 +351,9 @@ export const fetchMySubjectContext = async (options?: {
             subject_roles: finalSubjectRoles,
           };
         }
-      } catch (err: any) {
-        console.warn("[SubjectContext] HOD staff-assignments failed:", err?.response?.status, err?.message);
+      } catch (err: unknown) {
+        const e = err as { response?: { status?: number }; message?: string };
+        console.warn("[SubjectContext] HOD staff-assignments failed:", e?.response?.status, e?.message);
       }
     }
 
@@ -355,8 +369,9 @@ export const fetchMySubjectContext = async (options?: {
         const derived = await fetchTeacherAssignedSubjectsFromClasses();
         console.log("[SubjectContext] class-based derivation returned", derived.length, "subjects:", derived.map(s => s.name));
         addUnique(derived);
-      } catch (err: any) {
-        console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+      } catch (err: unknown) {
+        const e = err as { message?: string };
+        console.warn("[SubjectContext] class-based derivation failed:", e?.message);
       }
     }
 
@@ -402,8 +417,9 @@ export const fetchMySubjectContext = async (options?: {
           subject_roles: apiSubjectRoles,
         };
       }
-    } catch (err: any) {
-      console.warn("[SubjectContext] school-admin fetchSubjects failed:", err?.message);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      console.warn("[SubjectContext] school-admin fetchSubjects failed:", e?.message);
     }
     return { assigned_subjects: [], default_subject_id: null, subject_roles: [] };
   }
@@ -428,8 +444,9 @@ export const fetchMySubjectContext = async (options?: {
       // Students can't query /subject-classes (403) to filter a broader list, so
       // this is the only reliable active-subject signal for them.
       if (normalized.assigned_subjects.length > 0) return normalized;
-    } catch (err: any) {
-      console.warn("[SubjectContext] /subjects/my-context failed:", err?.response?.status, err?.message);
+    } catch (err: unknown) {
+      const e = err as { response?: { status?: number }; message?: string };
+      console.warn("[SubjectContext] /subjects/my-context failed:", e?.response?.status, e?.message);
     }
   }
 
@@ -470,21 +487,25 @@ export const fetchMySubjectContext = async (options?: {
           console.log("[SubjectContext] class-based derivation:", derived.map(s => s.name));
           collectedSubjects.push(...derived);
         }
-      } catch (err: any) {
-        console.warn("[SubjectContext] class-based derivation failed:", err?.message);
+      } catch (err: unknown) {
+        const e = err as { message?: string };
+        console.warn("[SubjectContext] class-based derivation failed:", e?.message);
       }
     }
 
     if (Number.isFinite(classId) && classId > 0 && Number.isFinite(sid) && sid > 0) {
       try {
         const res = await api.get(`/get-student/${classId}`);
-        const students: any[] = res.data?.data ?? res.data ?? [];
+        const students: Record<string, unknown>[] = res.data?.data ?? res.data ?? [];
         const me = Array.isArray(students)
-          ? students.find((s: any) =>
-              Number(s?.id) === sid ||
-              Number(s?.student_id) === sid ||
-              Number(s?.student?.id) === sid
-            )
+          ? students.find((s: Record<string, unknown>) => {
+              const studentNested = s?.student as Record<string, unknown> | undefined;
+              return (
+                Number(s?.id) === sid ||
+                Number(s?.student_id) === sid ||
+                Number(studentNested?.id) === sid
+              );
+            })
           : null;
         if (me?.subjects) {
           const enrolled = normalizeSubjects(me.subjects);

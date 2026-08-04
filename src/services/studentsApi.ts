@@ -96,7 +96,7 @@ export const addStudent = async (studentData: {
     }
 
     return payload?.data ?? payload;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw new Error(getApiErrorMessage(error, "Failed to add student"));
   }
 };
@@ -127,7 +127,7 @@ export const updateStudent = async (
     }
 
     return payload?.data ?? payload;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw new Error(getApiErrorMessage(error, "Failed to update student"));
   }
 };
@@ -149,7 +149,7 @@ export const updateStudentSupport = async (
     }
 
     return payload?.data ?? payload;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw new Error(getApiErrorMessage(error, "Failed to update support info"));
   }
 };
@@ -180,7 +180,7 @@ export const uploadStudentAvatar = async (
   const formDataPrimary = new FormData();
   formDataPrimary.append("profile_path", file);
 
-  const attempts: Array<() => Promise<any>> = [
+  const attempts: Array<() => Promise<{ data: unknown }>> = [
     // Preferred REST route (newer backend shape).
     () =>
       api.post(`/classes/${classId}/students/${studentId}/avatar`, formDataPrimary, {
@@ -205,21 +205,25 @@ export const uploadStudentAvatar = async (
     },
   ];
 
-  let lastError: any;
+  let lastError: unknown;
   for (const attempt of attempts) {
     try {
       const response = await attempt();
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
     }
   }
 
+  const lastErr = lastError as {
+    response?: { data?: { msg?: string; message?: string; data?: { message?: string } } };
+    message?: string;
+  };
   const backendMessage =
-    lastError?.response?.data?.msg ||
-    lastError?.response?.data?.message ||
-    lastError?.response?.data?.data?.message ||
-    lastError?.message ||
+    lastErr?.response?.data?.msg ||
+    lastErr?.response?.data?.message ||
+    lastErr?.response?.data?.data?.message ||
+    lastErr?.message ||
     "Failed to update avatar";
   throw new Error(String(backendMessage));
 };

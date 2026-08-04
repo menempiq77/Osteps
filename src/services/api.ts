@@ -7,6 +7,8 @@ import { withSubjectQuery } from '@/lib/subjectScope';
 import { shouldUseLegacyUnscopedSubjectData } from '@/lib/subjectScope';
 import { throwOnEmbeddedFailure } from '@/lib/apiResponse';
 
+type ApiRecord = Record<string, unknown>;
+
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
@@ -52,7 +54,7 @@ api.interceptors.request.use(async (config) => {
   ];
   const isScoped = subjectScopedHints.some((hint) => url.includes(hint));
   if (isScoped) {
-    const existing = (config.params as any)?.subject_id;
+    const existing = (config.params as ApiRecord | undefined)?.subject_id;
     const subjectId = existing ?? getStoredSubjectId();
     const legacyUnscoped = shouldUseLegacyUnscopedSubjectData(subjectId ? Number(subjectId) : null);
     if (subjectId && Number(subjectId) > 0 && !legacyUnscoped) {
@@ -91,7 +93,7 @@ export const loginUser = async (login: string, password: string) => {
 
 //assessment apis Started
 // fetch Assessment
-const normalizeAssessmentAssignments = (assessment: any): any[] => {
+const normalizeAssessmentAssignments = (assessment: ApiRecord | null | undefined): unknown[] => {
   const candidates = [
     assessment?.assigned,
     assessment?.assign_assessments,
@@ -101,15 +103,19 @@ const normalizeAssessmentAssignments = (assessment: any): any[] => {
   return candidates.find(Array.isArray) ?? [];
 };
 
-const isAssignedAssessmentForTerm = (assessment: any, termId: number) => {
+const isAssignedAssessmentForTerm = (assessment: ApiRecord | null | undefined, termId: number) => {
   const selectedTermId = Number(termId);
   if (!Number.isFinite(selectedTermId)) return true;
 
+  const term = assessment?.term as ApiRecord | undefined;
+  const pivot = assessment?.pivot as ApiRecord | undefined;
+  const assignAssessment = assessment?.assign_assessment as ApiRecord | undefined;
+
   const directTermId = Number(
     assessment?.term_id ??
-      assessment?.term?.id ??
-      assessment?.pivot?.term_id ??
-      assessment?.assign_assessment?.term_id
+      term?.id ??
+      pivot?.term_id ??
+      assignAssessment?.term_id
   );
   if (Number.isFinite(directTermId) && directTermId > 0) {
     return directTermId === selectedTermId;
@@ -118,14 +124,16 @@ const isAssignedAssessmentForTerm = (assessment: any, termId: number) => {
   const assignedRows = normalizeAssessmentAssignments(assessment);
   if (assignedRows.length === 0) return true;
 
-  return assignedRows.some((row: any) => {
-    const rowTermId = Number(row?.term_id ?? row?.id ?? row?.pivot?.term_id);
-    const status = String(row?.status ?? row?.pivot?.status ?? "assigned").trim().toLowerCase();
+  return assignedRows.some((row) => {
+    const r = row as ApiRecord | undefined;
+    const rowPivot = r?.pivot as ApiRecord | undefined;
+    const rowTermId = Number(r?.term_id ?? r?.id ?? rowPivot?.term_id);
+    const status = String(r?.status ?? rowPivot?.status ?? "assigned").trim().toLowerCase();
     return rowTermId === selectedTermId && status === "assigned";
   });
 };
 
-const filterAssessmentsForTerm = (rows: any[], termId: number) =>
+const filterAssessmentsForTerm = (rows: ApiRecord[], termId: number) =>
   (Array.isArray(rows) ? rows : []).filter((assessment) =>
     isAssignedAssessmentForTerm(assessment, termId)
   );
@@ -165,7 +173,7 @@ export const addAssessment = async (assessmentData: { name: string; school_id?: 
   return response.data;
 };
 // edit Assessment
-export const updateAssessment = async (id: string, assessmentData: any) => {
+export const updateAssessment = async (id: string, assessmentData: ApiRecord) => {
   const response = await api.post(`/update-assessment/${id}`, assessmentData);
   return response.data;
 };
@@ -206,23 +214,23 @@ export const unassignAssessmentFromTerm = async (assesmentId: number, termId: nu
 
 //Tasks apis Started
 // fetch Tasks
-const normalizeFetchedTask = (row: any) => {
+const normalizeFetchedTask = (row: ApiRecord) => {
   if (row?.type !== 'task') return row;
   return normalizeTaskRecord(row);
 };
 
-const getTeacherMarkValue = (row: any) =>
+const getTeacherMarkValue = (row: ApiRecord | null | undefined) =>
   row?.teacher_assessment_score ??
   row?.teacher_assessment_marks ??
   row?.teacher_assessment_mark;
 
-const normalizeStudentTask = (row: any) => {
+const normalizeStudentTask = (row: ApiRecord) => {
   if (!row?.task) return row;
   const teacherMarkValue = getTeacherMarkValue(row);
 
   return {
     ...row,
-    task: normalizeTaskRecord(row.task),
+    task: normalizeTaskRecord(row.task as ApiRecord),
     teacher_assessment_score:
       teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
         ? String(teacherMarkValue)
@@ -249,23 +257,25 @@ export const fetchTasks = async (
 const toArray = <T>(value: T[] | null | undefined): T[] =>
   Array.isArray(value) ? value : [];
 
-const sumQuizMarks = (quiz: any): string => {
-  const total = toArray(quiz?.quiz_queston).reduce((sum, question: any) => {
-    return sum + (parseFloat(String(question?.marks ?? 0)) || 0);
+const sumQuizMarks = (quiz: ApiRecord | null | undefined): string => {
+  const total = toArray(quiz?.quiz_queston as unknown[] | undefined).reduce((sum: number, question) => {
+    const q = question as ApiRecord | undefined;
+    return sum + (parseFloat(String(q?.marks ?? 0)) || 0);
   }, 0);
   return String(total);
 };
 
-const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
-  return rows.flatMap((row: any) => {
+const normalizeTaskTreeToStudentTasks = (rows: ApiRecord[] = []) => {
+  return rows.flatMap<ApiRecord>((row) => {
     if (row?.type === "quiz") {
-      const quiz = row?.quiz ?? null;
-      return toArray(quiz?.submissions).map((submission: any) => {
-        const teacherMarkValue = getTeacherMarkValue(submission);
+      const quiz = (row?.quiz ?? null) as ApiRecord | null;
+      return toArray(quiz?.submissions as unknown[] | undefined).map((submission) => {
+        const s = submission as ApiRecord | undefined;
+        const teacherMarkValue = getTeacherMarkValue(s);
 
         return {
-        id: submission?.id,
-        assessment_id: submission?.assessment_id ?? row?.assessment_id,
+        id: s?.id,
+        assessment_id: s?.assessment_id ?? row?.assessment_id,
         task_id: row?.id,
         task: {
           id: row?.id,
@@ -275,32 +285,32 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
           task_type: "quiz",
           description: "",
           file_path: null,
-          created_at: row?.created_at ?? submission?.created_at,
-          updated_at: row?.updated_at ?? submission?.updated_at,
+          created_at: row?.created_at ?? s?.created_at,
+          updated_at: row?.updated_at ?? s?.updated_at,
         },
         quiz,
         self_assessment_mark:
-          submission?.self_assessment_mark != null
-            ? String(submission.self_assessment_mark)
+          s?.self_assessment_mark != null
+            ? String(s.self_assessment_mark)
             : "",
-        additional_notes: submission?.comment ?? "",
+        additional_notes: s?.comment ?? "",
         file_path: "",
-        created_at: submission?.created_at ?? row?.created_at,
-        updated_at: submission?.updated_at ?? row?.updated_at,
+        created_at: s?.created_at ?? row?.created_at,
+        updated_at: s?.updated_at ?? row?.updated_at,
         teacher_assessment_score:
           teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
             ? String(teacherMarkValue)
             : undefined,
-        teacher_feedback: submission?.comment ?? "",
-        teacher_assessment_feedback: submission?.comment ?? "",
+        teacher_feedback: s?.comment ?? "",
+        teacher_assessment_feedback: s?.comment ?? "",
         submission_type: "quiz",
         teacher_assessment_marks:
           teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
             ? String(teacherMarkValue)
             : undefined,
         teacher_assessment_mark:
-          submission?.teacher_assessment_mark ?? teacherMarkValue ?? null,
-        status: submission?.status ?? "completed",
+          s?.teacher_assessment_mark ?? teacherMarkValue ?? null,
+        status: s?.status ?? "completed",
       };
       });
     }
@@ -322,38 +332,39 @@ const normalizeTaskTreeToStudentTasks = (rows: any[] = []) => {
       exam_end_at: row?.exam_end_at,
     });
 
-    return toArray(row?.student_assessment_tasks).map((submission: any) => {
-      const teacherMarkValue = getTeacherMarkValue(submission);
+    return toArray(row?.student_assessment_tasks as unknown[] | undefined).map((submission) => {
+      const s = submission as ApiRecord | undefined;
+      const teacherMarkValue = getTeacherMarkValue(s);
 
       return {
-      id: submission?.id,
-      student_id: submission?.student_id,
-      assessment_id: submission?.assessment_id ?? row?.assessment_id,
-      task_id: submission?.task_id ?? row?.id,
+      id: s?.id,
+      student_id: s?.student_id,
+      assessment_id: s?.assessment_id ?? row?.assessment_id,
+      task_id: s?.task_id ?? row?.id,
       task: normalizedTask,
       self_assessment_mark:
-        submission?.self_assessment_mark != null
-          ? String(submission.self_assessment_mark)
+        s?.self_assessment_mark != null
+          ? String(s.self_assessment_mark)
           : "",
-      additional_notes: submission?.additional_notes ?? "",
-      file_path: submission?.file_path ?? row?.file_path ?? "",
-      file_paths: submission?.file_paths ?? null,
-      created_at: submission?.created_at ?? row?.created_at,
-      updated_at: submission?.updated_at ?? row?.updated_at,
+      additional_notes: s?.additional_notes ?? "",
+      file_path: s?.file_path ?? row?.file_path ?? "",
+      file_paths: s?.file_paths ?? null,
+      created_at: s?.created_at ?? row?.created_at,
+      updated_at: s?.updated_at ?? row?.updated_at,
       teacher_assessment_score:
         teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
           ? String(teacherMarkValue)
           : undefined,
-      teacher_feedback: submission?.teacher_feedback ?? "",
-      teacher_assessment_feedback: submission?.teacher_feedback ?? "",
-      submission_type: submission?.submission_type ?? "task",
+      teacher_feedback: s?.teacher_feedback ?? "",
+      teacher_assessment_feedback: s?.teacher_feedback ?? "",
+      submission_type: s?.submission_type ?? "task",
       teacher_assessment_marks:
         teacherMarkValue != null && String(teacherMarkValue).trim() !== ""
           ? String(teacherMarkValue)
           : undefined,
       teacher_assessment_mark:
-        submission?.teacher_assessment_mark ?? teacherMarkValue ?? null,
-      status: submission?.status ?? "completed",
+        s?.teacher_assessment_mark ?? teacherMarkValue ?? null,
+      status: s?.status ?? "completed",
     };
     });
   });
@@ -373,16 +384,20 @@ export const fetchStudentTasks = async (
     });
 
     return (payload?.data ?? []).map(normalizeStudentTask);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as {
+      response?: { data?: ApiRecord; status?: number };
+      message?: string;
+    };
     const backendMessage =
-      error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      error?.message ||
+      err?.response?.data?.msg ||
+      err?.response?.data?.message ||
+      err?.message ||
       "";
 
     const shouldFallback =
       String(backendMessage).includes("undefined relationship [quiz_queston]") ||
-      Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) >= 500;
+      Number(err?.response?.data?.status_code ?? err?.response?.status ?? 0) >= 500;
 
     if (!shouldFallback) {
       throw error;
