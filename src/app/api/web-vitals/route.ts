@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { asRecord } from "@/lib/safeRecord";
@@ -28,6 +29,8 @@ type WebVitalState = {
 const STORE_DIR = path.join(DATA_DIR, "web-vitals");
 const LOG_PATH = path.join(STORE_DIR, "metrics.json");
 const VALID_NAMES = new Set<WebVitalName>(["LCP", "CLS", "INP", "TTFB"]);
+const MAX_METRICS = 5000;
+let writeQueue: Promise<void> = Promise.resolve();
 
 const readMetricState = async (): Promise<WebVitalState> => {
   try {
@@ -36,13 +39,31 @@ const readMetricState = async (): Promise<WebVitalState> => {
     return { metrics: Array.isArray(parsed.metrics) ? parsed.metrics : [] };
   } catch (error: unknown) {
     if (asRecord(error)?.code === "ENOENT") return { metrics: [] };
+    if (error instanceof SyntaxError) return { metrics: [] };
     throw error;
   }
 };
 
 const writeMetricState = async (state: WebVitalState) => {
   await fs.mkdir(STORE_DIR, { recursive: true });
-  await fs.writeFile(LOG_PATH, JSON.stringify(state, null, 2), "utf8");
+  const temporaryPath = `${LOG_PATH}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, JSON.stringify(state, null, 2), "utf8");
+    await fs.rename(temporaryPath, LOG_PATH);
+  } catch (error) {
+    await fs.rm(temporaryPath, { force: true }).catch(() => {});
+    throw error;
+  }
+};
+
+const appendMetric = async (event: WebVitalEvent) => {
+  const operation = writeQueue.then(async () => {
+    const state = await readMetricState();
+    const metrics = [...state.metrics, event].slice(-MAX_METRICS);
+    await writeMetricState({ metrics });
+  });
+  writeQueue = operation.catch(() => {});
+  await operation;
 };
 
 export async function POST(request: NextRequest) {
@@ -68,8 +89,6 @@ export async function POST(request: NextRequest) {
     userAgent: request.headers.get("user-agent") || undefined,
     createdAt: now,
   };
-  const state = await readMetricState();
-
-  await writeMetricState({ metrics: [...state.metrics, event] });
+  await appendMetric(event);
   return NextResponse.json({ data: event });
 }
