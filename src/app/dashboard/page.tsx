@@ -59,6 +59,25 @@ const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCh
 });
 
 type DashboardRecord = { id?: string | number; year_id?: string | number; yearId?: string | number; class_id?: string | number; classId?: string | number; class_name?: string; base_class_label?: string; subject_class_name?: string; subject_name?: string; name?: string; label?: string; email?: string; year_name?: string; status?: string; is_completed?: boolean; class?: DashboardRecord; classes?: DashboardRecord | DashboardRecord[]; base_class?: DashboardRecord; year?: DashboardRecord; student?: DashboardRecord; user?: DashboardRecord; subject_context?: DashboardRecord; subject_class?: DashboardRecord; pivot?: DashboardRecord; subjects?: DashboardRecord[]; topics?: DashboardRecord[]; status_progress?: DashboardRecord[]; assign_assessments?: DashboardRecord[]; assessment?: DashboardRecord; tasks?: DashboardRecord[]; [key: string]: unknown };
+type TrackerSummary = {
+  trackerId: number | null;
+  trackerName: string;
+  status: string | null;
+  dueTs: number | null;
+  dueDate: string | null;
+  updatedAt: string | null;
+  topicCount: number;
+  completedTopicCount: number;
+};
+type AssessmentSummary = {
+  assessmentId: string | number | null;
+  assessmentName: string;
+  termName: string;
+  dueTs: number | null;
+  dueDate: string | null;
+  updatedAt: string | null;
+  taskCount: number;
+};
 
 const resolveSubjectClassYearId = (row: DashboardRecord): number =>
   Number(
@@ -1152,7 +1171,7 @@ export default function DashboardPage() {
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined
       );
 
-      const deduped = new Map<string, any>();
+      const deduped = new Map<string, TrackerSummary>();
 
       (Array.isArray(rows) ? rows : []).forEach((row, index: number) => {
         const tracker = row?.tracker ?? {};
@@ -1263,7 +1282,7 @@ export default function DashboardPage() {
         return aIsUpcoming ? a.dueTs - b.dueTs : b.dueTs - a.dueTs;
       });
 
-    const grouped = new Map<string, any>();
+    const grouped = new Map<string, AssessmentSummary>();
     activeTasks.forEach((task) => {
       const key = String(task.assessmentId ?? "");
       if (!key) return;
@@ -1282,6 +1301,7 @@ export default function DashboardPage() {
       }
 
       const current = grouped.get(key);
+      if (!current) return;
       const nextDue =
         current.dueTs === null
           ? task.dueTs
@@ -1328,7 +1348,7 @@ export default function DashboardPage() {
           ? `${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
           : null,
         assessment.dueDate
-          ? `Due ${new Date(assessment.dueDate).toLocaleDateString()}`
+          ? `Due ${new Date(String(assessment.dueDate)).toLocaleDateString()}`
           : null,
       ].filter(Boolean),
       href: assessment.assessmentId
@@ -2021,7 +2041,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                           <p className="text-base font-semibold text-slate-800 md:text-[1.02rem]">
-                            {item.title}
+                            {String(item.title ?? "")}
                           </p>
                           {item.metaParts?.length ? (
                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-500 md:text-sm">
