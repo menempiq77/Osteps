@@ -60,9 +60,11 @@ export default function PublicPollPage() {
 
   useEffect(() => {
     if (!code) {
-      setPhase("error");
-      setErrorMsg("No poll code provided.");
-      return;
+      const timer = window.setTimeout(() => {
+        setPhase("error");
+        setErrorMsg("No poll code provided.");
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     let active = true;
     (async () => {
@@ -102,7 +104,9 @@ export default function PublicPollPage() {
   }, []);
 
   useEffect(() => {
-    if (syncMode === "follow" && poll) setCurrentQIndex(presenterIndex);
+    if (syncMode !== "follow" || !poll) return;
+    const timer = window.setTimeout(() => setCurrentQIndex(presenterIndex), 0);
+    return () => window.clearTimeout(timer);
   }, [presenterIndex, syncMode, poll]);
 
   const handleStart = () => {
@@ -135,7 +139,8 @@ export default function PublicPollPage() {
   useEffect(() => {
     if (allDone && phase === "answering") {
       if (syncRef.current) clearInterval(syncRef.current);
-      setPhase("done");
+      const timer = window.setTimeout(() => setPhase("done"), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [allDone, phase]);
 
