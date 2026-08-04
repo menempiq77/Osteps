@@ -337,21 +337,10 @@ export default function StudentReportPage() {
     const rows = behaviourRows.filter(
       (row) => !isAttendanceBehaviour(String((row?.behaviour as AnyObj)?.name ?? ""))
     );
-    let positive = 0;
-    let negative = 0;
-    let posCount = 0;
-    let negCount = 0;
     const events = rows
       .map((row, i) => {
         const b = (row?.behaviour as AnyObj) ?? {};
         const points = num(b?.points);
-        if (points > 0) {
-          positive += points;
-          posCount += 1;
-        } else if (points < 0) {
-          negative += points;
-          negCount += 1;
-        }
         return {
           key: String(row?.id ?? i),
           id: num(row?.id),
@@ -366,6 +355,12 @@ export default function StudentReportPage() {
         (a, b) =>
           new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
       );
+    const positiveEvents = events.filter((event) => event.points > 0);
+    const negativeEvents = events.filter((event) => event.points < 0);
+    const positive = positiveEvents.reduce((sum, event) => sum + event.points, 0);
+    const negative = negativeEvents.reduce((sum, event) => sum + event.points, 0);
+    const posCount = positiveEvents.length;
+    const negCount = negativeEvents.length;
     return {
       events,
       positive,
