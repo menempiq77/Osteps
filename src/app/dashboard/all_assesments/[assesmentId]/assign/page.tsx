@@ -12,14 +12,29 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addTerm, fetchTerm } from "@/services/termsApi";
 import { assignAssessmentToTerm, unassignAssessmentFromTerm } from "@/services/api";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+type AssignmentRecord = {
+  id?: string | number;
+  year_id?: string | number;
+  number_of_terms?: string | number;
+  name?: string;
+  class_name?: string;
+  classes?: AssignmentRecord;
+  year?: AssignmentRecord;
+  assign_assessments?: AssignmentRecord[];
+  assessment_id?: string | number;
+  status?: string;
+  updated_at?: string;
+  created_at?: string;
+};
 
-const getAssessmentAssignmentStatus = (term: any, assessmentId: string | number | null) => {
+
+const getAssessmentAssignmentStatus = (term: AssignmentRecord, assessmentId: string | number | null) => {
   const targetId = Number(assessmentId);
   if (!Number.isFinite(targetId)) return "N/A";
 
   const matches = (Array.isArray(term?.assign_assessments) ? term.assign_assessments : [])
-    .filter((row: any) => Number(row?.assessment_id) === targetId)
-    .sort((a: any, b: any) => {
+    .filter((row: AssignmentRecord) => Number(row?.assessment_id) === targetId)
+    .sort((a: AssignmentRecord, b: AssignmentRecord) => {
       const aTime = Date.parse(a?.updated_at || a?.created_at || "");
       const bTime = Date.parse(b?.updated_at || b?.created_at || "");
       if (Number.isFinite(aTime) || Number.isFinite(bTime)) {
@@ -37,7 +52,7 @@ export default function AssignAssessmentPage() {
 
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
-  const [years, setYears] = useState<any[]>([]);
+  const [years, setYears] = useState<AssignmentRecord[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [generatingTerms, setGeneratingTerms] = useState(false);
@@ -53,24 +68,28 @@ export default function AssignAssessmentPage() {
   const loadYears = async () => {
     try {
       setLoading(true);
-      let yearsData: any[] = [];
+      let yearsData: AssignmentRecord[] = [];
 
       if (isTeacher) {
         const res = await fetchAssignYears();
         const years = res
-          .map((item: any) => item?.classes?.year)
-          .filter((year: any) => year);
+          .map((item: AssignmentRecord) => item?.classes?.year)
+          .filter((year: AssignmentRecord) => year);
         yearsData = Array.from(
-          new Map(years?.map((year: any) => [year.id, year])).values()
-        );
+          new Map(
+            (years as AssignmentRecord[])
+              .filter((year): year is AssignmentRecord => Boolean(year?.id))
+              .map((year: AssignmentRecord) => [year.id, year] as const)
+          ).values()
+        ) as AssignmentRecord[];
       } else {
         const res = await fetchYearsBySchool(Number(schoolId));
-        yearsData = res;
+        yearsData = (Array.isArray(res) ? res : []) as AssignmentRecord[];
       }
       const safeYears = Array.isArray(yearsData) ? yearsData : [];
       setYears(safeYears);
       if (safeYears.length > 0) {
-        setSelectedYear(safeYears[0].id.toString());
+        setSelectedYear(String(safeYears[0].id ?? ""));
       }
     } catch (err) {
       console.error(err);
@@ -97,13 +116,13 @@ export default function AssignAssessmentPage() {
       if (isTeacher) {
         const res = await fetchAssignYears();
         let classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+          .map((item: AssignmentRecord) => item.classes)
+          .filter((cls: AssignmentRecord) => cls);
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+          new Map(classesData.map((cls: AssignmentRecord) => [cls.id, cls])).values()
         );
         return classesData.filter(
-          (cls: any) => cls.year_id === Number(selectedYear)
+          (cls: AssignmentRecord) => cls.year_id === Number(selectedYear)
         );
       } else {
         return await fetchClasses(String(selectedYear));
@@ -133,7 +152,7 @@ export default function AssignAssessmentPage() {
   const termList = useMemo(() => (Array.isArray(terms) ? terms : []), [terms]);
 
   const selectedClassRecord = classList.find(
-    (cls: any) => String(cls.id) === String(selectedClass)
+    (cls: AssignmentRecord) => String(cls.id) === String(selectedClass)
   );
 
   const resolveClassTermCount = (value: unknown): number => {
@@ -152,7 +171,7 @@ export default function AssignAssessmentPage() {
   );
 
   const visibleTerms = useMemo(() => {
-    const sorted = [...termList].sort((a: any, b: any) => Number(a?.id ?? 0) - Number(b?.id ?? 0));
+    const sorted = [...termList].sort((a: AssignmentRecord, b: AssignmentRecord) => Number(a?.id ?? 0) - Number(b?.id ?? 0));
     if (configuredTermCount > 0) {
       return sorted.slice(0, configuredTermCount);
     }
@@ -247,7 +266,7 @@ export default function AssignAssessmentPage() {
             placeholder="Select Year"
           >
             {years?.map((year) => (
-              <Select.Option key={year.id} value={year.id.toString()}>
+              <Select.Option key={year.id ?? ""} value={String(year.id ?? "")}>
                 {year.name}
               </Select.Option>
             ))}
@@ -267,8 +286,8 @@ export default function AssignAssessmentPage() {
             loading={classesLoading}
             disabled={!selectedYear}
           >
-            {classList.map((cls: any) => (
-              <Select.Option key={cls.id} value={cls.id.toString()}>
+            {classList.map((cls: AssignmentRecord) => (
+              <Select.Option key={cls.id ?? ""} value={String(cls.id ?? "")}>
                 {cls.class_name}
               </Select.Option>
             ))}
@@ -295,7 +314,7 @@ export default function AssignAssessmentPage() {
                 </td>
               </tr>
             ) : visibleTerms.length > 0 ? (
-              visibleTerms.map((term: any, index: number) => {
+              visibleTerms.map((term: AssignmentRecord, index: number) => {
                 const status = getAssessmentAssignmentStatus(term, assesmentId);
 
                 return (
@@ -313,7 +332,7 @@ export default function AssignAssessmentPage() {
                         type="primary"
                         size="small"
                         disabled={status === "assigned"}
-                        onClick={() => handleAssignTerm(term.id)}
+                        onClick={() => handleAssignTerm(Number(term.id))}
                       >
                         Assign
                       </Button>
@@ -321,7 +340,7 @@ export default function AssignAssessmentPage() {
                         danger
                         size="small"
                         disabled={status !== "assigned"}
-                        onClick={() => handleUnassignTerm(term.id)}
+                        onClick={() => handleUnassignTerm(Number(term.id))}
                       >
                         Unassign
                       </Button>
