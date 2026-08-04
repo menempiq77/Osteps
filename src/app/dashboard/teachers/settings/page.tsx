@@ -1,17 +1,22 @@
 "use client";
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message, Breadcrumb } from "antd";
+import type { UploadFile } from "antd";
 import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setCurrentUser } from "@/features/auth/authSlice";
 import { changePassword, updateTeacherProfile } from "@/services/settingApi";
 import Link from "next/link";
+import { errorMessage } from "@/lib/safeRecord";
+
+type ProfileValues = { firstName: string; lastName: string; email: string; phone?: string };
+type SecurityValues = { currentPassword: string; newPassword: string; confirmPassword: string };
 
 const TeacherSettings = () => {
-  const [form] = Form.useForm();
-  const [profileForm] = Form.useForm();
-  const [fileList, setFileList] = React.useState([]);
+  const [form] = Form.useForm<SecurityValues>();
+  const [profileForm] = Form.useForm<ProfileValues>();
+  const [fileList, setFileList] = React.useState<UploadFile[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -32,9 +37,10 @@ const TeacherSettings = () => {
     }
   }, [currentUser, profileForm]);
 
-  const onProfileFinish = async (values) => {
+  const onProfileFinish = async (values: ProfileValues) => {
     try {
       setProfileLoading(true);
+      if (!currentUser?.id) return;
       const formData = new FormData();
       formData.append("user_id", currentUser.id.toString());
       formData.append("first_name", values.firstName);
@@ -42,7 +48,8 @@ const TeacherSettings = () => {
       formData.append("email", values.email);
 
       if (fileList.length > 0) {
-        formData.append("profile_path", fileList[0].originFileObj);
+        const file = fileList[0].originFileObj;
+        if (file) formData.append("profile_path", file);
       }
 
       const response = await updateTeacherProfile(formData);
@@ -66,26 +73,26 @@ const TeacherSettings = () => {
     } catch (error) {
       console.error("Profile update failed:", error);
       messageApi.error(
-        error.response?.message || "Failed to update profile"
+        errorMessage(error, "Failed to update profile")
       );
     } finally {
       setProfileLoading(false);
     }
   };
 
-  const onFinishFailed = (errorInfo) => {
+  const onFinishFailed = (errorInfo: { errorFields: unknown[] }) => {
     console.log("Failed:", errorInfo);
     messageApi.error("Please fill all required fields!");
   };
 
-  const handleUploadChange = ({ fileList }) => {
+  const handleUploadChange = ({ fileList }: { fileList: UploadFile[] }) => {
     setFileList(fileList);
   };
   const handleRemovePhoto = () => {
     setFileList([]);
   };
 
-  const onSecurityFinish = async (values) => {
+  const onSecurityFinish = async (values: SecurityValues) => {
     try {
       setLoading(true);
       await changePassword({
@@ -97,9 +104,7 @@ const TeacherSettings = () => {
       form.resetFields();
     } catch (error) {
       console.error("Password change failed:", error);
-      messageApi.error(
-        error.response?.data?.message || "Failed to change password"
-      );
+      messageApi.error(errorMessage(error, "Failed to change password"));
     } finally {
       setLoading(false);
     }
@@ -123,7 +128,7 @@ const TeacherSettings = () => {
               <div className="flex-shrink-0">
                 {fileList.length > 0 ? (
                   <img
-                    src={URL.createObjectURL(fileList[0].originFileObj)}
+                    src={fileList[0].url ?? ""}
                     alt="Profile"
                     className="w-20 h-20 rounded-full object-cover"
                   />

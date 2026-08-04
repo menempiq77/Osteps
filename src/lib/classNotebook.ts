@@ -55,8 +55,6 @@ export type NotebookBackground = {
   imageUrl?: string;
   imageName?: string;
   imageMime?: string;
-  imageName?: string;
-  imageMime?: string;
   imageWidth?: number;
   imageHeight?: number;
   text?: string;

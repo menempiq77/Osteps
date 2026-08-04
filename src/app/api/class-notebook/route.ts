@@ -502,7 +502,7 @@ export async function POST(request: NextRequest) {
       const rawPages = Array.isArray(body?.pages) ? body.pages : [];
       const pages =
         kind === "docx"
-          ? rawPages.map((page) => ({
+          ? rawPages.map((page: { html?: unknown }) => ({
               html: sanitizeMaterialHtml(page?.html),
             }))
           : rawPages;
