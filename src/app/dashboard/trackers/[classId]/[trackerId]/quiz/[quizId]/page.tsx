@@ -21,6 +21,7 @@ import {
   submitQuizByStudent,
 } from "@/services/quizApi";
 import QuizMediaAnswerInput from "@/components/quiz/QuizMediaAnswerInput";
+import { asRecord } from "@/lib/safeRecord";
 interface Option {
   id: number;
   option_text: string;
@@ -64,7 +65,8 @@ export default function QuranQuizPage() {
   const [loading, setLoading] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  type AnswerValue = string | number | boolean | number[] | Record<string, unknown>;
+  const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
   const [messageApi, contextHolder] = message.useMessage();
 
   const canUpload =
@@ -122,16 +124,23 @@ export default function QuranQuizPage() {
 
   const handleAnswerChange = (
     questionId: number,
-    value: any,
+    value: unknown,
     questionType: string
   ) => {
-    let formattedValue = value;
+    let formattedValue: AnswerValue =
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      (Array.isArray(value) && value.every((item) => typeof item === "number")) ||
+      (typeof value === "object" && value !== null)
+        ? value as AnswerValue
+        : String(value ?? "");
 
     // Handle different question types
     if (questionType === "check_boxes") {
       // For checkboxes, we need to store the selected option IDs
-      formattedValue = value
-        .map((v: string) => {
+      formattedValue = (Array.isArray(value) ? value : [])
+        .map((v) => {
           const option = quizData?.quiz_queston
             .find((q) => q.id === questionId)
             ?.options.find((o) => o.option_text === v);
@@ -145,7 +154,7 @@ export default function QuranQuizPage() {
       // For radio/dropdown, store the selected option ID
       const option = quizData?.quiz_queston
         .find((q) => q.id === questionId)
-        ?.options.find((o) => o.option_text === value);
+        ?.options.find((o) => o.option_text === String(value));
       formattedValue = option?.id || 0;
     } else if (questionType === "true_false") {
       // For true/false, convert to boolean
@@ -166,10 +175,12 @@ export default function QuranQuizPage() {
 
       const formattedAnswers: Answer[] = quizData.quiz_queston.map(
         (question) => {
-          const answer = answers[question.id] || "";
+          const answer = answers[question.id] ?? "";
+          const submittedAnswer =
+            typeof answer === "object" ? JSON.stringify(answer) : answer;
           return {
             question_id: question.id,
-            answer: answer,
+            answer: submittedAnswer,
           };
         }
       );
@@ -197,8 +208,9 @@ export default function QuranQuizPage() {
 
       messageApi.success("Quiz submitted successfully!");
       router.push(`${quizId}/quiz-result`);
-    } catch (error: any) {
-      if (error?.response?.status === 409) {
+    } catch (error: unknown) {
+      const status = asRecord(asRecord(error)?.response)?.status;
+      if (status === 409) {
         messageApi.warning("You have already submitted this quiz.");
       } else {
         messageApi.error("Failed to submit quiz");
