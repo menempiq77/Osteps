@@ -38,6 +38,7 @@ import {
   resolveStudentId,
   resolveStudentName,
   type LeaderboardRow,
+  type LeaderboardRawEntry,
 } from "@/lib/leaderboard";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
@@ -494,7 +495,7 @@ const LeaderBoard = () => {
               total_marks: scoreEntry?.total_marks ?? 0,
               tracker_points: scoreEntry?.tracker_points,
               mind_points: scoreEntry?.mind_points,
-              class_name: scoreEntry?.class_name ?? "",
+              class_name: String(scoreEntry?.class_name ?? ""),
             };
           })
           .filter((s: LeaderboardApiRecord) => !!s.student_id)
@@ -712,7 +713,7 @@ const LeaderBoard = () => {
         // In subject workspace mode use the same enrollment-first strategy as Whole School,
         // but scoped to subject_classes that belong to the selected year.
         if (isSubjectWorkspaceMode && pickedSubjectId) {
-          let subjectClassRecords: any[] = [];
+          let subjectClassRecords: LeaderboardApiRecord[] = [];
           try {
             subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId, year_id: Number(selectedYear) })) ?? [];
           } catch { /* fall through */ }
@@ -722,43 +723,47 @@ const LeaderBoard = () => {
             try {
               const all = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
               subjectClassRecords = all.filter(
-                (r: any) => String(r.year_id ?? "") === String(selectedYear)
+                (r: LeaderboardApiRecord) => String(r.year_id ?? "") === String(selectedYear)
               );
             } catch { /* fall through */ }
           }
 
-          let allEnrolledStudents: any[] = [];
+          let allEnrolledStudents: LeaderboardApiRecord[] = [];
           if (subjectClassRecords.length > 0) {
-            const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record: any) => {
+            const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record) => {
               const subjectClassId = record.id;
               if (!subjectClassId) return [];
-              const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+              const linkedId = await resolveSubjectClassLinkedIdWithFallback(
+                record as Parameters<typeof resolveSubjectClassLinkedIdWithFallback>[0],
+                pickedSubjectId
+              );
               const urlClassId = linkedId || String(subjectClassId);
               try {
                 const students = await fetchStudents(urlClassId, pickedSubjectId, subjectClassId);
-                return (Array.isArray(students) ? students : []).map((s: any) => ({
+                return (Array.isArray(students) ? students : []).map((s: LeaderboardApiRecord) => ({
                   student_id: String(s?.id ?? s?.student_id ?? ""),
                   student_name: s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "Unknown",
                   class_id: s?.class_id ?? urlClassId,
                 }));
               } catch { return []; }
             });
-            allEnrolledStudents = enrolledByClass.flat().filter((s: any) => !!s.student_id);
+            allEnrolledStudents = enrolledByClass.flat().filter((s) => !!s.student_id);
           }
 
           if (allEnrolledStudents.length === 0) return [];
 
-          const schoolScoreMap: Record<string, any> = {};
+          const schoolScoreMap: Record<string, LeaderboardApiRecord> = {};
           try {
             const schoolRes = await fetchSchoolSelfLeaderBoardData();
             for (const entry of (schoolRes?.data ?? [])) {
               const sid = String(entry?.student_id ?? "");
-              if (sid) schoolScoreMap[sid] = entry;
+              if (sid) schoolScoreMap[sid] = entry as LeaderboardApiRecord;
             }
           } catch { /* students show with 0 marks */ }
 
-          const result = allEnrolledStudents.map((s: any) => {
-            const scoreEntry = schoolScoreMap[s.student_id];
+          const result = allEnrolledStudents.map((s) => {
+            const studentId = String(s.student_id ?? "");
+            const scoreEntry = schoolScoreMap[studentId];
             return {
               student_id: s.student_id,
               student_name: s.student_name,
@@ -769,29 +774,32 @@ const LeaderBoard = () => {
               class_name: scoreEntry?.class_name ?? "",
             };
           });
-          return mergeAndRankLeaderboards([result]);
+          return mergeAndRankLeaderboards([result as LeaderboardRawEntry[]]);
         }
 
         // Non-subject-workspace: aggregate per class using the scores endpoint
-        const yearClasses: any[] = await fetchClasses(String(selectedYear)).catch(() => []);
+        const yearClasses: LeaderboardApiRecord[] = await fetchClasses(String(selectedYear)).catch(() => []);
         const uniqueClassIds = Array.from(new Set(
-          yearClasses.map((cls: any) => getClassId(cls)).filter(Boolean)
+          yearClasses.map((cls) => getClassId(cls)).filter(Boolean)
         ));
         if (uniqueClassIds.length === 0) return [];
 
         const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
-          const cls = yearClasses.find((c: any) => getClassId(c) === classId);
-          const className = cls?.class_name ?? cls?.name ?? "";
+          const cls = yearClasses.find((c) => getClassId(c) === classId);
+          const className = String(cls?.class_name ?? cls?.name ?? "");
           try {
             const res = await fetchLeaderBoardData(classId, pickedSubjectId ?? undefined);
-            return (res?.data ?? []).map((row: any) => ({
-              ...row,
-              class_id: row.class_id ?? classId,
-              class_name: row.class_name ?? className,
-            }));
+            return (res?.data ?? []).map((row) => {
+              const typedRow = row as LeaderboardApiRecord;
+              return {
+                ...typedRow,
+                class_id: typedRow.class_id ?? classId,
+                class_name: String(typedRow.class_name ?? className),
+              };
+            });
           } catch { return []; }
         });
-        return mergeAndRankLeaderboards(leaderboards);
+        return mergeAndRankLeaderboards(leaderboards as LeaderboardRawEntry[][]);
       }
 
       // ── "Whole School" scope in subject workspace mode ──
@@ -802,7 +810,7 @@ const LeaderBoard = () => {
       // Students enrolled but with 0 marks always appear (total_marks = 0).
       if (isSubjectWorkspaceMode && pickedSubjectId) {
         // Step 1: get subject_class records for this subject
-        let subjectClassRecords: any[] = [];
+        let subjectClassRecords: LeaderboardApiRecord[] = [];
         try {
           subjectClassRecords = (await fetchSubjectClasses({ subject_id: pickedSubjectId })) ?? [];
         } catch {
@@ -813,17 +821,20 @@ const LeaderBoard = () => {
         // We pass subject_class_id as a query param so the backend can filter via
         // student_subject_enrollments when it supports it (see StudentService fix).
         // The URL class_id also uses the subject_class.id as a hint.
-        let allEnrolledStudents: any[] = [];
+        let allEnrolledStudents: LeaderboardApiRecord[] = [];
         if (subjectClassRecords.length > 0) {
-          const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record: any) => {
+          const enrolledByClass = await mapWithConcurrency(subjectClassRecords, 5, async (record) => {
             const subjectClassId = record.id;
             if (!subjectClassId) return [];
             // Try direct linked class first; fall back to subject_class id as URL hint
-            const linkedId = await resolveSubjectClassLinkedIdWithFallback(record, pickedSubjectId);
+            const linkedId = await resolveSubjectClassLinkedIdWithFallback(
+              record as Parameters<typeof resolveSubjectClassLinkedIdWithFallback>[0],
+              pickedSubjectId
+            );
             const urlClassId = linkedId || String(subjectClassId);
             try {
               const students = await fetchStudents(urlClassId, pickedSubjectId, subjectClassId);
-              return (Array.isArray(students) ? students : []).map((s: any) => ({
+              return (Array.isArray(students) ? students : []).map((s: LeaderboardApiRecord) => ({
                 student_id: String(s?.id ?? s?.student_id ?? ""),
                 student_name: s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "Unknown",
                 class_id: s?.class_id ?? urlClassId,
@@ -832,27 +843,27 @@ const LeaderBoard = () => {
               return [];
             }
           });
-          allEnrolledStudents = enrolledByClass.flat().filter((s: any) => !!s.student_id);
+          allEnrolledStudents = enrolledByClass.flat().filter((s) => !!s.student_id);
         }
 
         if (allEnrolledStudents.length === 0) return [];
 
         // Step 3: fetch school-self scores once (no subject filter — backend doesn't enforce it yet)
         // We have the correct roster, so the intersection is correct regardless.
-        const schoolScoreMap: Record<string, any> = {};
+        const schoolScoreMap: Record<string, LeaderboardApiRecord> = {};
         try {
           const schoolRes = await fetchSchoolSelfLeaderBoardData();
           for (const entry of (schoolRes?.data ?? [])) {
             const sid = String(entry?.student_id ?? "");
-            if (sid) schoolScoreMap[sid] = entry;
+            if (sid) schoolScoreMap[sid] = entry as LeaderboardApiRecord;
           }
         } catch {
           // Students will appear with 0 marks if school-self fails
         }
 
         // Step 4: enrich enrolled students with their school scores (0 if not found)
-        const result = allEnrolledStudents.map((s: any) => {
-          const scoreEntry = schoolScoreMap[s.student_id];
+        const result = allEnrolledStudents.map((s) => {
+          const scoreEntry = schoolScoreMap[String(s.student_id ?? "")];
           return {
             student_id: s.student_id,
             student_name: s.student_name,
@@ -860,11 +871,11 @@ const LeaderBoard = () => {
             tracker_points: scoreEntry?.tracker_points,
             mind_points: scoreEntry?.mind_points,
             class_id: s.class_id,
-            class_name: scoreEntry?.class_name ?? "",
+            class_name: String(scoreEntry?.class_name ?? ""),
           };
         });
 
-        return mergeAndRankLeaderboards([result]);
+        return mergeAndRankLeaderboards([result as LeaderboardRawEntry[]]);
       }
 
       // ── "Whole School" scope (non-subject or fallback) ──
@@ -905,7 +916,7 @@ const LeaderBoard = () => {
         classesForAggregation.length > 0 ? classesForAggregation : fallbackSelectedYearClasses;
 
       const classIds: string[] = mergedClassPool
-        .map((cls: any) => getClassId(cls))
+        .map((cls: LeaderboardApiRecord) => getClassId(cls))
         .filter((id: string) => !!id);
       const uniqueClassIds: string[] = Array.from(new Set(classIds));
 
@@ -916,9 +927,9 @@ const LeaderBoard = () => {
       const leaderboards = await mapWithConcurrency(uniqueClassIds, 5, async (classId) => {
         try {
           const res = await fetchLeaderBoardData(classId, pickedSubjectId ?? undefined);
-          return (res?.data ?? []).map((row: any) => ({
+          return (res?.data ?? []).map((row) => ({
             ...row,
-            class_id: row.class_id ?? classId,
+            class_id: (row as LeaderboardApiRecord).class_id ?? classId,
           }));
         } catch (error) {
           return [];
@@ -936,7 +947,7 @@ const LeaderBoard = () => {
 
   const unresolvedStaffSchoolStudentIds = !isStudent
     ? (staffSchoolLeaderboardRows ?? [])
-        .map((row: any) => String(row?.key ?? row?.student_id ?? ""))
+        .map((row) => String(row?.key ?? ""))
         .filter((id: string) => !!id)
     : [];
 
@@ -967,9 +978,9 @@ const LeaderBoard = () => {
       const mergedClassPool =
         classesForLookup.length > 0 ? classesForLookup : fallbackSelectedYearClasses;
 
-      await mapWithConcurrency(mergedClassPool, 4, async (cls: any) => {
+      await mapWithConcurrency(mergedClassPool, 4, async (cls: LeaderboardApiRecord) => {
         const classId = getClassId(cls);
-        const className = cls?.class_name ?? cls?.name ?? `Class ${classId}`;
+        const className = String(cls?.class_name ?? cls?.name ?? `Class ${classId}`);
         if (!classId) return null;
 
         try {
@@ -980,8 +991,9 @@ const LeaderBoard = () => {
               const key = String(sid);
               if (unresolvedStaffSchoolStudentIds.includes(key)) {
                 classByStudentId[key] = className;
-                const resolvedName =
-                  s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? "";
+                const resolvedName = String(
+                  s?.student_name ?? s?.user_name ?? s?.name ?? s?.user?.name ?? ""
+                );
                 if (resolvedName) {
                   nameByStudentId[key] = resolvedName;
                 }
