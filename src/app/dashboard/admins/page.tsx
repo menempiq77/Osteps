@@ -51,7 +51,9 @@ export default function SuperAdminsList() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const canManageAdmins = currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN";
+  const canManageAdmins =
+    String(currentUser?.role ?? "") === "ADMIN" ||
+    String(currentUser?.role ?? "") === "SUPER_ADMIN";
 
   const loadAdmins = async () => {
     try {
