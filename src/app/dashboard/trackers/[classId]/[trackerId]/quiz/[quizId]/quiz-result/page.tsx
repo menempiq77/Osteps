@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { asRecord } from "@/lib/safeRecord";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { Button, Progress, message } from "antd";
@@ -92,10 +93,17 @@ export default function QuizResultPage() {
             );
             if (Array.isArray(details)) {
               setUserAnswers(
-                details.map((detail: any) => ({
-                  question_id: detail.question_id,
-                  answer: detail.submitted_answer,
-                }))
+                details.map((detail: { question_id: number; submitted_answer: unknown }) => {
+                  const value = detail.submitted_answer;
+                  const answer =
+                    typeof value === "string" ||
+                    typeof value === "number" ||
+                    typeof value === "boolean" ||
+                    (Array.isArray(value) && value.every((item) => typeof item === "number"))
+                      ? value
+                      : String(value ?? "");
+                  return { question_id: detail.question_id, answer };
+                })
               );
             }
           } catch (fetchError) {
@@ -140,13 +148,13 @@ export default function QuizResultPage() {
     }
 
     if (question.type === "recording") {
-      return answer.answer && (answer.answer as any).audio
+      return asRecord(answer.answer)?.audio
         ? "Audio recording submitted"
         : "Not answered";
     }
 
     if (question.type === "image_upload") {
-      const data = (answer.answer as any) || {};
+      const data = asRecord(answer.answer) ?? {};
       const count = Array.isArray(data.images) ? data.images.length : 0;
       if (!count && !data.comment) return "Not answered";
       const photos = count ? `${count} photo${count > 1 ? "s" : ""} submitted` : "";
@@ -154,8 +162,8 @@ export default function QuizResultPage() {
     }
 
     if (question.type === "reading") {
-      const data = (answer.answer as any) || {};
-      return data.response || "Reading completed";
+      const data = asRecord(answer.answer) ?? {};
+      return String(data.response ?? "Reading completed");
     }
 
     return answer.answer?.toString() || "Not answered";
