@@ -18,14 +18,15 @@ import Link from "next/link";
 import dayjs from "dayjs";
 import { fetchStudentMaterials, uploadMaterial } from "@/services/materialApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 export default function SharedMaterialsPage() {
-  const [sharedMaterials, setSharedMaterials] = useState<any[]>([]);
+  const [sharedMaterials, setSharedMaterials] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Record<string, unknown> | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   // Fetch shared materials
@@ -34,18 +35,18 @@ export default function SharedMaterialsPage() {
       setLoading(true);
       const data = await fetchStudentMaterials();
 
-      const formatted = data?.map((m: any) => ({
+      const formatted = data?.map((m: Record<string, unknown>) => ({
         id: m?.id,
         title: m?.title,
-        teacher: m?.teacher?.teacher_name || "Unknown",
-        class: m?.classes?.class_name || "N/A",
-        date: dayjs(m?.created_at).format("MMM D, YYYY"),
-        file_path: `${IMG_BASE_URL || ""}/storage/${m?.file_path}`,
+        teacher: asRecord(m?.teacher)?.teacher_name || "Unknown",
+        class: asRecord(m?.classes)?.class_name || "N/A",
+        date: dayjs(String(m?.created_at ?? "")).format("MMM D, YYYY"),
+        file_path: `${IMG_BASE_URL || ""}/storage/${String(m?.file_path ?? "")}`,
       }));
 
       setSharedMaterials(formatted);
-    } catch (err: any) {
-      message.error(err.message || "Failed to load shared materials");
+    } catch (err: unknown) {
+      message.error(errorMessage(err, "Failed to load shared materials"));
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export default function SharedMaterialsPage() {
     loadSharedMaterials();
   }, []);
 
-  const openUploadModal = (record: any) => {
+  const openUploadModal = (record: Record<string, unknown>) => {
     setSelectedMaterial(record);
     form.resetFields();
     setUploadModalOpen(true);
@@ -67,15 +68,15 @@ export default function SharedMaterialsPage() {
     const fileObj = values.file?.[0]?.originFileObj;
 
     const formData = new FormData();
-    formData.append("material_id", selectedMaterial.id);
-    formData.append("text", values.notes || "");
+    formData.append("material_id", String(selectedMaterial?.id ?? ""));
+    formData.append("text", String(values.notes ?? ""));
     if (fileObj) formData.append("file_path", fileObj);
 
     await uploadMaterial(formData);
 
     messageApi.success("Material uploaded successfully!");
     setUploadModalOpen(false);
-  } catch (err) {
+  } catch (err: unknown) {
     console.log(err);
   }
 };
@@ -102,10 +103,10 @@ export default function SharedMaterialsPage() {
     {
       title: "View Material",
       key: "file_path",
-      render: (_: any, record: any) =>
+      render: (_: Record<string, unknown>, record: Record<string, unknown>) =>
         record.file_path ? (
           <a
-            href={record.file_path}
+            href={String(record.file_path)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#38C16C] hover:text-green-700 font-medium flex items-center gap-1"
@@ -126,13 +127,13 @@ export default function SharedMaterialsPage() {
     {
       title: "Actions",
       key: "actions",
-      render: (_: any, record: any) => (
+      render: (_: Record<string, unknown>, record: Record<string, unknown>) => (
         <Space>
           {record.file_path ? (
             <Button
               type="text"
               icon={<Download size={18} className="text-green-600" />}
-              onClick={() => window.open(record.file_path, "_blank")}
+              onClick={() => window.open(String(record.file_path), "_blank")}
             />
           ) : (
             <Button type="text" disabled>
