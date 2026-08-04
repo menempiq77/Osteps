@@ -44,6 +44,7 @@ import {
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { extractSubjectIdFromPath, toSubjectScopedPath } from "@/lib/subjectRouting";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 import { readStudentProfileOverride, writeStudentProfileOverride } from "@/lib/studentProfileOverrides";
 import {
   assignStudentsToSubjects,
@@ -108,6 +109,9 @@ type ClassItem = {
   year_name?: string;
   subject_class_id?: number | string;
   linked_class_id?: number | string;
+  class_id?: number | string;
+  classId?: number | string;
+  subjectClassId?: number | string;
   year?: { id?: number | string; name?: string };
 };
 
@@ -120,9 +124,16 @@ type SubjectClassRow = {
   name?: string | null;
   base_class_label?: string | null;
   is_active?: number | string | boolean | null;
-  class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
-  classes?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
-  base_class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null } | null;
+  linked_class_id?: number | string | null;
+  linkedClassId?: number | string | null;
+  linkedClass?: SubjectClassRow | null;
+  linked_class?: SubjectClassRow | null;
+  classId?: number | string | null;
+  class_id_value?: number | string | null;
+  baseClassId?: number | string | null;
+  class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null; class_id?: number | string | null } | null;
+  classes?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null; class_id?: number | string | null } | null;
+  base_class?: { id?: number | string | null; class_name?: string | null; year_id?: number | string | null; class_id?: number | string | null } | null;
 };
 
 type SubjectClassOption = {
@@ -419,7 +430,31 @@ const resolveSubjectClassLabel = (row: SubjectClassRow): string =>
       ""
   ).trim();
 
-const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+type StudentDynamic = {
+  id?: string | number;
+  student_id?: string | number;
+  subject_class_id?: string | number;
+  subjectClassId?: string | number;
+  subject_name?: string;
+  first_name?: string;
+  last_name?: string;
+  student_name?: string;
+  name?: string;
+  full_name?: string;
+  studentName?: string;
+  user_name?: string;
+  username?: string;
+  email?: string;
+  subject?: StudentDynamic;
+  user?: StudentDynamic;
+  student?: StudentDynamic;
+  profile?: StudentDynamic;
+  pivot?: StudentDynamic;
+  subjects?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+
+const extractStudentSubjectClassIds = (student: StudentDynamic) =>
   [
     student?.subject_class_id,
     student?.subjectClassId,
@@ -432,7 +467,7 @@ const extractStudentSubjectClassIds = (student: Record<string, any>) =>
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
 
-const resolveStudentDisplayName = (student: Record<string, any>): string => {
+const resolveStudentDisplayName = (student: StudentDynamic): string => {
   const fullName = firstNonEmptyString(
     [student?.first_name, student?.last_name].filter(Boolean).join(" "),
     [student?.student?.first_name, student?.student?.last_name].filter(Boolean).join(" ")
@@ -458,7 +493,7 @@ const resolveStudentDisplayName = (student: Record<string, any>): string => {
   );
 };
 
-const resolveStudentUserName = (student: Record<string, any>): string =>
+const resolveStudentUserName = (student: StudentDynamic): string =>
   firstNonEmptyString(
     student?.user_name,
     student?.username,
@@ -468,7 +503,7 @@ const resolveStudentUserName = (student: Record<string, any>): string =>
     student?.student?.username
   );
 
-const hasAnySubjectMarkers = (student: Record<string, any>) =>
+const hasAnySubjectMarkers = (student: StudentDynamic) =>
   extractStudentSubjectClassIds(student).length > 0 ||
   (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
   !!student?.subject_name ||
@@ -491,8 +526,8 @@ const extractClassCandidateIds = (row: Partial<ClassItem>): string[] =>
         row?.id,
         row?.linked_class_id,
         row?.subject_class_id,
-        (row as any)?.class_id,
-        (row as any)?.classId,
+        row?.class_id,
+        row?.classId,
       ]
         .map((value) => String(value ?? "").trim())
         .filter(Boolean)
@@ -1044,24 +1079,26 @@ export default function AllStudentsPage() {
                       : [];
 
                 const subjectNames = rawSubjects
-                  .map((item: any) => {
+                  .map((item: unknown) => {
                     if (typeof item === "string") return item;
-                    if (item && typeof item === "object") return String(item.name ?? item.subject_name ?? "");
+                    const record = asRecord(item);
+                    if (record) return String(record.name ?? record.subject_name ?? "");
                     return "";
                   })
                   .map((name: string) => displaySubjectName(name))
                   .filter(Boolean);
                 const subjectIds = rawSubjects
-                  .map((item: any) => {
-                    if (item && typeof item === "object") {
-                      const value = Number(item.id ?? item.subject_id);
+                  .map((item: unknown) => {
+                    const record = asRecord(item);
+                    if (record) {
+                      const value = Number(record.id ?? record.subject_id);
                       return Number.isFinite(value) && value > 0 ? value : null;
                     }
                     return null;
                   })
                   .filter((value: number | null): value is number => Number.isFinite(value as number));
 
-                const studentSubjectClassCandidates = extractStudentSubjectClassIds(student as Record<string, any>);
+                const studentSubjectClassCandidates = extractStudentSubjectClassIds(student as StudentDynamic);
                 const inferredFromSubjectClass = studentSubjectClassCandidates
                   .map((candidateId) => subjectClassIdToSubject.get(candidateId))
                   .filter(
@@ -1096,7 +1133,7 @@ export default function AllStudentsPage() {
 
                 if (subjectNames.length === 0 && hintEntriesBySubject.size > 0) {
                   const hintMatches = Array.from(hintEntriesBySubject.values()).filter((entry) =>
-                    matchesSubjectStudentHint(student as Record<string, any>, entry.bucket)
+                    matchesSubjectStudentHint(student as StudentDynamic, entry.bucket)
                   );
                   const inferredHintNames = Array.from(new Set(hintMatches.map((entry) => entry.subjectName)));
                   const inferredHintIds = Array.from(new Set(hintMatches.map((entry) => entry.subjectId)));
@@ -1380,7 +1417,7 @@ export default function AllStudentsPage() {
         (role === "SCHOOL_ADMIN" || role === "HOD")
       ) {
         try {
-          const rawUnassigned = (await fetchUnassignedStudents()) as Array<Record<string, any>>;
+          const rawUnassigned = (await fetchUnassignedStudents()) as StudentDynamic[];
           const seenIds = new Set(flattenedRows.map((row) => String(row.studentId)));
           unassignedRows = (Array.isArray(rawUnassigned) ? rawUnassigned : [])
             .flatMap((student): StudentListRow[] => {
@@ -1496,8 +1533,8 @@ export default function AllStudentsPage() {
           try {
             const items = await fetchSubjectClasses({ subject_id: subjectId });
             return (Array.isArray(items) ? items : [])
-              .filter((item: any) => item?.is_active === undefined || Number(item.is_active) === 1)
-              .map((item: any) => {
+              .filter((item: SubjectClassRow) => item?.is_active === undefined || Number(item.is_active) === 1)
+              .map((item: SubjectClassRow) => {
                 const subjectClassId = Number(item?.id ?? 0);
                 const yearId = Number(
                   item?.year_id ?? item?.class?.year_id ?? item?.classes?.year_id ?? item?.base_class?.year_id ?? 0
@@ -1622,7 +1659,7 @@ export default function AllStudentsPage() {
           classFilters.includes(toClassFilterValue(name))
         ) ||
         getRowClassFilterOptionsForSubjects(row, subjectFilter).some((option) => classFilters.includes(option.value)) ||
-        classFilters.includes(String((row as any).subjectClassId ?? row.classId)) ||
+        classFilters.includes(String(row.subjectClassId ?? row.classId)) ||
         classFilters.includes(String(row.classId));
       const subjectClassMatch =
         !wantedSubjectClassLabel ||
@@ -1842,7 +1879,7 @@ export default function AllStudentsPage() {
           try {
             const items = await fetchSubjectClasses({ subject_id: subjectId });
             return (Array.isArray(items) ? items : [])
-              .map((item: any) => ({
+              .map((item: SubjectClassRow) => ({
                 id: Number(item.id),
                 subjectId,
                 name: String(item.name || `Class ${item.id}`),
@@ -2144,12 +2181,12 @@ export default function AllStudentsPage() {
         if (!firstId) continue;
 
         try {
-          await updateStudent(firstId, payload as any);
+          await updateStudent(firstId, payload as Parameters<typeof updateStudent>[1]);
           restoredCount += 1;
         } catch {
           for (const fallbackId of fallbackIds) {
             try {
-              await updateStudent(fallbackId, payload as any);
+              await updateStudent(fallbackId, payload as Parameters<typeof updateStudent>[1]);
               restoredCount += 1;
               break;
             } catch {
@@ -2167,8 +2204,8 @@ export default function AllStudentsPage() {
 
       await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
       await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
-    } catch (error: any) {
-      messageApi.error(error?.response?.data?.msg || error?.message || "Failed to restore classes.");
+    } catch (error: unknown) {
+      messageApi.error(errorMessage(error, "Failed to restore classes."));
     } finally {
       setRestoreLoading(false);
     }
@@ -2221,12 +2258,12 @@ export default function AllStudentsPage() {
         if (!firstId) continue;
 
         try {
-          await updateStudent(firstId, payload as any);
+          await updateStudent(firstId, payload as Parameters<typeof updateStudent>[1]);
           restoredCount += 1;
         } catch {
           for (const fallbackId of fallbackIds) {
             try {
-              await updateStudent(fallbackId, payload as any);
+              await updateStudent(fallbackId, payload as Parameters<typeof updateStudent>[1]);
               restoredCount += 1;
               break;
             } catch {
@@ -2239,8 +2276,8 @@ export default function AllStudentsPage() {
       messageApi.success(`Restored ${restoredCount} students to correct classes. All misplaced students should now be in the right places.`);
       await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
       await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
-    } catch (error: any) {
-      messageApi.error(error?.response?.data?.msg || error?.message || "Failed to auto-restore students.");
+    } catch (error: unknown) {
+      messageApi.error(errorMessage(error, "Failed to auto-restore students."));
     } finally {
       setRestoreLoading(false);
     }
@@ -2364,8 +2401,8 @@ export default function AllStudentsPage() {
       setAssignDrawerOpen(false);
       setSelectedRowKeys([]);
       await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
-    } catch (error: any) {
-      messageApi.error(error?.response?.data?.msg || error?.message || "Failed to assign students.");
+    } catch (error: unknown) {
+      messageApi.error(errorMessage(error, "Failed to assign students."));
     } finally {
       setAssignLoading(false);
     }
@@ -2437,11 +2474,11 @@ export default function AllStudentsPage() {
       }
 
       try {
-        return await updateStudent(firstId, payload as any);
+        return await updateStudent(firstId, payload as Parameters<typeof updateStudent>[1]);
       } catch (firstError) {
         for (const id of fallbackIds) {
           try {
-            return await updateStudent(id, payload as any);
+            return await updateStudent(id, payload as Parameters<typeof updateStudent>[1]);
           } catch {
             // try next id
           }
@@ -2569,13 +2606,13 @@ export default function AllStudentsPage() {
         }
 
         try {
-          await updateStudent(firstId, payload as any);
+          await updateStudent(firstId, payload as Parameters<typeof updateStudent>[1]);
           successCount += 1;
-        } catch (firstError: any) {
+        } catch (firstError: unknown) {
           let updated = false;
           for (const fallbackId of fallbackIds) {
             try {
-              await updateStudent(fallbackId, payload as any);
+              await updateStudent(fallbackId, payload as Parameters<typeof updateStudent>[1]);
               successCount += 1;
               updated = true;
               break;
@@ -2587,11 +2624,10 @@ export default function AllStudentsPage() {
           if (!updated) {
             failedCount += 1;
             if (!firstErrorMessage) {
-              firstErrorMessage =
-                firstError?.response?.data?.msg ||
-                firstError?.response?.data?.message ||
-                firstError?.message ||
-                `Failed to update ${student.name}.`;
+              firstErrorMessage = errorMessage(
+                firstError,
+                `Failed to update ${student.name}.`
+              );
             }
           }
         }
@@ -2763,11 +2799,11 @@ export default function AllStudentsPage() {
 
         if (row.subjectIds.length > 0 || row.subjectClassIds.length > 0) {
           const createdStudentId = Number(
-            (added as any)?.id ??
-              (added as any)?.student_id ??
-              (added as any)?.studentId ??
-              (added as any)?.data?.id ??
-              (added as any)?.data?.student_id ??
+            asRecord(added)?.id ??
+              asRecord(added)?.student_id ??
+              asRecord(added)?.studentId ??
+              asRecord(asRecord(added)?.data)?.id ??
+              asRecord(asRecord(added)?.data)?.student_id ??
               0
           );
 
@@ -3066,11 +3102,9 @@ export default function AllStudentsPage() {
             });
             await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
             await queryClient.refetchQueries({ queryKey: ["all-students-list"], type: "active" });
-          } catch (error: any) {
+          } catch (error: unknown) {
             messageApi.warning(
-              error?.response?.data?.msg ||
-                error?.message ||
-                "Student updated but subject assignment may need manual sync."
+              errorMessage(error, "Student updated but subject assignment may need manual sync.")
             );
           }
         }
