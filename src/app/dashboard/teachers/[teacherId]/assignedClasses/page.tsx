@@ -8,6 +8,7 @@ import { fetchYearsBySchool, fetchAssignYears } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { asRecord } from "@/lib/safeRecord";
 
 interface Teacher {
   id: number;
@@ -60,7 +61,7 @@ interface ApiResponse {
 }
 
 export default function TeacherAssignedClasses() {
-  const { teacherId } = useParams();
+  const { teacherId } = useParams() as Record<string, string | undefined>;
   const router = useRouter();
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [teacherInfo, setTeacherInfo] = useState<Teacher | null>(null);
@@ -70,24 +71,11 @@ export default function TeacherAssignedClasses() {
   const roleKey = String(currentUser?.role || "").toUpperCase();
   const canViewTeacherAssignments = roleKey === "SCHOOL_ADMIN" || roleKey === "HOD";
 
-  if (!canViewTeacherAssignments) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-6 text-center">
-            <div className="text-lg font-semibold text-gray-800 mb-2">Access Restricted</div>
-            <p className="text-gray-600">Only School Admin and HOD can view teacher assignments.</p>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     const fetchAssignedClasses = async () => {
       try {
         setIsLoading(true);
-        const response: ApiResponse = await getAssignClassesTeacher(teacherId);
+        const response: ApiResponse = await getAssignClassesTeacher(teacherId ?? 0);
 
         if (response.status === 200) {
           const rawRows = Array.isArray(response.data) ? response.data : [];
@@ -108,14 +96,15 @@ export default function TeacherAssignedClasses() {
             if (rowTs >= existingTs) relationMetaByClassId.set(row.class_id, row);
           });
 
+          const userRecord = asRecord(currentUser);
           const schoolId = Number(
-            (currentUser as any)?.school?.id ??
-              (currentUser as any)?.school_id ??
-              (currentUser as any)?.school ??
+            userRecord?.school_id ??
+              asRecord(userRecord?.school)?.id ??
+              userRecord?.school ??
               0
           );
 
-          let years: any[] = [];
+          let years: Record<string, unknown>[] = [];
           if (schoolId > 0) {
             years = (await fetchYearsBySchool(schoolId)) ?? [];
           }
@@ -123,16 +112,16 @@ export default function TeacherAssignedClasses() {
             const assignedYears = (await fetchAssignYears()) ?? [];
             years = Array.from(
               new Map(
-                (assignedYears as any[])
-                  .map((item: any) => item?.classes?.year)
-                  .filter(Boolean)
-                  .map((year: any) => [year.id, year])
+                (assignedYears as Record<string, unknown>[])
+                  .map((item) => asRecord(asRecord(item)?.classes))
+                  .filter((y): y is Record<string, unknown> => !!y)
+                  .map((year) => [String(asRecord(year)?.id ?? ""), year])
               ).values()
             );
           }
 
           const classLists = await Promise.all(
-            (years || []).map(async (year: any) => {
+            (years || []).map(async (year: Record<string, unknown>) => {
               try {
                 return (await fetchClasses(String(year?.id))) ?? [];
               } catch {
@@ -143,11 +132,14 @@ export default function TeacherAssignedClasses() {
           const classes = classLists.flat();
 
           const normalizedAssigned = classes
-            .map((cls: any) => {
-              const assignedRow = (cls?.assigned_teachers || []).find(
-                (t: any) =>
-                  Number(t?.teacher_id) === Number(teacherId) &&
-                  String(t?.status || "").toLowerCase() === "assigned"
+            .map((cls: Record<string, unknown>) => {
+              const assignedTeachers = Array.isArray(asRecord(cls)?.assigned_teachers)
+                ? (asRecord(cls)?.assigned_teachers as Record<string, unknown>[])
+                : [];
+              const assignedRow = assignedTeachers.find(
+                (t) =>
+                  Number(asRecord(t)?.teacher_id) === Number(teacherId) &&
+                  String(asRecord(t)?.status || "").toLowerCase() === "assigned"
               );
               if (!assignedRow) return null;
 
@@ -184,7 +176,7 @@ export default function TeacherAssignedClasses() {
           setError("Failed to fetch assigned classes");
           message.error("Failed to fetch assigned classes");
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Error fetching assigned classes:", err);
         setError("An error occurred while fetching data");
         message.error("An error occurred while fetching data");
@@ -197,6 +189,19 @@ export default function TeacherAssignedClasses() {
       fetchAssignedClasses();
     }
   }, [teacherId, currentUser]);
+
+  if (!canViewTeacherAssignments) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6 text-center">
+            <div className="text-lg font-semibold text-gray-800 mb-2">Access Restricted</div>
+            <p className="text-gray-600">Only School Admin and HOD can view teacher assignments.</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -306,7 +311,7 @@ export default function TeacherAssignedClasses() {
                     No classes assigned yet
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    This teacher hasn't been assigned to any classes yet.
+                    This teacher hasn&apos;t been assigned to any classes yet.
                   </p>
                 </Card>
               ) : (
@@ -347,7 +352,7 @@ export default function TeacherAssignedClasses() {
               No assigned classes yet
             </h3>
             <p className="text-gray-500 mt-1">
-              This teacher hasn't been assigned to any classes yet.
+              This teacher hasn&apos;t been assigned to any classes yet.
             </p>
           </Card>
         )}
