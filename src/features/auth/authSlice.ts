@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { loginUser } from '@/services/api';
 import { API_BASE_URL } from '@/lib/config';
 import { User, AuthState } from './types';
+import { asRecord } from '@/lib/safeRecord';
 
 const initialState: AuthState = {
   currentUser: null,
@@ -11,14 +12,17 @@ const initialState: AuthState = {
   error: null,
 };
 
-const getLoginErrorMessage = (error: any) => {
-  const apiMessage = error?.response?.data?.message;
-  if (apiMessage) {
+const getLoginErrorMessage = (error: unknown) => {
+  const errorRecord = asRecord(error);
+  const response = asRecord(errorRecord?.response);
+  const data = asRecord(response?.data);
+  const apiMessage = data?.message;
+  if (typeof apiMessage === 'string' && apiMessage) {
     return apiMessage;
   }
 
-  const errorCode = String(error?.code || '');
-  const errorMessage = String(error?.message || '');
+  const errorCode = String(errorRecord?.code ?? '');
+  const errorMessage = String(errorRecord?.message ?? '');
   const isNetworkError =
     errorCode === 'ERR_NETWORK' ||
     errorMessage.toLowerCase().includes('network error') ||
@@ -38,7 +42,7 @@ export const login = createAsyncThunk(
     try {
       const response = await loginUser(login, password);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       return rejectWithValue(getLoginErrorMessage(error));
     }
   }
@@ -110,7 +114,7 @@ const authSlice = createSlice({
           studentClassName: student?.class?.class_name,
           studentYearName: student?.class?.year?.name,
           profile_path: processedProfilePath,
-          contact: school?.contact,
+          contact: contact ?? school?.contact,
           assigned_subjects: Array.isArray(assigned_subjects) ? assigned_subjects : [],
           default_subject_id:
             typeof default_subject_id === "number" && Number.isFinite(default_subject_id)

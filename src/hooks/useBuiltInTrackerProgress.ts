@@ -83,35 +83,51 @@ export function useBuiltInTrackerProgress(
     return Number.isInteger(value) && value > 0 ? value : null;
   }, [currentUser?.student]);
 
-  const [progress, setProgress] = useState<ProgressMap>({});
+  const progressKey = `${isStudent}:${studentId ?? "guest"}:${trackerId}`;
+  const [resolvedKey, setResolvedKey] = useState(progressKey);
+  const [progress, setProgress] = useState<ProgressMap>(() =>
+    readLocalProgress(studentId, trackerId)
+  );
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(isStudent);
   const [synced, setSynced] = useState(false);
 
+  // Reset local state synchronously during render when the student/tracker
+  // changes, rather than in an effect — this avoids an extra cascading
+  // render caused by calling setState from within an effect body.
+  if (resolvedKey !== progressKey) {
+    setResolvedKey(progressKey);
+    setProgress(readLocalProgress(studentId, trackerId));
+    setCoinBalance(null);
+    setSynced(false);
+    setLoading(isStudent);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    const local = readLocalProgress(studentId, trackerId);
-    setProgress(local);
 
     if (!isStudent) {
-      setLoading(false);
       return () => {
         cancelled = true;
       };
     }
 
-    setLoading(true);
+    // `loading` is already set to true for the current render's student/tracker
+    // key via the render-phase reset above, so no synchronous setState is needed
+    // here — only the async callbacks below update state.
     fetchBuiltInTrackerProgress(trackerId)
       .then((result) => {
         if (cancelled) return;
-        const merged: ProgressMap = { ...local };
-        result.lessons.forEach((lesson) => {
-          merged[lesson.lesson_id] = mergeLesson(merged[lesson.lesson_id], lesson);
+        setProgress((current) => {
+          const merged: ProgressMap = { ...current };
+          result.lessons.forEach((lesson) => {
+            merged[lesson.lesson_id] = mergeLesson(merged[lesson.lesson_id], lesson);
+          });
+          writeLocalProgress(studentId, trackerId, merged);
+          return merged;
         });
-        setProgress(merged);
         setCoinBalance(result.coin_balance);
         setSynced(true);
-        writeLocalProgress(studentId, trackerId, merged);
       })
       .catch(() => {
         if (!cancelled) setSynced(false);

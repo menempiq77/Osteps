@@ -17,12 +17,14 @@ import authReducer from '../features/auth/authSlice';
 const createNoopStorage = () => {
   return {
     getItem(_key: string) {
+      void _key;
       return Promise.resolve(null);
     },
     setItem(_key: string, value: string) {
       return Promise.resolve(value);
     },
     removeItem(_key: string) {
+      void _key;
       return Promise.resolve();
     },
   };

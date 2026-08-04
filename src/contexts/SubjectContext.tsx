@@ -77,7 +77,6 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const roleKey = (role ?? "").trim().toUpperCase().replace(/\s+/g, "_");
   const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
-  const subjectIdParam = searchParams.get("subject_id") ?? "";
   const seedSubjectRoles = normalizeSeedSubjectRoles(currentUser?.subject_roles);
   const rawSeedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
   const seedSubjects =
@@ -187,7 +186,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return () => {
       mounted = false;
     };
-  // Note: pathname and subjectIdParam are intentionally excluded — the path guard useEffect
+  // Note: pathname and the subject_id query param are intentionally excluded — the path guard useEffect
   // handles URL-based subject detection after navigation. Including pathname here re-runs the
   // full API bootstrap on every page navigation and can override the active subject.
   // eslint-disable-next-line react-hooks/exhaustive-deps
