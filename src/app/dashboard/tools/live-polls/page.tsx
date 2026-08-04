@@ -98,8 +98,17 @@ export default function LivePollsPage() {
     setLoading(false);
   }, []);
 
+  const stopResultsPolling = () => {
+    if (resultsIntervalRef.current) {
+      clearInterval(resultsIntervalRef.current);
+      resultsIntervalRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    if (canCreate) loadPolls();
+    if (!canCreate) return;
+    const timer = window.setTimeout(() => void loadPolls(), 0);
+    return () => window.clearTimeout(timer);
   }, [canCreate, loadPolls]);
 
   useEffect(() => {
@@ -269,13 +278,6 @@ export default function LivePollsPage() {
     }, 3000);
   };
 
-  const stopResultsPolling = () => {
-    if (resultsIntervalRef.current) {
-      clearInterval(resultsIntervalRef.current);
-      resultsIntervalRef.current = null;
-    }
-  };
-
   const handleJoin = async () => {
     setJoinError("");
     if (!joinCode.trim()) return;
@@ -321,7 +323,7 @@ export default function LivePollsPage() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code) {
-      setJoinCode(code);
+      const timer = window.setTimeout(() => setJoinCode(code), 0);
       joinPollByCode(code)
         .then((poll) => {
           setJoinedPoll(poll);
@@ -331,6 +333,7 @@ export default function LivePollsPage() {
           setView("join");
         })
         .catch(() => setJoinError("Invalid code or poll not active"));
+      return () => window.clearTimeout(timer);
     }
   }, []);
 
