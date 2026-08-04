@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { getAuthHeader } from "@/lib/apiClient";
 import {
   Eraser,
@@ -153,7 +153,6 @@ export default function NotebookPageCanvas({
   const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeStrokeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef<NotebookPenAnnotation | null>(null);
-  const textPointerRef = useRef(false);
   const draggingRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const pageAreaRef = useRef<HTMLDivElement | null>(null);
   const manualZoomRef = useRef(false);
@@ -375,18 +374,8 @@ export default function NotebookPageCanvas({
       if (nearest) removeAnnotation(nearest.id);
     } else if (tool === "text") {
       event.preventDefault();
-      textPointerRef.current = true;
       createTextAt(point);
     }
-  };
-
-  const onCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (readOnly || tool !== "text") return;
-    if (textPointerRef.current) {
-      textPointerRef.current = false;
-      return;
-    }
-    createTextAt(pointFromEvent(event));
   };
 
   const onDoubleClick = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -513,7 +502,7 @@ export default function NotebookPageCanvas({
             <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
             {imageUrl && <img src={imageUrl} alt="" className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top" />}
             <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
-            <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onClick={onCanvasClick} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
+            <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
             {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
           </div>
         </div>
