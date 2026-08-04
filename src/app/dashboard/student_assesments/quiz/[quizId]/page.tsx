@@ -52,7 +52,7 @@ interface SubmittedAnswer {
   question_id: number;
   question_text: string;
   question_type: string;
-  submitted_answer: any;
+  submitted_answer: unknown;
   is_correct: number;
   correct_answer: string | null;
   marks: number;
@@ -224,7 +224,7 @@ export default function QuranQuizPage() {
     switch (question.type) {
       case "short_answer":
       case "paragraph":
-        return submitted_answer || "Not answered";
+        return String(submitted_answer ?? "Not answered");
       case "true_false":
         return submitted_answer ? "True" : "False";
       case "multiple_choice":
