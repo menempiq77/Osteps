@@ -154,6 +154,8 @@ export default function NotebookPageCanvas({
   const activeStrokeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef<NotebookPenAnnotation | null>(null);
   const draggingRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const pageAreaRef = useRef<HTMLDivElement | null>(null);
+  const manualZoomRef = useRef(false);
   const historyRef = useRef<NotebookAnnotation[][]>([]);
   const redoRef = useRef<NotebookAnnotation[][]>([]);
   const [tool, setTool] = useState<Tool>("pen");
@@ -165,6 +167,8 @@ export default function NotebookPageCanvas({
   const [underline, setUnderline] = useState(false);
   const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("left");
   const [zoom, setZoom] = useState(1);
+  const [fitWidthZoom, setFitWidthZoom] = useState(1);
+  const [fitPageZoom, setFitPageZoom] = useState(1);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -177,6 +181,42 @@ export default function NotebookPageCanvas({
     () => ({ width: NOTEBOOK_PAGE_WIDTH * zoom, height: NOTEBOOK_PAGE_HEIGHT * zoom }),
     [zoom]
   );
+
+  const calculateFitZoom = useCallback(() => {
+    const pageArea = pageAreaRef.current;
+    if (!pageArea) return;
+    const availableWidth = pageArea.clientWidth - 32;
+    const availableHeight = pageArea.clientHeight - 32;
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+    const nextFitWidthZoom = Math.max(
+      0.25,
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH)
+    );
+    const nextFitPageZoom = Math.max(
+      0.25,
+      Math.min(1, availableWidth / NOTEBOOK_PAGE_WIDTH, availableHeight / NOTEBOOK_PAGE_HEIGHT)
+    );
+    setFitWidthZoom(nextFitWidthZoom);
+    setFitPageZoom(nextFitPageZoom);
+    if (!manualZoomRef.current) setZoom(nextFitWidthZoom);
+  }, []);
+
+  useEffect(() => {
+    const pageArea = pageAreaRef.current;
+    if (!pageArea) return;
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(calculateFitZoom);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(pageArea);
+    measure();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [calculateFitZoom]);
 
   const remember = useCallback(() => {
     historyRef.current.push(cloneAnnotations(annotations));
@@ -280,6 +320,26 @@ export default function NotebookPageCanvas({
         point.y <= annotation.y + textHitHeight(annotation)
     );
 
+  const createTextAt = (point: { x: number; y: number }) => {
+    const text: NotebookTextAnnotation = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type: "text",
+      x: point.x,
+      y: point.y,
+      width: TEXT_BOX_WIDTH,
+      text: "",
+      color,
+      fontSize: textSize,
+      fontWeight: bold ? "bold" : "normal",
+      underline,
+      textAlign,
+    };
+    remember();
+    onChange([...annotations, text]);
+    setEditingTextId(text.id);
+    setSelectedTextId(text.id);
+  };
+
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (readOnly) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -313,23 +373,8 @@ export default function NotebookPageCanvas({
       });
       if (nearest) removeAnnotation(nearest.id);
     } else if (tool === "text") {
-      remember();
-      const text: NotebookTextAnnotation = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        type: "text",
-        x: point.x,
-        y: point.y,
-        width: TEXT_BOX_WIDTH,
-        text: "",
-        color,
-        fontSize: textSize,
-        fontWeight: bold ? "bold" : "normal",
-        underline,
-        textAlign,
-      };
-      onChange([...annotations, text]);
-      setEditingTextId(text.id);
-      setSelectedTextId(text.id);
+      event.preventDefault();
+      createTextAt(point);
     }
   };
 
@@ -428,9 +473,9 @@ export default function NotebookPageCanvas({
     : undefined;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col gap-3">
       {!readOnly && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-white p-2 shadow-sm">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto rounded-xl border bg-white p-2 shadow-sm">
           {toolButtons.map(([value, Icon, label]) => (
             <button key={value} type="button" title={label} onClick={() => setTool(value)} className={`rounded-lg p-2 ${tool === value ? "bg-emerald-100 text-emerald-700" : "hover:bg-slate-100"}`}>
               <Icon className="h-4 w-4" />
@@ -446,16 +491,20 @@ export default function NotebookPageCanvas({
           <button type="button" onClick={() => setBold((value) => !value)} className={`rounded px-2 py-1 text-xs font-bold ${bold ? "bg-emerald-100" : "hover:bg-slate-100"}`}>B</button>
           <button type="button" onClick={() => setUnderline((value) => !value)} className={`rounded px-2 py-1 text-xs underline ${underline ? "bg-emerald-100" : "hover:bg-slate-100"}`}>U</button>
           <select value={textAlign} onChange={(event) => setTextAlign(event.target.value as typeof textAlign)} className="rounded border px-1 py-1 text-xs"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
-          <label className="ml-auto flex items-center gap-1 text-xs">Zoom <input type="range" min="0.5" max="1.5" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label>
+          <label className="ml-auto flex shrink-0 items-center gap-1 text-xs">Zoom <input type="range" min="0.25" max="2" step="0.05" value={zoom} onChange={(event) => { manualZoomRef.current = true; setZoom(Number(event.target.value)); }} /></label>
+          <button type="button" onClick={() => { manualZoomRef.current = false; setZoom(fitWidthZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit width</button>
+          <button type="button" onClick={() => { manualZoomRef.current = true; setZoom(fitPageZoom); }} className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-slate-100">Fit page</button>
         </div>
       )}
-      <div className="overflow-auto rounded-xl bg-slate-200 p-4">
-        <div className="relative mx-auto overflow-hidden bg-white shadow-xl" style={pageDimensions}>
-          <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
-          {imageUrl && <img src={imageUrl} alt="" className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top" />}
-          <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
-          <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
-          {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
+      <div ref={pageAreaRef} className="min-h-0 flex-1 basis-0 overflow-auto rounded-xl bg-slate-200 p-4">
+        <div className="flex min-h-full min-w-full items-start justify-center">
+          <div className="relative shrink-0 overflow-hidden bg-white shadow-xl" style={pageDimensions}>
+            <div className="pointer-events-none absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(to bottom, transparent 31px, rgba(148,163,184,.28) 32px)", backgroundSize: `100% ${32 * zoom}px` }} />
+            {imageUrl && <img src={imageUrl} alt="" className="pointer-events-none absolute left-0 top-0 h-full w-full object-contain object-top" />}
+            <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
+            <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
+            {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
+          </div>
         </div>
       </div>
     </div>
