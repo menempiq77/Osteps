@@ -108,11 +108,10 @@ export default function AqeedahMiniGamePage({ params }: PageProps) {
             {meta.icon} Checkpoint {checkpoint} Reward!
           </h1>
           <div className="text-2xl mb-3">{difficultyLabel}</div>
-          <p className="text-lg text-gray-600">Great job completing the checkpoint! Here's a fun game for you!</p>
+          <p className="text-lg text-gray-600">Great job completing the checkpoint! Here&apos;s a fun game for you!</p>
         </div>
         {renderGame()}
       </div>
     </div>
   );
 }
-
