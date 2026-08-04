@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
+import { promises as fs, Dirent } from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
+import { asRecord } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,8 +44,7 @@ const readJsonState = async (filePath: string): Promise<DocumentState | null> =>
   try {
     const raw = await fs.readFile(filePath, "utf8");
     return JSON.parse(raw) as DocumentState;
-  } catch (error: any) {
-    if (error?.code === "ENOENT") return null;
+  } catch (error: unknown) {     if (asRecord(error)?.code === "ENOENT") return null;
     throw error;
   }
 };
@@ -88,11 +88,10 @@ const readStudentIncidentStates = async (
   }
 
   const studentFileName = `${safeSegment(studentId)}.json`;
-  let assessmentDirs: fs.Dirent[] = [] as unknown as fs.Dirent[];
+  let assessmentDirs: Dirent[] = [] as unknown as Dirent[];
   try {
     assessmentDirs = await fs.readdir(STORE_DIR, { withFileTypes: true });
-  } catch (error: any) {
-    if (error?.code === "ENOENT") return [];
+  } catch (error: unknown) {     if (asRecord(error)?.code === "ENOENT") return [];
     throw error;
   }
 

@@ -82,7 +82,7 @@ import {
   resolveCoinBalance,
   type LeaderboardRawEntry,
 } from "@/lib/leaderboard";
-import { asRecord } from "@/lib/safeRecord";
+import { asRecord, errorMessage, toRecord } from "@/lib/safeRecord";
 
 type UnsafeRecord = Record<string, unknown>;
 
@@ -109,7 +109,13 @@ type Student = {
   avatar?: string | null;
   coin_balance?: number;
   leaderboard_points?: number;
+  positive_points?: number;
+  negative_points?: number;
+  total_points?: number;
 };
+
+type NewStudentPayload = Parameters<typeof apiAddStudent>[0];
+type UpdateStudentPayload = Parameters<typeof apiUpdateStudent>[1];
 
 type EditSubjectOption = {
   value: number;
@@ -446,14 +452,15 @@ const buildAutoLayout = (students: Student[], canvasWidth: number): SeatingState
   });
 };
 
-const extractAvatarPath = (payload:UnsafeRecord): string | null => {
-  return (
-    asRecord(payload?.data)?.profile_path ||
-    asRecord(payload?.data)?.profile_photo ||
-    payload?.profile_path ||
-    payload?.profile_photo ||
-    null
-  );
+const extractAvatarPath = (payload: UnsafeRecord): string | null => {
+  const path = String(
+    asRecord(payload?.data)?.profile_path ??
+    asRecord(payload?.data)?.profile_photo ??
+    payload?.profile_path ??
+    payload?.profile_photo ??
+    ""
+  ).trim();
+  return path || null;
 };
 
 const getStudentImagePath = (student:UnsafeRecord): string | null => {
@@ -529,7 +536,7 @@ export default function StudentList() {
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedStudentAction, setSelectedStudentAction] = useState<UnsafeRecord | null>(
+  const [selectedStudentAction, setSelectedStudentAction] = useState<Student | null>(
     null
   );
   const [studentMarkers, setStudentMarkers] = useState<Record<string, StudentCardMarkerKey>>(
@@ -573,9 +580,9 @@ export default function StudentList() {
   const [fallbackRefreshCounter, setFallbackRefreshCounter] = useState(0);
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
-  const [randomStudent, setRandomStudent] = useState<UnsafeRecord | null>(null);
+  const [randomStudent, setRandomStudent] = useState<Student | null>(null);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
-  const [avatarTargetStudent, setAvatarTargetStudent] = useState<UnsafeRecord | null>(null);
+  const [avatarTargetStudent, setAvatarTargetStudent] = useState<Student | null>(null);
   const [avatarPresetTab, setAvatarPresetTab] = useState<"emoji" | "avatar" | "symbol">(
     "emoji"
   );
@@ -618,16 +625,16 @@ export default function StudentList() {
         : null;
   const isSubjectWorkspaceMode = !!scopedSubjectId;
   const scopedSubjectClassId = String(querySubjectClassId || "").trim();
-  const schoolTimeZone = useMemo(() => {
+  const schoolTimeZone = useMemo((): string => {
     const userAny = asRecord(currentUser);
-    return (
+    const raw =
       userAny?.school_timezone ||
       userAny?.schoolTimeZone ||
       userAny?.timezone ||
       asRecord(userAny?.school)?.timezone ||
       process.env.NEXT_PUBLIC_SCHOOL_TIMEZONE ||
-      Intl.DateTimeFormat().resolvedOptions().timeZone
-    );
+      Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return String(raw ?? "").trim() || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }, [currentUser]);
   const attendanceDate = useMemo(
     () => getLocalDateInTimeZone(schoolTimeZone),
@@ -769,19 +776,19 @@ export default function StudentList() {
                   linkedClassId: Number(
                     item.linked_class_id ??
                       item.linkedClassId ??
-                      item.linkedClass?.id ??
-                      item.linked_class?.id ??
+                      asRecord(item.linkedClass)?.id ??
+                      asRecord(item.linked_class)?.id ??
                       item.classId ??
                       item.class_id_value ??
                       item.class_id ??
-                      item.class?.class_id ??
-                      item.classes?.class_id ??
-                      item.base_class?.class_id ??
+                      asRecord(item.class)?.class_id ??
+                      asRecord(item.classes)?.class_id ??
+                      asRecord(item.base_class)?.class_id ??
                       item.base_class_id ??
                       item.baseClassId ??
-                      item.class?.id ??
-                      item.classes?.id ??
-                      item.base_class?.id ??
+                      asRecord(item.class)?.id ??
+                      asRecord(item.classes)?.id ??
+                      asRecord(item.base_class)?.id ??
                       0
                   ) || undefined,
                 };
@@ -946,9 +953,9 @@ export default function StudentList() {
         );
           const yearName = String(
             asRecord(row?.year)?.name ??
-              asRecord(row?.class)?.year?.name ??
-              asRecord(row?.classes)?.year?.name ??
-              asRecord(row?.base_class)?.year?.name ??
+              asRecord(asRecord(row?.class)?.year)?.name ??
+              asRecord(asRecord(row?.classes)?.year)?.name ??
+              asRecord(asRecord(row?.base_class)?.year)?.name ??
               (yearId ? `Year ${yearId}` : "")
           ).trim();
           const rowMeta: ExistingStudentClassMeta = {
@@ -1378,15 +1385,17 @@ export default function StudentList() {
     );
   };
 
-  const rememberRecentAddedStudent = (studentLike:UnsafeRecord, fallbackInput?:UnsafeRecord) => {
-    const id = String(studentLike?.id ?? studentLike?.student_id ?? "").trim();
-    const userName = String(studentLike?.user_name ?? fallbackInput?.user_name ?? "")
+  const rememberRecentAddedStudent = (studentLike: unknown, fallbackInput?: unknown) => {
+    const studentRecord = asRecord(studentLike);
+    const fallbackRecord = asRecord(fallbackInput);
+    const id = String(studentRecord?.id ?? studentRecord?.student_id ?? "").trim();
+    const userName = String(studentRecord?.user_name ?? fallbackRecord?.user_name ?? "")
       .trim()
       .toLowerCase();
-    const email = String(studentLike?.email ?? fallbackInput?.email ?? "")
+    const email = String(studentRecord?.email ?? fallbackRecord?.email ?? "")
       .trim()
       .toLowerCase();
-    const name = String(studentLike?.student_name ?? fallbackInput?.student_name ?? "")
+    const name = String(studentRecord?.student_name ?? fallbackRecord?.student_name ?? "")
       .trim()
       .toLowerCase();
 
@@ -1435,7 +1444,7 @@ export default function StudentList() {
   const seatingApiReady = !!seatingScopeId && canArrangeSeats && !seatingQuery.isError;
   const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
-  const createStudentInCurrentClass = async (payload:UnsafeRecord) => {
+  const createStudentInCurrentClass = async (payload: NewStudentPayload) => {
     const added = await apiAddStudent(payload, scopedSubjectId);
     const subjectId = Number(scopedSubjectId ?? 0);
     const subjectClassId = Number(effectiveSubjectClassId || 0);
@@ -1486,7 +1495,7 @@ export default function StudentList() {
 
   const addStudentMutation = useMutation({
     mutationFn: createStudentInCurrentClass,
-    onSuccess: async (result, variables:UnsafeRecord) => {
+    onSuccess: async (result, variables: NewStudentPayload) => {
       rememberRecentAddedStudent(result.added, variables);
       await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
       await queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -1502,12 +1511,7 @@ export default function StudentList() {
       }
     },
     onError: (error: unknown) => {
-      const backendMessage =
-        (error as { message?: string })?.message?.trim() ||
-        (error as UnsafeRecord)?.response?.data?.msg ||
-        (error as UnsafeRecord)?.response?.data?.message ||
-        "Failed to add student.";
-      messageApi.error(backendMessage);
+      messageApi.error(errorMessage(error, "Failed to add student."));
     },
   });
 
@@ -1576,17 +1580,20 @@ export default function StudentList() {
       );
     },
     onError: (error: unknown) => {
-      const backendMessage =
-        (error as { message?: string })?.message?.trim() ||
-        (error as UnsafeRecord)?.response?.data?.msg ||
-        (error as UnsafeRecord)?.response?.data?.message ||
-        "Failed to assign existing students.";
-      messageApi.error(backendMessage);
+      messageApi.error(errorMessage(error, "Failed to assign existing students."));
     },
   });
 
   const updateStudentMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values:UnsafeRecord; assignment?: { subjectIds: number[]; subjectClassIds: number[]; previousSubjectClassIds?: number[] } }) =>
+    mutationFn: ({
+      id,
+      values,
+      assignment,
+    }: {
+      id: string;
+      values: UpdateStudentPayload;
+      assignment?: { subjectIds: number[]; subjectClassIds: number[]; previousSubjectClassIds?: number[] };
+    }) =>
       apiUpdateStudent(id, values, scopedSubjectId),
     onSuccess: async (_data, variables) => {
       console.log('[Student Update] Success - refetching student data');
@@ -1674,7 +1681,7 @@ export default function StudentList() {
     },
     onSuccess: (result, variables) => {
       const studentId = variables.cacheStudentId;
-      const serverPath = extractAvatarPath(result?.response);
+      const serverPath = extractAvatarPath(toRecord(result));
       queryClient.setQueryData(
         behaviorSummaryQueryKey,
         (old: StudentBehaviorSummary[] | undefined) => {
@@ -1702,17 +1709,11 @@ export default function StudentList() {
       queryClient.invalidateQueries({ queryKey: behaviorSummaryQueryKey });
       messageApi.success("Avatar updated.");
     },
-    onError: (error:UnsafeRecord, variables) => {
+    onError: (error, variables) => {
       setSavingAvatarStudentIds((prev) =>
         prev.filter((id) => id !== variables.cacheStudentId)
       );
-      const backendMessage =
-        error?.response?.data?.msg ||
-        error?.response?.data?.message ||
-        error?.response?.data?.data?.message ||
-        error?.message ||
-        "Failed to update avatar.";
-      messageApi.error(String(backendMessage));
+      messageApi.error(errorMessage(error, "Failed to update avatar."));
     },
   });
 
@@ -1743,15 +1744,11 @@ export default function StudentList() {
         messageApi.success("Seating plan saved.");
       }
     },
-    onError: (error:UnsafeRecord, variables) => {
-      const status = Number(error?.status || error?.response?.status || 0);
-      const backendMessage =
-        error?.backendMessage ||
-        error?.response?.data?.msg ||
-        error?.response?.data?.message ||
-        error?.response?.data?.data?.message ||
-        error?.message ||
-        "Failed to save seating plan.";
+    onError: (error, variables) => {
+      const errRecord = asRecord(error);
+      const status = Number(
+        errRecord?.status || asRecord(errRecord?.response)?.status || 0
+      );
       if (status === 404) {
         messageApi.error("Save failed: seating API route missing (404).");
         return;
@@ -1764,7 +1761,7 @@ export default function StudentList() {
         messageApi.warning("Auto-save failed. You can still use Save Layout.");
         return;
       }
-      messageApi.error(String(backendMessage));
+      messageApi.error(errorMessage(error, "Failed to save seating plan."));
     },
   });
 
@@ -1820,7 +1817,7 @@ export default function StudentList() {
         coin_balance: rewards?.coins ?? 0,
         leaderboard_points: rewards?.points ?? 0,
       };
-      });
+      }) as Student[];
     }
 
     const byId = new Map((students as Student[]).map((s) => [toStudentId(s.id), s]));
@@ -1875,7 +1872,9 @@ export default function StudentList() {
             fromStudents?.sen_details ??
             ""
         ).trim(),
-        profile_path: getStudentImagePath(item) || getStudentImagePath(fromStudents),
+        profile_path:
+          getStudentImagePath(item as UnsafeRecord) ||
+          (fromStudents ? getStudentImagePath(fromStudents as UnsafeRecord) : undefined),
         positive_points:
           safeNumber(item.positive_points) ||
           fallbackPointsByStudent[id]?.positive ||
@@ -1889,7 +1888,7 @@ export default function StudentList() {
         coin_balance: rewards?.coins ?? 0,
         leaderboard_points: rewards?.points ?? 0,
       };
-    });
+    }) as Student[];
   }, [
     behaviorSummary,
     students,
@@ -2098,7 +2097,7 @@ export default function StudentList() {
       Math.max(0, Math.min(Math.max(0, canvasWidth - SEAT_CARD_WIDTH), x));
     if (canArrangeSeats && seatingQuery.data?.items?.length) {
       const savedWidth =
-        safeNumber((seatingQuery.data as UnsafeRecord)?.room_meta?.width) || BASE_CANVAS_WIDTH;
+        safeNumber(asRecord((seatingQuery.data as UnsafeRecord)?.room_meta)?.width) || BASE_CANVAS_WIDTH;
       const scaleX = (x: unknown) =>
         Math.round((safeNumber(x) * canvasWidth) / savedWidth / GRID) * GRID;
       const fromApi = seatingQuery.data.items.map((item, index) => ({
@@ -2229,18 +2228,18 @@ export default function StudentList() {
       ? values.students
       : [values];
 
-    const payloads = rows.map((row:UnsafeRecord) => ({
-      student_name: row.student_name,
-      email: row.email || "",
-      user_name: row.user_name,
+    const payloads: NewStudentPayload[] = rows.map((row: UnsafeRecord) => ({
+      student_name: String(row.student_name ?? "").trim(),
+      email: String(row.email || "").trim(),
+      user_name: String(row.user_name ?? "").trim() || undefined,
       class_id: Number(effectiveClassId),
-      password: row.password,
-      status: row.status || "active",
-      gender: row.gender,
-      student_gender: row.gender,
-      nationality: row.nationality || undefined,
-      is_sen: !!row.is_sen,
-      sen_details: row.is_sen ? row.sen_details || "" : "",
+      password: row.password ? String(row.password).trim() : undefined,
+      status: String(row.status || "active"),
+      gender: row.gender ? String(row.gender).trim().toLowerCase() : undefined,
+      student_gender: row.gender ? String(row.gender).trim().toLowerCase() : undefined,
+      nationality: row.nationality ? String(row.nationality).trim() : undefined,
+      is_sen: Boolean(row.is_sen),
+      sen_details: row.is_sen ? String(row.sen_details ?? "").trim() : "",
       ...(effectiveSubjectClassId
         ? { subject_class_id: Number(effectiveSubjectClassId) }
         : {}),
@@ -2377,7 +2376,7 @@ export default function StudentList() {
     console.log('[Student Update] Payload:', payload);
     updateStudentMutation.mutate({
       id: editStudent.id,
-      values: payload,
+      values: payload as UpdateStudentPayload,
       assignment: {
         subjectIds: selectedSubjectIds,
         subjectClassIds: selectedSubjectClassIds,
@@ -2583,7 +2582,7 @@ export default function StudentList() {
     return canvas.toDataURL("image/png");
   };
 
-  const openAvatarPicker = (student:UnsafeRecord) => {
+  const openAvatarPicker = (student: Student) => {
     if (!student?.id) {
       messageApi.error("Student not found for avatar change.");
       return;
@@ -2624,7 +2623,7 @@ export default function StudentList() {
   };
 
   const openBehaviorModalFor = (
-    student:UnsafeRecord,
+    student: Student,
     intent: "positive" | "negative"
   ) => {
     setIsWholeClassBehaviorMode(false);
@@ -2935,7 +2934,7 @@ export default function StudentList() {
             scopedSubjectId ?? undefined
           );
           const attendanceRecordsToday = (records || [])
-            .filter((record:UnsafeRecord) => (record?.date || "").slice(0, 10) === attendanceDate)
+            .filter((record:UnsafeRecord) => String(record?.date ?? "").slice(0, 10) === attendanceDate)
             .filter((record:UnsafeRecord) => {
               const type = behaviorTypeById.get(String(record?.behaviour_id));
               return isAttendanceRecord(record, type?.name || "");
@@ -3000,7 +2999,7 @@ export default function StudentList() {
   };
 
   const setStudentAttendanceLocal = (student:UnsafeRecord, markPresent: boolean) => {
-    const studentId = toStudentId(student.id);
+    const studentId = toStudentId(String(student.id ?? ""));
     setAttendanceByStudent((prev) => ({
       ...prev,
       [studentId]: {
@@ -3019,7 +3018,7 @@ export default function StudentList() {
       rollbackState?: AttendanceState;
     }
   ) => {
-    const studentId = toStudentId(student.id);
+    const studentId = toStudentId(String(student.id ?? ""));
     const previous = attendanceByStudent[studentId];
     const previousState: AttendanceState = {
       isPresent: options?.rollbackState?.isPresent ?? previous?.isPresent !== false,
@@ -3080,10 +3079,13 @@ export default function StudentList() {
         [studentId]: previousState,
       }));
       if (!options?.silent) {
+        const errRecord = asRecord(error);
+        const responseRecord = asRecord(errRecord?.response);
+        const dataRecord = asRecord(responseRecord?.data);
         const backendMessage =
-          error?.response?.data?.message ||
-          error?.response?.data?.msg ||
-          error?.response?.data?.data?.message ||
+          dataRecord?.message ||
+          dataRecord?.msg ||
+          asRecord(dataRecord?.data)?.message ||
           "Failed to update attendance.";
         messageApi.error(String(backendMessage));
       }

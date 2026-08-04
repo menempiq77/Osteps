@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import path from "path";
 import { promisify } from "util";
 import { NextResponse } from "next/server";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -395,7 +396,7 @@ const runPdftotext = async (localPath: string, useLayout: boolean) => {
         text: normalizeWhitespace(text),
       }))
       .filter((page) => page.text.length > 0);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`pdftotext (${useLayout ? "layout" : "plain"}) could not extract exam paper text:`, error);
     return [];
   }
@@ -453,7 +454,7 @@ const extractPaperPagesAsImages = async (
         await fs.unlink(fullPath).catch(() => undefined);
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("pdftoppm failed for exam paper:", err);
     // Clean up any partial files
     const allFiles = await fs.readdir(tmpDir).catch(() => [] as string[]);
@@ -531,7 +532,7 @@ Return only the questions in order, nothing else.`;
 
     const rawContent = extractCloudJsonContent(await response.json());
     return normalizeWhitespace(rawContent).slice(0, 8000);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Could not read exam paper via vision:", err);
     return "";
   } finally {
@@ -579,17 +580,17 @@ const getPaperPages = async (normalizedUrl: string) => {
     pdfBuffer = Buffer.from(await response.arrayBuffer());
   }
 
-  const { PDFParse } = await loadPdfParse();
+  const { PDFParse } = (await loadPdfParse()) as unknown as { PDFParse: Record<string, unknown> };
   const parser = new PDFParse({ data: pdfBuffer });
   try {
     const parsed = await parser.getText();
-    const pages = Array.isArray(parsed?.pages)
+    const pages: Record<string, unknown>[] = Array.isArray(parsed?.pages)
       ? parsed.pages
-          .map((page) => ({
+          .map((page: Record<string, unknown>) => ({
             num: Number(page?.num || 0),
             text: normalizeWhitespace(asText(page?.text)),
           }))
-          .filter((page) => page.num > 0 && page.text.length > 0)
+          .filter((page: Record<string, unknown>) => page.num > 0 && page.text.length > 0)
       : [];
     paperTextCache.set(normalizedUrl, { pages, cachedAt: Date.now() });
     return pages;
@@ -924,7 +925,7 @@ const requestOllamaDraft = async ({
       }),
       signal: requestSignal,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     clearTimeout(timeoutHandle);
     throw error;
   }
@@ -1123,7 +1124,7 @@ const requestGeminiVisualAnswerContext = async ({
 
 // Preprocess an image with ImageMagick for better Tesseract OCR accuracy.
 // Converts to grayscale, normalises contrast, and sharpens edges.
-// Returns the enhanced image path; falls back to the original on any error.
+// Returns the enhanced image path; falls back to the original on any asRecord(error).
 const enhanceImageForOcr = async (inputPath: string): Promise<string> => {
   const outputPath = `${inputPath}.enhanced.png`;
   try {
@@ -1172,7 +1173,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
             { maxBuffer: 1024 * 1024, timeout: 2500 }
           );
           ocrAttempts.push(normalizeWhitespace(String(stdout || "")));
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(`Local OCR psm ${pageSegmentationMode} could not read answered-page image:`, error);
         }
       }
@@ -1180,7 +1181,7 @@ const extractLocalOcrAnswerContext = async (pageImages: string[], pageNumbers: n
       if (text.length >= 12) {
         ocrPages.push(`[Answered ${pageImageLabel(pageNumbers, index)} OCR] ${text}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Local OCR could not read answered-page image:", error);
     } finally {
       await fs.unlink(tempPath).catch(() => undefined);
@@ -1273,7 +1274,7 @@ Return exactly:
         });
         return mergeVisualAnswerContexts(mergedGeminiContext, await ocrContextPromise);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("gemini answered-page image reading failed:", error);
     }
   }
@@ -1307,7 +1308,7 @@ Return exactly:
             : "low",
         }), await ocrContextPromise);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`${cloudAttempt.provider} answered-page image reading failed:`, error);
     }
   }
@@ -1959,7 +1960,7 @@ export async function POST(request: Request) {
     // answeredPages only tells us which pages the student wrote on — the paper
     // itself may have more question pages (short-answer, essay) beyond page 1 (MCQs).
     paperContext = await buildPaperContext(body.fileUrl, []);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Could not extract exam paper text for AI marking:", error);
   }
 
@@ -1984,7 +1985,7 @@ export async function POST(request: Request) {
             cachedAt: Date.now() - (PAPER_TEXT_CACHE_MS / 2),
           });
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Vision fallback for exam paper failed:", err);
       }
     }
@@ -2035,7 +2036,7 @@ export async function POST(request: Request) {
           ? "Used local OCR to read the answered-page images; handwriting may be incomplete."
           : "No cloud vision key is configured; used local OCR only, so handwriting accuracy may be limited.";
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Could not read answered-page images for AI marking:", error);
       visualWarning = "Could not reliably read the answered-page images; used text-only marking context.";
     }
@@ -2256,7 +2257,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           modelWarnings.push(`Used emergency fast local AI fallback because ${reason}. Verify the draft carefully.`);
         }
         return tinyJson;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Emergency tiny local marker failed:", error);
         return null;
       }
@@ -2273,7 +2274,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           extractFirstJsonObject(String(groqPayload?.response || "")),
           groqTextProviderLabel
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Groq text marking failed, falling back to vision/Ollama:", error);
       }
     }
@@ -2298,7 +2299,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Gemini multimodal marker failed, trying Groq/OpenRouter/Ollama:", error);
       }
     }
@@ -2320,7 +2321,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Groq vision marker failed, trying OpenRouter/Groq text/Ollama:", error);
       }
     }
@@ -2342,7 +2343,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("OpenRouter multimodal marker failed, falling back to Groq/Ollama:", error);
       }
     }
@@ -2361,7 +2362,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           const ocrWarningIdx = modelWarnings.indexOf(visualWarning);
           if (ocrWarningIdx !== -1) modelWarnings.splice(ocrWarningIdx, 1);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Groq text marking failed, falling back to Ollama:", error);
       }
     }
@@ -2377,7 +2378,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           extractFirstJsonObject(String(geminiTextPayload?.response || "")),
           geminiTextProviderLabel
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Gemini text fallback failed, falling back to Ollama:", error);
       }
     }
@@ -2427,8 +2428,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
             );
           }
         }
-      } catch (error) {
-        const aborted = error instanceof Error && error.name === "AbortError";
+      } catch (error) {         const aborted = error instanceof Error && error.name === "AbortError";
         if (aborted) {
           considerDraftCandidate(
             await tryTinyLocalDraft("the normal local model timed out"),
@@ -2449,7 +2449,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           }
         } else if (!rawJson && !shouldAttemptReasoner) {
           return jsonResponse(
-            { message: error instanceof Error ? error.message : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
+            { message: error instanceof Error ? errorMessage(error) : "Local Ollama AI marker is unavailable. Start Ollama on this server and pull the configured model." },
             503
           );
         }
@@ -2485,7 +2485,7 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
           extractFirstJsonObject(String(deepseekPayload.response || "")),
           localReasonerProviderLabel
         );
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Reasoner refinement attempt did not finish in time:", error);
       }
     }
@@ -2532,13 +2532,13 @@ JSON schema: {"suggestedMark":number,"feedback":"Deductions: ...","rationale":"b
       parsed.warnings = [...(Array.isArray(parsed.warnings) ? parsed.warnings : []), ...modelWarnings];
     }
     return jsonResponse(normalizeWithProviderTrace(parsed));
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[ai/marking/draft] unhandled failure", error);
     return jsonResponse(
       {
         message:
-          error instanceof Error && error.message
-            ? error.message.slice(0, 500)
+          error instanceof Error && errorMessage(error)
+            ? errorMessage(error).slice(0, 500)
             : "AI draft mark failed before a safe draft could be created.",
       },
       503

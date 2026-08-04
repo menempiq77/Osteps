@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { errorMessage } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -103,7 +104,7 @@ const downloadAudioFromUrl = async (
       diagnostics.ytDlpStderr = String(result.stderr || "").slice(0, 800);
       succeeded = true;
       break;
-    } catch (err) {
+    } catch (err: unknown) {
       const e = err as { message?: string; stderr?: string };
       lastError = e?.stderr || e?.message || "yt-dlp failed";
       attempts.push({
@@ -174,7 +175,7 @@ const buildAudioChunks = async (
       maxBuffer: 1024 * 1024 * 16,
     });
     diagnostics.ffmpegStderr = String(result.stderr || "").slice(-800);
-  } catch (err) {
+  } catch (err: unknown) {
     const e = err as { message?: string; stderr?: string };
     throw new Error(
       sanitizeError(e?.stderr || e?.message || "Audio conversion failed.")
@@ -222,7 +223,7 @@ const transcribeChunkWithGroq = async (chunkPath: string): Promise<string> => {
     let detail = raw;
     try {
       const parsed = JSON.parse(raw);
-      detail = parsed?.error?.message || raw;
+      detail = errorMessage(parsed, raw);
     } catch {
       /* keep raw text */
     }
@@ -309,7 +310,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ text, status: "done", debug: diagnostics });
-  } catch (error) {
+  } catch (error: unknown) {
     const e = error as { message?: string };
     return NextResponse.json(
       { message: sanitizeError(e?.message || "Transcription failed."), debug: diagnostics },

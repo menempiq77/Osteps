@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   ];
 
   const pdf = createSimplePdf(`Student Profile Report - ${studentName}`, lines);
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

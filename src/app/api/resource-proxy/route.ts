@@ -408,7 +408,7 @@ export async function GET(request: NextRequest) {
         "cache-control": "no-store",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Resource proxy failed:", error);
     return NextResponse.json(
       { error: "Website preview failed" },
