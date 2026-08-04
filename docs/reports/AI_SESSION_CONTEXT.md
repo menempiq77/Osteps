@@ -1,7 +1,7 @@
 # AI Assistant Session Context - Osteps Project
 
 > **Quick reference for starting new AI sessions**  
-> **Full details**: See `DEVELOPMENT_WORKFLOW_GUIDE.md`
+> **Full details**: See `../../DEVELOPMENT_WORKFLOW_GUIDE.md`
 
 ---
 
@@ -138,4 +138,4 @@ ssh root@dashboard.osteps.com "cd /var/www/osteps/Osteps && git pull origin main
 
 ---
 
-**For full details, workflows, and troubleshooting**: See `DEVELOPMENT_WORKFLOW_GUIDE.md`
+**For full details, workflows, and troubleshooting**: See `../../DEVELOPMENT_WORKFLOW_GUIDE.md`
