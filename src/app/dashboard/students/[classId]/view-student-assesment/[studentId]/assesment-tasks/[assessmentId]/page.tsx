@@ -15,6 +15,7 @@ import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
+import { asRecord } from "@/lib/safeRecord";
 
 interface Task {
   id: number;
@@ -24,6 +25,7 @@ interface Task {
   task_type: string;
   description: string;
   file_path: string | null;
+  url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +39,7 @@ interface StudentAssessmentTask {
   self_assessment_mark: string;
   additional_notes: string;
   file_path: string;
+  file_paths?: unknown;
   created_at: string;
   updated_at: string;
   teacher_assessment_score?: string;
@@ -57,20 +60,27 @@ interface StudentOption {
   id: string;
   student_name: string;
 }
+interface Student {
+  id: string | number;
+  student_name?: string;
+  name?: string;
+}
 
 const isPlaceholderStudentName = (value: string) => /^student\s+\d+$/i.test(value.trim());
 
 const toStudentOption = (value: unknown): StudentOption | null => {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, any>;
+  const row = value as Record<string, unknown>;
+  const nestedStudent = asRecord(row.student);
+  const nestedUser = asRecord(row.user);
   const id = row?.id ?? row?.student_id;
   if (id == null || String(id).trim() === "") return null;
   const studentName = String(
     row?.student_name ??
       row?.name ??
-      row?.student?.student_name ??
-      row?.student?.name ??
-      row?.user?.name ??
+      nestedStudent?.student_name ??
+      nestedStudent?.name ??
+      nestedUser?.name ??
       ""
   ).trim();
   if (!studentName || isPlaceholderStudentName(studentName)) return null;
@@ -119,7 +129,10 @@ const pickTeacherMarkValue = (task: StudentAssessmentTask) => {
 
 export default function AssessmentDrawer() {
   const router = useRouter();
-  const { classId, assessmentId } = useParams();
+  const { classId, assessmentId } = useParams<{
+    classId: string;
+    assessmentId: string;
+  }>();
   const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
     number | null
   >(null);
@@ -285,7 +298,7 @@ export default function AssessmentDrawer() {
       message.success("Quiz marks updated");
       setQuizTeacherMarkOpenId(null);
       setQuizTeacherMark("");
-      loadStudentTasks(assessmentId);
+      loadStudentTasks(Number(assessmentId));
     } catch (err) {
       message.error("Failed to update quiz marks");
     }
@@ -296,7 +309,7 @@ export default function AssessmentDrawer() {
       const task = assementTasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      await addStudentTaskMarks(selectedStudentId, {
+      await addStudentTaskMarks(Number(selectedStudentId), {
         assessment_id: task.assessment_id,
         task_id: task.task_id,
         teacher_assessment_marks: parseInt(formValues.marks || "0"),
@@ -305,7 +318,7 @@ export default function AssessmentDrawer() {
 
       message.success("Assessment submitted successfully");
       setAssessmentOpenTaskId(null);
-      loadStudentTasks(assessmentId);
+      loadStudentTasks(Number(assessmentId));
     } catch (err) {
       console.error("Failed to submit assessment:", err);
       message.error("Failed to submit assessment");
@@ -840,12 +853,12 @@ export default function AssessmentDrawer() {
                   <LinkOutlined className="text-blue-500 text-2xl mb-2" />
                   <p className="text-gray-700 mb-3">URL Submission</p>
                   <a
-                    href={viewingTask.task.url}
+                    href={viewingTask.task.url ?? ""}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline break-words"
                   >
-                    {viewingTask.task.url}
+                    {viewingTask.task.url ?? ""}
                   </a>
                 </div>
               ) : viewingTask.file_path ? (
