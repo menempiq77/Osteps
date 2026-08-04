@@ -42,6 +42,7 @@ import { fetchStudentProfileData } from "@/services/studentsApi";
 import { READONLY_WINDOW_NAME } from "@/lib/readOnlyWorkspace";
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
 import type { SubjectBrief } from "@/types/subjectContext";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 const MyScheduleWidget = dynamic(() => import("@/components/dashboard/MyScheduleWidget"), {
   loading: () => <ScheduleWidgetSkeleton />,
@@ -130,7 +131,7 @@ const isSchoolAdminRole = (role?: string | null) =>
   String(role || "").trim().toUpperCase() === "SCHOOL_ADMIN";
 
 // ── Quick-link card ───────────────────────────────────────────────────────────
-type QLProps = { name: string; href: string; desc: string; Icon: React.ComponentType<any> };
+type QLProps = { name: string; href: string; desc: string; Icon: React.ComponentType<Record<string, unknown>> };
 function QuickLinkCard({ name, href, desc, Icon }: QLProps) {
   const c = lc(name);
   return (
@@ -307,7 +308,7 @@ function useStudentSubjectProgress(
     };
 
     const computeForClass = async (classId: number) => {
-      let terms: any[] = [];
+      let terms: Record<string, unknown>[] = [];
       try {
         terms = await fetchTerm(classId);
       } catch { return; }
@@ -324,20 +325,20 @@ function useStudentSubjectProgress(
             let earnedMarks = 0;
 
             await Promise.allSettled(
-              terms.map(async (term: any) => {
+              terms.map(async (term: Record<string, unknown>) => {
                 const termId = Number(term.id);
                 if (!termId) return;
 
                 const assessments = await fetchAssessmentByStudent(termId, subjectId);
                 const assessmentList = Array.isArray(assessments)
-                  ? assessments.filter((a: any) => a.type === "assessment")
+                  ? assessments.filter((a: Record<string, unknown>) => a.type === "assessment")
                   : [];
 
                 await Promise.allSettled(
-                  assessmentList.map(async (assessment: any) => {
+                  assessmentList.map(async (assessment: Record<string, unknown>) => {
                     const [allTasks, studentTasks] = await Promise.all([
-                      fetchTasks(assessment.id),
-                      fetchStudentTasks(assessment.id),
+                      fetchTasks(Number(assessment.id)),
+                      fetchStudentTasks(Number(assessment.id)),
                     ]);
                     const taskArray = Array.isArray(allTasks) ? allTasks : [];
                     const studentTaskArray = Array.isArray(studentTasks) ? studentTasks : [];
@@ -347,16 +348,16 @@ function useStudentSubjectProgress(
                       const isQuiz = String(task.type).toLowerCase() === "quiz";
 
                       if (isQuiz) {
-                        const questions: any[] = task.quiz?.quiz_queston || [];
+                        const questions: Record<string, unknown>[] = task.quiz?.quiz_queston || [];
                         const qTotal = questions.reduce(
-                          (s: number, q: any) => s + (parseFloat(String(q.marks ?? 0)) || 0), 0
+                          (s: number, q: Record<string, unknown>) => s + (parseFloat(String(q.marks ?? 0)) || 0), 0
                         );
                         totalMarks += qTotal;
 
                         const quizId = String(task.quiz?.id ?? "");
                         if (quizId) {
                           const sub = studentTaskArray.find(
-                            (st: any) => String(st.quiz_id) === quizId && String(st.student_id) === sid
+                            (st: Record<string, unknown>) => String(st.quiz_id) === quizId && String(st.student_id) === sid
                           );
                           if (sub) {
                             earnedMarks += Number(
@@ -369,8 +370,7 @@ function useStudentSubjectProgress(
 
                         const taskIdStr = String(task.id);
                         const sub = studentTaskArray.find(
-                          (st: any) =>
-                            String(st.task_id ?? st.task?.id ?? st.id) === taskIdStr &&
+                          (st: Record<string, unknown>) =>                             String(st.task_id ?? asRecord(st.task)?.id ?? st.id) === taskIdStr &&
                             String(st.student_id) === sid
                         );
                         if (sub) {
@@ -486,7 +486,7 @@ export default function SubjectCardsPage() {
             const list = Array.isArray(rows) ? rows : [];
             // undefined is_active => treat as active (backend has no column);
             // null/0 => archived; 1 => active. Mirrors the Classes/Years pages.
-            const isActive = (row: any) =>
+            const isActive = (row: Record<string, unknown>) =>
               row?.is_active === undefined ? true : Number(row.is_active) === 1;
             const active = list.filter((row) => isActive(row)).length;
             const archived = list.filter((row) => !isActive(row)).length;
@@ -580,13 +580,8 @@ export default function SubjectCardsPage() {
       form.resetFields();
       setSelectedColorIdx(null);
       setEditingSubject(null);
-    } catch (err: any) {
-      const apiMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        "Something went wrong. Please try again.";
-      message.error(apiMsg);
+    } catch (err: unknown) {
+      message.error(errorMessage(err, "Something went wrong. Please try again."));
     } finally {
       setModalLoading(false);
     }
@@ -606,11 +601,11 @@ export default function SubjectCardsPage() {
         subject_id: Number(archiveTarget.id),
         include_inactive: true,
       });
-      const isActive = (row: any) =>
+      const isActive = (row: Record<string, unknown>) =>
         row?.is_active === undefined ? true : Number(row.is_active) === 1;
       const activeIds = (Array.isArray(rows) ? rows : [])
         .filter((row) => isActive(row))
-        .map((row: any) => Number(row?.id))
+        .map((row: Record<string, unknown>) => Number(row?.id))
         .filter((id) => Number.isFinite(id) && id > 0);
 
       if (activeIds.length === 0) {
@@ -650,11 +645,11 @@ export default function SubjectCardsPage() {
         subject_id: Number(subject.id),
         include_inactive: true,
       });
-      const isActive = (row: any) =>
+      const isActive = (row: Record<string, unknown>) =>
         row?.is_active === undefined ? true : Number(row.is_active) === 1;
       const archivedIds = (Array.isArray(rows) ? rows : [])
         .filter((row) => !isActive(row))
-        .map((row: any) => Number(row?.id))
+        .map((row: Record<string, unknown>) => Number(row?.id))
         .filter((id) => Number.isFinite(id) && id > 0);
 
       if (archivedIds.length === 0) {
@@ -1206,13 +1201,8 @@ export default function SubjectCardsPage() {
                   refreshSubjects();
                   setDeleteConfirmSubject(null);
                   setDeleteTyped("");
-                } catch (err: any) {
-                  const apiMsg =
-                    err?.response?.data?.message ||
-                    err?.response?.data?.error ||
-                    err?.message ||
-                    "Failed to delete subject.";
-                  message.error(apiMsg);
+                } catch (err: unknown) {
+                  message.error(errorMessage(err, "Failed to delete subject."));
                 } finally {
                   setDeleteLoading(false);
                 }
