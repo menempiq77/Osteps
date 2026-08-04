@@ -49,6 +49,8 @@ export default function ClassNotebookPage() {
   const [tocOpen, setTocOpen] = useState(!isTeacher);
   const workspaceRef = useRef<HTMLElement | null>(null);
   const loadedPageIdRef = useRef<number | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const loadGenerationRef = useRef(0);
   const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
 
   useEffect(() => {
@@ -76,6 +78,12 @@ export default function ClassNotebookPage() {
       );
 
   const loadNotebook = async (studentId?: string) => {
+    loadGenerationRef.current += 1;
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    setPageDirty(false);
     setLoading(true);
     setError("");
     try {
@@ -164,11 +172,18 @@ export default function ClassNotebookPage() {
 
   useEffect(() => {
     if (!selectedPage || loading || !pageDirty) return;
+    const generation = loadGenerationRef.current;
     const timer = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      if (generation !== loadGenerationRef.current) return;
       void save(annotations, teacherAnnotations, background, pageTitle, heading);
       setPageDirty(false);
     }, 700);
-    return () => window.clearTimeout(timer);
+    autosaveTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (autosaveTimerRef.current === timer) autosaveTimerRef.current = null;
+    };
     // Autosave is intentionally keyed to the editable page state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotations, teacherAnnotations, background, pageTitle, heading, pageDirty, selectedPage]);
