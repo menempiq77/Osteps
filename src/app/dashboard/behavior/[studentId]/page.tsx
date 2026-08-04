@@ -15,6 +15,15 @@ import Link from "next/link";
 
 const { Option } = Select;
 
+type DynamicStudent = {
+  id?: string | number; student_id?: string | number; profile_id?: string | number; studentId?: string | number; profileId?: string | number; user_id?: string | number;
+  name?: string; student_name?: string; subject_class_id?: string | number; subjectClassId?: string | number; class_name?: string;
+  subject_class_name?: string; class?: DynamicStudent; classes?: DynamicStudent; subject_class?: DynamicStudent; subject_context?: DynamicStudent;
+  subject?: DynamicStudent; user?: DynamicStudent; profile?: DynamicStudent; pivot?: DynamicStudent; behaviour?: Behavior[];
+  subjects?: StudentSubjectSummary[]; sen_details?: string;
+  [key: string]: unknown;
+};
+
 type BehaviorType = {
   id: string;
   name: string;
@@ -126,7 +135,7 @@ const normalizeSubjectName = (value: unknown) =>
 
 const normalizeStudentId = (value: unknown) => String(value ?? "").trim();
 
-const extractProfileClassName = (profileData: Record<string, any> | null | undefined): string =>
+const extractProfileClassName = (profileData: DynamicStudent | null | undefined): string =>
   String(
     profileData?.subject_class_name ??
       profileData?.subject_context?.subject_class_name ??
@@ -141,7 +150,7 @@ const extractProfileClassName = (profileData: Record<string, any> | null | undef
       ""
   ).trim();
 
-const extractStudentCandidateIds = (student: Record<string, any>): string[] =>
+const extractStudentCandidateIds = (student: DynamicStudent): string[] =>
   Array.from(
     new Set(
       [
@@ -159,7 +168,7 @@ const extractStudentCandidateIds = (student: Record<string, any>): string[] =>
     )
   );
 
-const extractStudentSubjectClassIds = (student: Record<string, any>): string[] =>
+const extractStudentSubjectClassIds = (student: DynamicStudent): string[] =>
   [
     student?.subject_class_id,
     student?.subjectClassId,
@@ -187,7 +196,7 @@ const resolveSubjectClassDisplayName = (row: SubjectClassRow): string =>
   ).trim();
 
 const matchesCurrentStudent = (
-  student: Record<string, any>,
+  student: DynamicStudent,
   studentId: string,
   subjectClassId?: string
 ): boolean => {
@@ -212,7 +221,7 @@ const extractStudentSubjectClassName = (subject: StudentSubjectSummary): string 
   ).trim();
 
 const buildStudentSubjectFallbackMap = (
-  students: Array<Record<string, any>>,
+  students: Array<DynamicStudent>,
   studentId: string
 ): Map<number, SubjectEntry> => {
   const matchedStudent = (Array.isArray(students) ? students : []).find((student) =>
@@ -286,13 +295,13 @@ const resolveSubjectEntryForStudent = async (params: {
     );
     if (!linkedClassId) continue;
 
-    let classStudents: Array<Record<string, any>> = [];
+    let classStudents: Array<DynamicStudent> = [];
     try {
       classStudents = (await fetchStudents(
         linkedClassId,
         params.subjectId,
         subjectClassId || undefined
-      )) as Array<Record<string, any>>;
+      )) as Array<DynamicStudent>;
     } catch {
       continue;
     }
@@ -416,7 +425,7 @@ const StudentBehaviorPage = () => {
         return;
       }
 
-      let studentBaseProfile: Record<string, any> | null = null;
+      let studentBaseProfile: DynamicStudent | null = null;
       let studentBaseClassId = Number(currentUser?.studentClass ?? 0);
       let studentBaseClassName = String(currentUser?.studentClassName ?? "").trim();
 
@@ -444,7 +453,7 @@ const StudentBehaviorPage = () => {
           const classStudents = (await fetchStudents(
             studentBaseClassId,
             0
-          )) as Array<Record<string, any>>;
+          )) as Array<DynamicStudent>;
           studentSubjectFallbackMap = buildStudentSubjectFallbackMap(
             classStudents,
             studentId
@@ -494,7 +503,7 @@ const StudentBehaviorPage = () => {
         })
       );
 
-      const subjectClassMap = new Map<number, { subjectName: string; className: string; profileData: any }>(
+      const subjectClassMap = new Map<number, { subjectName: string; className: string; profileData: DynamicStudent }>(
         subjectResults.map((result) => [
           result.subjectId,
           {
@@ -595,7 +604,7 @@ const StudentBehaviorPage = () => {
     if (!effectiveStudentId || subjectContextLoading) return;
     loadBehavior();
     loadBehaviorTypes();
-  }, [effectiveStudentId, subjectContextLoading, (currentUser as any)?.studentClass, subjects]);
+  }, [effectiveStudentId, subjectContextLoading, currentUser?.studentClass, subjects]);
 
   const filteredBehaviors = behaviors?.filter((behavior) => {
     const behaviorType = resolveBehaviorMeta(behavior, behaviorTypes);
