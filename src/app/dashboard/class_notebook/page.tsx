@@ -236,9 +236,20 @@ export default function ClassNotebookPage() {
                 </button>
                 {tocOpen ? (
                   <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                    {pages.map((page) => (
-                      <NotebookPageThumbnail key={page.id} page={page} active={selectedPage?.id === page.id} onClick={() => setSelectedPageId(page.id)} />
-                    ))}
+                    {pages.map((page) => {
+                      const live = selectedPage?.id === page.id;
+                      return (
+                        <NotebookPageThumbnail
+                          key={page.id}
+                          page={page}
+                          active={live}
+                          studentAnnotations={live ? annotations : undefined}
+                          teacherAnnotations={live ? teacherAnnotations : undefined}
+                          title={live ? pageTitle : undefined}
+                          onClick={() => setSelectedPageId(page.id)}
+                        />
+                      );
+                    })}
                   </div>
                 ) : null}
               </div>

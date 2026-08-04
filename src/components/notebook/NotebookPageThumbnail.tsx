@@ -9,13 +9,23 @@ type Props = {
   page: NotebookPage;
   active: boolean;
   onClick: () => void;
+  studentAnnotations?: NotebookPage["studentAnnotations"];
+  teacherAnnotations?: NotebookPage["teacherAnnotations"];
+  title?: string;
 };
 
 const THUMBNAIL_WIDTH = 118;
 const THUMBNAIL_HEIGHT = Math.round((NOTEBOOK_PAGE_HEIGHT / NOTEBOOK_PAGE_WIDTH) * THUMBNAIL_WIDTH);
 const SCALE = THUMBNAIL_WIDTH / NOTEBOOK_PAGE_WIDTH;
 
-export default function NotebookPageThumbnail({ page, active, onClick }: Props) {
+export default function NotebookPageThumbnail({
+  page,
+  active,
+  onClick,
+  studentAnnotations = page.studentAnnotations,
+  teacherAnnotations = page.teacherAnnotations,
+  title = page.title,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -30,10 +40,8 @@ export default function NotebookPageThumbnail({ page, active, onClick }: Props) 
     if (!context) return;
     context.setTransform(ratio * SCALE, 0, 0, ratio * SCALE, 0, 0);
     context.clearRect(0, 0, NOTEBOOK_PAGE_WIDTH, NOTEBOOK_PAGE_HEIGHT);
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, NOTEBOOK_PAGE_WIDTH, NOTEBOOK_PAGE_HEIGHT);
-    drawNotebookAnnotations(context, [...page.studentAnnotations, ...page.teacherAnnotations]);
-  }, [page]);
+    drawNotebookAnnotations(context, [...studentAnnotations, ...teacherAnnotations]);
+  }, [studentAnnotations, teacherAnnotations]);
 
   return (
     <button
@@ -51,7 +59,7 @@ export default function NotebookPageThumbnail({ page, active, onClick }: Props) 
             className="pointer-events-none absolute inset-0 h-full w-full object-contain object-top"
           />
         ) : null}
-        {[...page.studentAnnotations, ...page.teacherAnnotations]
+        {[...studentAnnotations, ...teacherAnnotations]
           .filter((annotation) => annotation.type === "image")
           .map((annotation) => (
             <AuthenticatedNotebookImage
@@ -70,7 +78,7 @@ export default function NotebookPageThumbnail({ page, active, onClick }: Props) 
         <canvas ref={canvasRef} className="relative block" />
       </div>
       <div className="mt-1 truncate text-xs font-medium text-slate-700">
-        {page.pageIndex + 1}. {page.title || "Untitled page"}
+        {page.pageIndex + 1}. {title || "Untitled page"}
       </div>
     </button>
   );
