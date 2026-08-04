@@ -68,25 +68,37 @@ export function AssignTrackerButton({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setYearError("");
-    setYearsLoading(true);
-    setYears([]);
-    if (!subjectId) {
+    const resetErrorTimer = window.setTimeout(() => setYearError(""), 0);
+    const initialStateTimer = window.setTimeout(() => {
+      setYearsLoading(true);
       setYears([]);
-      setYearError("No subject is selected, so year groups are unavailable.");
-      setYearsLoading(false);
+    }, 0);
+    if (!subjectId) {
+      const subjectErrorTimer = window.setTimeout(() => {
+        setYears([]);
+        setYearError("No subject is selected, so year groups are unavailable.");
+        setYearsLoading(false);
+      }, 0);
       return () => {
         cancelled = true;
+        window.clearTimeout(resetErrorTimer);
+        window.clearTimeout(initialStateTimer);
+        window.clearTimeout(subjectErrorTimer);
       };
     }
 
     if (!schoolId) {
-      setYearError(
-        "Your school could not be identified, so year groups are unavailable."
-      );
-      setYearsLoading(false);
+      const schoolErrorTimer = window.setTimeout(() => {
+        setYearError(
+          "Your school could not be identified, so year groups are unavailable."
+        );
+        setYearsLoading(false);
+      }, 0);
       return () => {
         cancelled = true;
+        window.clearTimeout(resetErrorTimer);
+        window.clearTimeout(initialStateTimer);
+        window.clearTimeout(schoolErrorTimer);
       };
     }
 
@@ -124,6 +136,8 @@ export function AssignTrackerButton({
       });
     return () => {
       cancelled = true;
+      window.clearTimeout(resetErrorTimer);
+      window.clearTimeout(initialStateTimer);
     };
   }, [open, schoolId, subjectId]);
 

@@ -16,8 +16,10 @@ export default function AuthenticatedNotebookImage({ src, alt, className, style 
   useEffect(() => {
     let cancelled = false;
     let nextObjectUrl: string | null = null;
-    setObjectUrl(null);
-    if (!src) return undefined;
+    const clearObjectUrlTimer = window.setTimeout(() => setObjectUrl(null), 0);
+    if (!src) {
+      return () => window.clearTimeout(clearObjectUrlTimer);
+    }
 
     void fetch(src, { headers: getAuthHeader() })
       .then((response) => {
@@ -35,6 +37,7 @@ export default function AuthenticatedNotebookImage({ src, alt, className, style 
 
     return () => {
       cancelled = true;
+      window.clearTimeout(clearObjectUrlTimer);
       if (nextObjectUrl) URL.revokeObjectURL(nextObjectUrl);
     };
   }, [src]);
