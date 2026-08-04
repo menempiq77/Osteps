@@ -346,7 +346,8 @@ export default function AssessmentDrawer() {
       )
     : assementTasks;
 
-  const handleViewQuiz = (task: any) => {
+  const handleViewQuiz = (task: StudentAssessmentTask) => {
+    if (!task.quiz?.id) return;
     router.push(
       `/dashboard/students/${classId}/view-student-assesment/${selectedStudentId}/assesment-tasks/quiz/${task.quiz.id}`
     );
@@ -551,7 +552,11 @@ export default function AssessmentDrawer() {
                   </div>
                   </>
                 ) : (() => {
-                  const quizTotal = (task?.quiz as any)?.quiz_queston?.reduce((s: number, q: any) => s + (parseFloat(q.marks) || 0), 0) || 0;
+                  const quizTotal = task?.quiz?.quiz_queston?.reduce(
+                    (sum: number, question: { marks?: string | number | null }) =>
+                      sum + (Number(question.marks) || 0),
+                    0
+                  ) || 0;
                   return (
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
@@ -792,7 +797,7 @@ export default function AssessmentDrawer() {
                 <div className="p-4 border rounded-lg bg-gray-50">
                   <FilePdfOutlined className="text-red-500 text-2xl mb-2" />
                   <p className="text-gray-700 mb-3">
-                    Open online marking to view or download the student's answered copy.
+                    Open online marking to view or download the student&apos;s answered copy.
                   </p>
                   <Button
                     type="primary"
