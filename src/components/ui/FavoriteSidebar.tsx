@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUnreadCount } from "@/services/chatApi";
+import { usePolling } from "@/hooks/usePolling";
 import {
   Award,
   BarChart3,
@@ -501,11 +502,10 @@ export default function FavoriteSidebar() {
     }
   }, []);
 
-  useEffect(() => {
-    pollUnread();
-    const interval = setInterval(pollUnread, 15000);
-    return () => clearInterval(interval);
-  }, [pollUnread]);
+  usePolling({
+    baseIntervalMs: 15000,
+    run: pollUnread,
+  });
 
   useEffect(() => {
     setMobileOpen(false);
