@@ -10,7 +10,12 @@ export const getAllAskQuestions = async () => {
   return response.data.data;
 };
 // Add a new Questions
-export const createAskQuestion = async (questionData: { name: string }) => {
+export const createAskQuestion = async (questionData: {
+  student_id: number;
+  teacher_id: string;
+  question: string;
+  answer: string;
+}) => {
   const response = await api.post('/askQuestion', questionData);
   return response.data;
 };

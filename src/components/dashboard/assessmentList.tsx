@@ -28,12 +28,13 @@ export interface Quiz {
   name: string;
 }
 
-interface Assessment {
+export interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
   quiz_id?: string;
   quiz?: Quiz;
+  term_id?: string;
 }
 
 interface AssessmentListProps {
@@ -41,7 +42,7 @@ interface AssessmentListProps {
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (assessment: Assessment) => void; 
   quizzes: Quiz[];
-  termId: number;
+  termId: number | string;
 }
 export interface Term {
   id: number;
