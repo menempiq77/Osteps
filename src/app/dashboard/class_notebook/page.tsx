@@ -90,6 +90,7 @@ export default function ClassNotebookPage() {
       if (isTeacher && !studentId) {
         const result = await fetchNotebookClass({ subjectId, subjectClassId, classId });
         setClassName(result.className);
+        loadedPageIdRef.current = null;
         setStudents(result.students);
         if (result.students[0]) setSelectedStudentId(result.students[0].id);
       } else {
@@ -283,6 +284,7 @@ export default function ClassNotebookPage() {
                           studentAnnotations={live ? annotations : undefined}
                           teacherAnnotations={live ? teacherAnnotations : undefined}
                           title={live ? pageTitle : undefined}
+                          heading={live ? heading : undefined}
                           onClick={() => setSelectedPageId(page.id)}
                         />
                       );

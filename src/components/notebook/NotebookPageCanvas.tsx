@@ -636,7 +636,7 @@ export default function NotebookPageCanvas({
                 style={{ left: annotation.x * zoom, top: annotation.y * zoom, width: annotation.width * zoom, height: annotation.height * zoom }}
               />
             ))}
-            {!readOnly && (
+            {!readOnly ? (
               <input
                 value={heading || ""}
                 onChange={(event) => onHeadingChange(event.target.value)}
@@ -651,7 +651,21 @@ export default function NotebookPageCanvas({
                   fontSize: 30 * zoom,
                 }}
               />
-            )}
+            ) : heading ? (
+              <div
+                className="pointer-events-none absolute z-10 truncate border-b-2 border-slate-400 text-center font-[cursive] text-slate-700"
+                style={{
+                  left: 40 * zoom,
+                  top: 24 * zoom,
+                  width: 714 * zoom,
+                  height: 46 * zoom,
+                  fontSize: 30 * zoom,
+                  lineHeight: `${40 * zoom}px`,
+                }}
+              >
+                {heading}
+              </div>
+            ) : null}
             <canvas ref={annotationCanvasRef} className="pointer-events-none absolute left-0 top-0" />
             <canvas ref={activeStrokeCanvasRef} className="absolute left-0 top-0 touch-none" onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} onPointerMove={onPointerMove} onPointerUp={finishStroke} onPointerCancel={finishStroke} />
             {editingText && <textarea autoFocus value={editingText.text} onChange={(event) => onChange(annotations.map((annotation) => annotation.id === editingText.id && annotation.type === "text" ? { ...annotation, text: event.target.value } : annotation))} onBlur={() => { if (!editingText.text.trim()) removeAnnotation(editingText.id); setEditingTextId(null); }} className="absolute z-20 resize-none overflow-hidden border border-emerald-400 bg-white/70 p-1 outline-none" style={textareaStyle} />}
