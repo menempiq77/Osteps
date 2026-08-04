@@ -12,7 +12,11 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { IMG_BASE_URL } from "@/lib/config";
 import dayjs from "dayjs";
-import { normalizeTaskRecord, resolveExamWindow } from "@/lib/taskTypeMetadata";
+import {
+  normalizeTaskRecord,
+  resolveExamWindow,
+  type StructuredTaskType,
+} from "@/lib/taskTypeMetadata";
 import { isSubmittedStatus, toStudentSubmissionStatus } from "@/lib/studentSubmissionStatus";
 
 interface Task {
@@ -22,7 +26,7 @@ interface Task {
   description: string;
   allocated_marks: string;
   task_type: string;
-  task_type_config?: unknown;
+  task_type_config?: StructuredTaskType | null;
   url: string | null;
   created_at: string;
   updated_at: string;
@@ -178,7 +182,7 @@ function StudentProgressSummary({ tasks }: { tasks: Task[] }) {
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const assignmentId = params.Id as string;
+  const assignmentId = String(params.Id);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -332,7 +336,7 @@ export default function AssignmentDetailPage() {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const fetchedTasks = await fetchTasks(assignmentId);
+      const fetchedTasks = await fetchTasks(Number(assignmentId));
       const submittedTaskRows = await loadSubmittedTaskRows();
 
       const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
@@ -353,7 +357,7 @@ export default function AssignmentDetailPage() {
 
   const loadTasksSilently = async () => {
     try {
-      const fetchedTasks = await fetchTasks(assignmentId);
+      const fetchedTasks = await fetchTasks(Number(assignmentId));
       const submittedTaskRows = await loadSubmittedTaskRows();
       const tasksWithStudentData = await enrichTasksWithStudentData(fetchedTasks, submittedTaskRows);
       setTasks(tasksWithStudentData);
@@ -378,7 +382,7 @@ export default function AssignmentDetailPage() {
       params.set("returnTo", returnTo);
     }
 
-    if (task.self_assessment_marks != null && task.self_assessment_marks !== "") {
+    if (task.self_assessment_marks != null) {
       params.set("selfAssessmentMark", String(task.self_assessment_marks));
     }
 
@@ -461,6 +465,26 @@ export default function AssignmentDetailPage() {
         <Spin size="large" />
       </div>
     );
+
+  const selectedDrawerTask: React.ComponentProps<
+    typeof AssignmentDrawer
+  >["selectedTask"] = selectedTask
+    ? {
+        ...selectedTask,
+        id: String(selectedTask.id),
+        name: selectedTask.task_name,
+        type:
+          selectedTask.type === "audio" ||
+          selectedTask.type === "video" ||
+          selectedTask.type === "pdf" ||
+          selectedTask.type === "url"
+            ? selectedTask.type
+            : "pdf",
+        url: selectedTask.url ?? undefined,
+        status: selectedTask.status ?? "not-completed",
+        allocated_marks: Number(selectedTask.allocated_marks) || 0,
+      }
+    : null;
 
   return (
     <div className="p-3 md:p-6 max-w-5xl mx-auto">
@@ -703,7 +727,7 @@ export default function AssignmentDetailPage() {
                   </div>
                 </div>
 
-                {task?.quiz_comments?.length > 0 && (
+                {Boolean(task?.quiz_comments?.length) && (
                   <div className="mt-2 space-y-1 text-sm text-gray-600">
                     <strong className="block text-gray-800">Comments:</strong>
                     {task?.quiz_comments?.map((c: any, idx: number) => (
@@ -744,8 +768,8 @@ export default function AssignmentDetailPage() {
           void loadTasksSilently();
         }}
         selectedSubject={selectedTask?.task_name || "Task"}
-        selectedTask={selectedTask}
-        assessmentId={assignmentId}
+        selectedTask={selectedDrawerTask}
+        assessmentId={Number(assignmentId)}
         canEditSubmission={
           !!selectedTask &&
           selectedTask?.type !== "quiz" &&
