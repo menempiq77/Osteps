@@ -75,7 +75,7 @@ Exact section definitions:
 - Subject breakdown: one row per authorized subject with attendance, behavior, academics, and classes.
 
 Reference:
-- See `COMPREHENSIVE_REPORT_SPEC.md` for the implementation-ready field and UI contract.
+- See `../../COMPREHENSIVE_REPORT_SPEC.md` for the implementation-ready field and UI contract.
 
 ## 8) Data Model Requirements
 - `subjects`
