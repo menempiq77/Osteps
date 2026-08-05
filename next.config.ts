@@ -62,6 +62,27 @@ const nextConfig: NextConfig = {
     return config;
   },
   async headers() {
+    // This deliberately permissive baseline keeps the current app working while
+    // CSP violations are measured. Tighten each directive iteratively once all
+    // inline Ant Design styles, Next runtime code, PDF workers, uploads, media,
+    // and embedded viewers have been migrated or nonce-enabled. The app embeds
+    // its own read-only pages, so same-origin framing remains allowed while
+    // external clickjacking and exam-lockdown embedding remain blocked.
+    const contentSecurityPolicy = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+      "style-src 'self' 'unsafe-inline' https:",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https:",
+      "connect-src 'self' https: wss:",
+      "media-src 'self' blob: https:",
+      "worker-src 'self' blob:",
+      "frame-src 'self' https:",
+      "frame-ancestors 'self'",
+      "object-src 'self' blob:",
+      "base-uri 'self'",
+      "form-action 'self' https:",
+    ].join("; ");
     const baseHeaders = [
       {
         source: '/(.*)',
@@ -78,6 +99,10 @@ const nextConfig: NextConfig = {
             key: 'X-XSS-Protection',
             value: '1; mode=block'
           },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
         ],
       },
     ];
