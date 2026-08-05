@@ -21,6 +21,7 @@ import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { resolveWeight } from "@/lib/assessmentWeights";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { isStudentReportOwner } from "@/lib/subjectStudentScope";
 interface Task {
   student_id: number;
   student_name: string;
@@ -678,7 +679,9 @@ export default function ReportsPage() {
   // Filter by search term AND URL student ID (only if applyUrlFilter is true)
   const filteredData = transformedData?.filter((student) => {
     const matchesSearch = student?.student?.toLowerCase()?.includes(searchTerm?.toLowerCase());
-    const studentScopeMatch = !isStudent || String(student?.student_id) === String(currentUser?.student);
+    const studentScopeMatch =
+      !isStudent ||
+      isStudentReportOwner(student?.student_id, currentUser?.student);
     
     // Only filter by URL student ID if we're still applying the URL filter
     if (urlStudentId && applyUrlFilter) {

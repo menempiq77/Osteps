@@ -84,3 +84,18 @@ export const filterStudentsBySubjectScope = <T extends Record<string, unknown>>(
     studentMatchesSubjectScope(student, options)
   );
 };
+
+export const isStudentReportOwner = (
+  requestedStudentId: string | number | null | undefined,
+  currentStudentId: string | number | null | undefined
+): boolean => {
+  const requested = Number(requestedStudentId);
+  const current = Number(currentStudentId);
+  return (
+    Number.isInteger(requested) &&
+    requested > 0 &&
+    Number.isInteger(current) &&
+    current > 0 &&
+    requested === current
+  );
+};

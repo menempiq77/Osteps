@@ -33,6 +33,11 @@ import {
   resolveCoinBalance,
   type LeaderboardRawEntry,
 } from "@/lib/leaderboard";
+import {
+  calculateAttendancePercent,
+  calculateCompletionRate,
+  calculateNetPoints,
+} from "@/lib/comprehensiveReportCalculations";
 
 const ReportChart = dynamic(() => import("./_components/ReportChart"), {
   ssr: false,
@@ -286,7 +291,13 @@ export default function StudentReportPage() {
       else other += 1;
     });
     const total = present + absent + other;
-    return { present, absent, other, total, percent: pct(present, total) };
+    return {
+      present,
+      absent,
+      other,
+      total,
+      percent: calculateAttendancePercent(present, total),
+    };
   }, [behaviourRows]);
 
   const conduct = useMemo(() => {
@@ -321,7 +332,7 @@ export default function StudentReportPage() {
       events,
       positive,
       negative,
-      net: positive + negative,
+      net: calculateNetPoints([positive, negative]),
       posCount,
       negCount,
       incidents: negCount,
@@ -491,7 +502,10 @@ export default function StudentReportPage() {
     }[];
     const totalEarned = trackers.reduce((a, t) => a + t.earned, 0);
     const totalMax = trackers.reduce((a, t) => a + t.max, 0);
-    return { trackers, overall: pct(totalEarned, totalMax) };
+    return {
+      trackers,
+      overall: calculateCompletionRate(totalEarned, totalMax),
+    };
   }, [s, studentId]);
 
   const rewards = useMemo(() => {

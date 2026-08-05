@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:behavior-matrix": "npx --yes newman@latest run postman/behavior-role-matrix.postman_collection.json -e postman/behavior-role-matrix.postman_environment.json",
     "test:behavior-matrix:auto": "powershell -ExecutionPolicy Bypass -File .\\postman\\login-and-run-behavior-matrix.ps1"
   },
@@ -55,9 +57,11 @@
     "depcheck": "^1.4.7",
     "eslint": "9.39.2",
     "eslint-config-next": "16.1.6",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "serwist": "^9.5.11",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
