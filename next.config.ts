@@ -65,7 +65,9 @@ const nextConfig: NextConfig = {
     // This deliberately permissive baseline keeps the current app working while
     // CSP violations are measured. Tighten each directive iteratively once all
     // inline Ant Design styles, Next runtime code, PDF workers, uploads, media,
-    // and embedded YouTube/Vimeo viewers have been migrated or nonce-enabled.
+    // and embedded viewers have been migrated or nonce-enabled. The app embeds
+    // its own read-only pages, so same-origin framing remains allowed while
+    // external clickjacking and exam-lockdown embedding remain blocked.
     const contentSecurityPolicy = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
@@ -75,8 +77,8 @@ const nextConfig: NextConfig = {
       "connect-src 'self' https: wss:",
       "media-src 'self' blob: https:",
       "worker-src 'self' blob:",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
-      "frame-ancestors 'none'",
+      "frame-src 'self' https:",
+      "frame-ancestors 'self'",
       "object-src 'self' blob:",
       "base-uri 'self'",
       "form-action 'self' https:",
@@ -98,7 +100,7 @@ const nextConfig: NextConfig = {
             value: '1; mode=block'
           },
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
-          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
         ],
