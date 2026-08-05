@@ -3,11 +3,13 @@ import { promises as fs, Dirent } from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { asRecord } from "@/lib/safeRecord";
+import {
+  normalizeIncidentContext,
+  type QuizIncidentContext,
+} from "@/lib/quizIncident";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type QuizIncidentContext = "fullscreen" | "screen" | "leave";
 
 type QuizIncidentEvent = {
   id: string;
@@ -53,11 +55,6 @@ const readJsonState = async (filePath: string): Promise<QuizIncidentState | null
 const writeJsonState = async (filePath: string, state: QuizIncidentState) => {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(state, null, 2));
-};
-
-const normalizeIncidentContext = (value: unknown): QuizIncidentContext => {
-  if (value === "screen" || value === "leave") return value;
-  return "fullscreen";
 };
 
 const toIncidentRows = (state: QuizIncidentState) =>
