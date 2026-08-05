@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import path from "path";
 import { promisify } from "util";
+import { checkRateLimit, rateLimitKey } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 20;
@@ -22,6 +23,8 @@ const resolveLocalPaperPath = (normalizedUrl: string): string | null => {
 };
 
 export async function POST(req: NextRequest) {
+  const rate = checkRateLimit(rateLimitKey(req, "ai"));
+  if (!rate.allowed) return NextResponse.json({ error: "AI request rate limit exceeded." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
   let body: { fileUrl?: string };
   try {
     body = (await req.json()) as { fileUrl?: string };

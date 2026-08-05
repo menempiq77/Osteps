@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import path from "path";
 import { promisify } from "util";
+import { checkRateLimit, rateLimitKey } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -95,6 +96,8 @@ const readWithLocalOcr = async (pageImages: string[], pageNumbers: number[]) => 
 };
 
 export async function POST(req: NextRequest) {
+  const rate = checkRateLimit(rateLimitKey(req, "ai"));
+  if (!rate.allowed) return NextResponse.json({ error: "AI request rate limit exceeded." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
   let body: { title?: string; subject?: string; pageImages?: unknown[]; pageImagePageNumbers?: unknown[] };
   try {
     body = (await req.json()) as { title?: string; subject?: string; pageImages?: unknown[]; pageImagePageNumbers?: unknown[] };

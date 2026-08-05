@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/safeRecord";
+import { checkRateLimit, rateLimitKey } from "@/lib/rateLimit";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
@@ -41,6 +42,10 @@ If you are unsure about something, say so clearly rather than guessing.
 Always be respectful of both the teacher and the student.`;
 
 export async function POST(req: NextRequest) {
+  const rate = checkRateLimit(rateLimitKey(req, "ai"));
+  if (!rate.allowed) {
+    return NextResponse.json({ error: "AI request rate limit exceeded." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
+  }
   if (!GROQ_API_KEY) {
     return NextResponse.json(
       { error: "AI chat is not available: no API key configured." },

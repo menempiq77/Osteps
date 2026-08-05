@@ -3,6 +3,7 @@ import { execFile } from "child_process";
 import path from "path";
 import { promisify } from "util";
 import { errorMessage } from "@/lib/safeRecord";
+import { checkRateLimit, rateLimitKey } from "@/lib/rateLimit";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
@@ -375,6 +376,10 @@ const requestOpenAiAssistantText = async ({
 };
 
 export async function POST(req: NextRequest) {
+  const rate = checkRateLimit(rateLimitKey(req, "ai"));
+  if (!rate.allowed) {
+    return NextResponse.json({ error: "AI request rate limit exceeded." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
+  }
   if (!GROQ_API_KEY && !GEMINI_API_KEY && !OPENAI_API_KEY) {
     return NextResponse.json(
       { error: "AI assistant is not available: no provider API key configured." },
