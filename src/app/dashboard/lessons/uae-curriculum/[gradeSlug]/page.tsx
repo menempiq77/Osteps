@@ -10,12 +10,12 @@ export function generateStaticParams() {
   return uaeCurriculumGrades.map((grade) => ({ gradeSlug: grade.slug }));
 }
 
-export default function GradeLessonsPage({
+export default async function GradeLessonsPage({
   params,
 }: {
-  params: { gradeSlug: string };
+  params: Promise<{ gradeSlug: string }>;
 }) {
-  const { gradeSlug } = params;
+  const { gradeSlug } = await params;
   const grade = uaeCurriculumBySlug[gradeSlug];
 
   if (!grade) {

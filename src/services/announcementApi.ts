@@ -3,6 +3,14 @@ import { API_BASE_URL } from '@/lib/config';
 import { getAuthHeader } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
 
+export type AnnouncementPayload = {
+  title: string;
+  description: string;
+  type: string;
+  role: string[];
+  school_ids: string[];
+  authorId?: string | number;
+};
 
 export const fetchAnnouncements = async () => {
   const params = new URLSearchParams();
@@ -18,20 +26,20 @@ export const fetchAnnouncements = async () => {
   return data.data;
 };
 
-export const addAnnouncement = async (announcementData: { name: string }) => {
+export const addAnnouncement = async (announcementData: AnnouncementPayload) => {
   const response = await fetch(`${API_BASE_URL}/add-announcement`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(withSubjectPayload(announcementData as any)),
+    body: JSON.stringify(withSubjectPayload(announcementData)),
   });
   if (!response.ok) throw new Error('Failed to add announcement');
   return response.json();
 };
 
-export const updateAnnouncement = async (id: string, announcementData: any) => {
+export const updateAnnouncement = async (id: string, announcementData: Record<string, unknown>) => {
   const response = await fetch(`${API_BASE_URL}/update-announcement/${id}`, {
     method: 'POST',
     headers: {

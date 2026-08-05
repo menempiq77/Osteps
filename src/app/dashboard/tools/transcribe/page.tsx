@@ -10,18 +10,20 @@ import {
   startTranscribeFile,
   startTranscribeUrl,
 } from "@/services/transcribeApi";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 const { TextArea } = Input;
 const allowedRoles = new Set(["SCHOOL_ADMIN", "HOD", "TEACHER"]);
 
-const getTranscriptText = (payload: any): string => {
-  if (!payload) return "";
+const getTranscriptText = (payload: unknown): string => {
+  const record = asRecord(payload);
+  if (!record) return "";
   return (
-    payload.text ||
-    payload.data?.text ||
-    payload.transcript ||
-    payload.result?.text ||
-    payload.data?.transcript ||
+    String(record.text ?? "") ||
+    String(asRecord(record.data)?.text ?? "") ||
+    String(record.transcript ?? "") ||
+    String(asRecord(record.result)?.text ?? "") ||
+    String(asRecord(record.data)?.transcript ?? "") ||
     ""
   );
 };
@@ -80,11 +82,10 @@ export default function TranscribePage() {
       if (!text.trim()) throw new Error("No speech could be detected in this file.");
       setTranscript(text);
       messageApi.success("Transcription completed.");
-    } catch (error: any) {
-      const errorMessage =
-        error?.details?.message || error?.message || "Failed to transcribe file.";
-      setLastError(errorMessage);
-      messageApi.error(errorMessage);
+    } catch (error: unknown) {
+      const messageText = errorMessage(error, "Failed to transcribe file.");
+      setLastError(messageText);
+      messageApi.error(messageText);
     } finally {
       setLoading(false);
       setLoadingLabel("");
@@ -108,9 +109,8 @@ export default function TranscribePage() {
       if (!text.trim()) throw new Error("No speech could be detected in this media.");
       setTranscript(text);
       messageApi.success("Transcription completed.");
-    } catch (error: any) {
-      const errorMessage: string =
-        error?.details?.message || error?.message || "Failed to transcribe URL.";
+    } catch (error: unknown) {
+      const messageText = errorMessage(error, "Failed to transcribe URL.");
 
       // For YouTube, fall back to the video's published captions if audio
       // transcription was blocked (YouTube often rate-limits server downloads).
@@ -131,8 +131,8 @@ export default function TranscribePage() {
         }
       }
 
-      setLastError(errorMessage);
-      messageApi.error(errorMessage);
+      setLastError(messageText);
+      messageApi.error(messageText);
     } finally {
       setLoading(false);
       setLoadingLabel("");

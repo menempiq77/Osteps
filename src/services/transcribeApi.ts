@@ -1,9 +1,11 @@
 const TRANSCRIBE_ENDPOINT = "/api/tools/transcribe";
 
+type TranscribeError = Error & { details?: unknown; status?: number };
+
 const parseResponse = async (response: Response) => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err: any = new Error(
+    const err: TranscribeError = new Error(
       payload?.message || "Transcription failed. Please try again."
     );
     err.details = payload;
@@ -43,7 +45,7 @@ export const fetchYoutubeCaptionFallback = async (videoUrl: string) => {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err: any = new Error(
+    const err: TranscribeError = new Error(
       payload?.message || "No YouTube captions found for this video."
     );
     err.details = payload;

@@ -58,16 +58,37 @@ const DashboardCharts = dynamic(() => import("@/components/dashboard/DashboardCh
   ssr: false,
 });
 
-const resolveSubjectClassYearId = (row: any): number =>
+type DashboardRecord = { id?: string | number; year_id?: string | number; yearId?: string | number; class_id?: string | number; classId?: string | number; class_name?: string; base_class_label?: string; subject_class_name?: string; subject_name?: string; name?: string; label?: string; email?: string; year_name?: string; status?: string; is_completed?: boolean; class?: DashboardRecord; classes?: DashboardRecord | DashboardRecord[]; base_class?: DashboardRecord; year?: DashboardRecord; student?: DashboardRecord; user?: DashboardRecord; subject_context?: DashboardRecord; subject_class?: DashboardRecord; pivot?: DashboardRecord; subjects?: DashboardRecord[]; topics?: DashboardRecord[]; status_progress?: DashboardRecord[]; assign_assessments?: DashboardRecord[]; assessment?: DashboardRecord; tasks?: DashboardRecord[]; [key: string]: unknown };
+type TrackerSummary = {
+  trackerId: number | null;
+  trackerName: string;
+  status: string | null;
+  dueTs: number | null;
+  dueDate: string | null;
+  updatedAt: string | null;
+  topicCount: number;
+  completedTopicCount: number;
+};
+type AssessmentSummary = {
+  assessmentId: string | number | null;
+  assessmentName: string;
+  termName: string;
+  dueTs: number | null;
+  dueDate: string | null;
+  updatedAt: string | null;
+  taskCount: number;
+};
+
+const resolveSubjectClassYearId = (row: DashboardRecord): number =>
   Number(
     row?.year_id ??
       row?.class?.year_id ??
-      row?.classes?.year_id ??
+      (row?.classes as DashboardRecord | undefined)?.year_id ??
       row?.base_class?.year_id ??
       0
   );
 
-const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+const extractStudentSubjectClassIds = (student: DashboardRecord) =>
   [
     student?.subject_class_id,
     student?.subjectClassId,
@@ -77,7 +98,7 @@ const extractStudentSubjectClassIds = (student: Record<string, any>) =>
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
 
-const hasAnySubjectMarkers = (student: Record<string, any>) =>
+const hasAnySubjectMarkers = (student: DashboardRecord) =>
   extractStudentSubjectClassIds(student).length > 0 ||
   (Array.isArray(student?.subjects) && student.subjects.length > 0) ||
   !!student?.subject_name ||
@@ -189,18 +210,18 @@ const cleanDashboardLabel = (value: unknown, fallback = "Untitled") => {
   return text || fallback;
 };
 
-const extractClassLabel = (row: any) =>
+const extractClassLabel = (row: DashboardRecord) =>
   cleanDashboardLabel(
     row?.class_name ??
       row?.base_class_label ??
       row?.class?.class_name ??
-      row?.classes?.class_name ??
+      (row?.classes as DashboardRecord | undefined)?.class_name ??
       row?.base_class?.class_name ??
       row?.name,
     "Class"
   );
 
-const extractYearLabel = (row: any, yearNameById?: Map<string, string>) => {
+const extractYearLabel = (row: DashboardRecord, yearNameById?: Map<string, string>) => {
   const yearId = resolveSubjectClassYearId(row);
   const mappedYearName = yearId > 0 ? yearNameById?.get(String(yearId)) : undefined;
   return cleanDashboardLabel(
@@ -208,7 +229,7 @@ const extractYearLabel = (row: any, yearNameById?: Map<string, string>) => {
       row?.year?.name ??
       row?.year_name ??
       row?.class?.year?.name ??
-      row?.classes?.year?.name ??
+      (row?.classes as DashboardRecord | undefined)?.year?.name ??
       row?.base_class?.year?.name ??
       (yearId ? `Year ${yearId}` : ""),
     "Year"
@@ -245,7 +266,7 @@ const getStudentsListLink = (options: {
   return "/dashboard/students/all-students";
 };
 
-const extractLiveStudentClassId = (profile: any, fallback?: number | string | null) =>
+const extractLiveStudentClassId = (profile: DashboardRecord, fallback?: number | string | null) =>
   Number(
     profile?.subject_context?.class_id ??
       profile?.subject_context?.base_class_id ??
@@ -259,7 +280,7 @@ const extractLiveStudentClassId = (profile: any, fallback?: number | string | nu
       0
   );
 
-const extractLiveStudentClassName = (profile: any, fallback?: string | null) =>
+const extractLiveStudentClassName = (profile: DashboardRecord, fallback?: string | null) =>
   String(
     profile?.subject_context?.base_class_label ??
       profile?.subject_context?.subject_class_name ??
@@ -274,7 +295,7 @@ const extractLiveStudentClassName = (profile: any, fallback?: string | null) =>
       ""
   ).trim();
 
-const extractLiveStudentYearName = (profile: any, fallback?: string | null) =>
+const extractLiveStudentYearName = (profile: DashboardRecord, fallback?: string | null) =>
   String(
     profile?.subject_context?.year_name ??
       profile?.subject_context?.year?.name ??
@@ -347,7 +368,7 @@ export default function DashboardPage() {
     return () => window.clearTimeout(fallbackRedirect);
   }, [shouldUseSubjectCardsEntry, router]);
 
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Array<DashboardRecord & { id: string | number }>>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
   const [activeStatTitle, setActiveStatTitle] = useState<string | null>(null);
@@ -379,21 +400,21 @@ export default function DashboardPage() {
       subject_id: Number(subjectId),
       include_inactive: includeInactive || undefined,
     });
-    const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row: any) => {
+    const scopedClasses = (Array.isArray(subjectClasses) ? subjectClasses : []).filter((row) => {
       const parsedYearId = resolveSubjectClassYearId(row);
       return Number.isFinite(parsedYearId) && parsedYearId > 0;
     });
 
     const classCount = scopedClasses.length;
     const yearsFromClasses = scopedClasses
-      .map((row: any) => resolveSubjectClassYearId(row))
+      .map((row) => resolveSubjectClassYearId(row))
       .filter((value) => Number.isFinite(value) && value > 0);
     const yearCount = new Set(yearsFromClasses).size;
 
     const scopedStudentIds = new Set<number>();
 
     await Promise.all(
-      scopedClasses.map(async (row: any) => {
+      scopedClasses.map(async (row) => {
         const subjectClassId = String(row?.id ?? "").trim();
         const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
           row,
@@ -411,7 +432,7 @@ export default function DashboardPage() {
             )
           );
 
-          let finalRows: Array<Record<string, any>> = [];
+          let finalRows: Array<DashboardRecord> = [];
 
           // The subject-class enrollment is the source of truth for subject
           // dashboards. Avoid broad subject/base-class fallbacks because they
@@ -434,7 +455,7 @@ export default function DashboardPage() {
             finalRows = Array.isArray(baseStudents) ? baseStudents : [];
           }
 
-          finalRows.forEach((student: any) => {
+          finalRows.forEach((student) => {
             const id = Number(student?.id);
             if (Number.isFinite(id) && id > 0) {
               scopedStudentIds.add(id);
@@ -463,7 +484,8 @@ export default function DashboardPage() {
     try {
       const response = await searchStudentProfile(value);
       console.log("Student search response:", response);
-      setStudents(response.data || []);
+      const responseData = (response as unknown as { data?: unknown }).data;
+      setStudents(Array.isArray(responseData) ? responseData : []);
     } catch (error) {
       console.error("Search student error:", error);
     } finally {
@@ -561,19 +583,19 @@ export default function DashboardPage() {
       ]);
 
       const scopedStaff = (Array.isArray(staffAssignments) ? staffAssignments : []).filter(
-        (item: any) =>
+        (item) =>
           Number(item?.subject_id) === Number(activeSubjectId) &&
           Number(item?.user_id ?? item?.teacher_id) > 0
       );
       const teacherCount = new Set(
         scopedStaff
-          .map((item: any) => Number(item?.user_id ?? item?.teacher_id))
+          .map((item) => Number(item?.user_id ?? item?.teacher_id))
           .filter((id: number) => Number.isFinite(id) && id > 0)
       ).size;
       const hodCount = new Set(
         scopedStaff
-          .filter((item: any) => String(item?.role_scope || "").toUpperCase() === "HOD")
-          .map((item: any) => Number(item?.user_id ?? item?.teacher_id))
+          .filter((item) => String(item?.role_scope || "").toUpperCase() === "HOD")
+          .map((item) => Number(item?.user_id ?? item?.teacher_id))
           .filter((id: number) => Number.isFinite(id) && id > 0)
       ).size;
       return {
@@ -603,7 +625,7 @@ export default function DashboardPage() {
 
       const scopedAssignments = assignYears ?? [];
 
-      const assignedClasses = scopedAssignments.flatMap((item: any) => {
+      const assignedClasses = scopedAssignments.flatMap((item: DashboardRecord) => {
         const classesValue = item?.classes;
         if (Array.isArray(classesValue)) return classesValue;
         if (classesValue) return [classesValue];
@@ -613,7 +635,7 @@ export default function DashboardPage() {
       const uniqueClassIds = Array.from(
         new Set(
           assignedClasses
-            .map((cls: any) => String(cls?.id ?? cls?.class_id ?? cls?.classId ?? ""))
+            .map((cls: DashboardRecord) => String(cls?.id ?? cls?.class_id ?? cls?.classId ?? ""))
             .filter(Boolean)
         )
       );
@@ -621,7 +643,7 @@ export default function DashboardPage() {
       const studentCounts = await Promise.all(
         uniqueClassIds.map(async (classId) => {
           try {
-            const students = (await fetchStudents(classId)) ?? [];
+            const students = (await fetchStudents(String(classId))) ?? [];
             return Array.isArray(students) ? students.length : 0;
           } catch {
             return 0;
@@ -663,7 +685,7 @@ export default function DashboardPage() {
         if (cachedYearNameById) return cachedYearNameById;
 
         const yearNameById = new Map<string, string>();
-        const addYear = (year: any) => {
+        const addYear = (year: DashboardRecord) => {
           const id = String(year?.id ?? year?.year_id ?? year?.yearId ?? "").trim();
           const name = cleanDashboardLabel(year?.name ?? year?.year_name ?? year?.label, "");
           if (id && name) yearNameById.set(id, name);
@@ -676,10 +698,10 @@ export default function DashboardPage() {
 
         if (yearNameById.size === 0 || currentUser?.role === "TEACHER") {
           const assignedYears = await fetchAssignYears().catch(() => []);
-          (Array.isArray(assignedYears) ? assignedYears : []).forEach((entry: any) => {
+          (Array.isArray(assignedYears) ? assignedYears : []).forEach((entry) => {
             addYear(entry?.year ?? entry);
             const classes = entry?.classes;
-            (Array.isArray(classes) ? classes : classes ? [classes] : []).forEach((cls: any) => {
+            (Array.isArray(classes) ? classes : classes ? [classes] : []).forEach((cls) => {
               addYear({
                 id: cls?.year?.id ?? cls?.year_id,
                 name: cls?.year?.name ?? cls?.year_name,
@@ -697,7 +719,7 @@ export default function DashboardPage() {
           const yearNameById = await loadYearNameById();
           const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
           const yearMap = new Map<string, StatDetailItem>();
-          (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row: any) => {
+          (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((row) => {
             const yearId = String(resolveSubjectClassYearId(row) || extractYearLabel(row));
             if (!yearId) return;
             const existing = yearMap.get(yearId);
@@ -717,7 +739,7 @@ export default function DashboardPage() {
           ? await fetchYearsBySchool(schoolId)
           : await fetchAssignYears();
         return uniqueDetailItems(
-          (Array.isArray(years) ? years : []).map((year: any, index: number) => ({
+          (Array.isArray(years) ? years : []).map((year, index: number) => ({
             key: String(year?.id ?? index),
             title: cleanDashboardLabel(year?.name ?? year?.year_name, `Year ${index + 1}`),
             meta: year?.description ? String(year.description) : "School year group",
@@ -732,7 +754,7 @@ export default function DashboardPage() {
           const yearNameById = await loadYearNameById();
           const subjectClasses = await fetchSubjectClasses({ subject_id: subjectId });
           const rows = await Promise.all(
-            (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any, index: number) => {
+            (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row, index: number) => {
               const subjectClassId = String(row?.id ?? "").trim();
               const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(row, subjectId).catch(() => row?.class_id ?? row?.base_class_id ?? row?.id);
               return {
@@ -759,11 +781,11 @@ export default function DashboardPage() {
           const assignedYears = await fetchAssignYears();
           return uniqueDetailItems(
             (Array.isArray(assignedYears) ? assignedYears : [])
-              .flatMap((entry: any) => {
+              .flatMap((entry) => {
                 const classes = entry?.classes;
                 return Array.isArray(classes) ? classes : classes ? [classes] : [];
               })
-              .map((cls: any, index: number) => ({
+              .map((cls, index: number) => ({
                 key: String(cls?.id ?? cls?.class_id ?? index),
                 title: extractClassLabel(cls),
                 meta: extractYearLabel(cls),
@@ -777,12 +799,12 @@ export default function DashboardPage() {
         const years = schoolId > 0 ? await fetchYearsBySchool(schoolId) : [];
         const classRows = (
           await Promise.all(
-            (Array.isArray(years) ? years : []).map(async (year: any) => {
+            (Array.isArray(years) ? years : []).map(async (year) => {
               try {
                 const rows = await fetchClasses(String(year?.id));
-                return (Array.isArray(rows) ? rows : []).map((row: any) => ({ row, year }));
+                return (Array.isArray(rows) ? rows : []).map((row) => ({ row, year }));
               } catch {
-                return [] as Array<{ row: any; year: any }>;
+                return [] as Array<{ row: DashboardRecord; year: DashboardRecord }>;
               }
             })
           )
@@ -811,11 +833,11 @@ export default function DashboardPage() {
         if (isSubjectWorkspaceMode && subjectId > 0) {
           const assignments = await fetchStaffSubjectAssignments().catch(() => []);
           const scoped = (Array.isArray(assignments) ? assignments : []).filter(
-            (item: any) => Number(item?.subject_id) === subjectId
+            (item) => Number(item?.subject_id) === subjectId
           );
-          const teacherByUserId = new Map<number, any>();
-          const teacherById = new Map<number, any>();
-          teacherList.forEach((teacher: any) => {
+          const teacherByUserId = new Map<number, DashboardRecord>();
+          const teacherById = new Map<number, DashboardRecord>();
+          teacherList.forEach((teacher) => {
             const uid = Number(teacher?.user_id);
             const tid = Number(teacher?.id);
             if (Number.isFinite(uid) && uid > 0) teacherByUserId.set(uid, teacher);
@@ -824,7 +846,7 @@ export default function DashboardPage() {
 
           const seen = new Set<number>();
           const items = scoped
-            .map((assignment: any) => {
+            .map((assignment) => {
               const userId = Number(assignment?.user_id);
               const teacherId = Number(assignment?.teacher_id);
               const dedupeKey = Number.isFinite(userId) && userId > 0 ? userId : teacherId;
@@ -860,7 +882,7 @@ export default function DashboardPage() {
         }
 
         return uniqueDetailItems(
-          teacherList.map((teacher: any, index: number) => ({
+          teacherList.map((teacher, index: number) => ({
             key: String(teacher?.id ?? teacher?.user_id ?? index),
             title: cleanDashboardLabel(teacher?.name ?? teacher?.teacher_name ?? teacher?.user?.name, `Teacher ${index + 1}`),
             meta: cleanDashboardLabel(teacher?.email ?? teacher?.user?.email ?? teacher?.subject_name ?? "Teacher account", "Teacher account"),
@@ -885,7 +907,7 @@ export default function DashboardPage() {
                 const rawRows = Array.isArray(rows) ? rows : [];
 
                 if (!isSubjectWorkspaceMode) {
-                  return rawRows.map((student: any) => ({ student, classItem: item }));
+                  return rawRows.map((student) => ({ student, classItem: item }));
                 }
 
                 const subjectClassId = item.subjectClassId || item.key;
@@ -897,7 +919,7 @@ export default function DashboardPage() {
                 const hintBucket = readSubjectStudentHints(
                   makeSubjectHintScopeKey(subjectId, subjectClassId)
                 );
-                const hintedRows = rawRows.filter((student: any) => {
+                const hintedRows = rawRows.filter((student) => {
                   if (
                     studentMatchesSubjectScope(student, {
                       subjectId,
@@ -915,13 +937,13 @@ export default function DashboardPage() {
                 const scopedRows = [...inScopeRows, ...hintedRows];
                 const finalRows = scopedRows.length > 0
                   ? scopedRows
-                  : rawRows.some((student: any) => hasAnySubjectMarkers(student))
+                  : rawRows.some((student) => hasAnySubjectMarkers(student))
                     ? []
                     : rawRows;
 
-                return finalRows.map((student: any) => ({ student, classItem: item }));
+                return finalRows.map((student) => ({ student, classItem: item }));
               } catch {
-                return [] as Array<{ student: any; classItem: StatDetailItem }>;
+                return [] as Array<{ student: DashboardRecord; classItem: StatDetailItem }>;
               }
             })
           )
@@ -931,7 +953,7 @@ export default function DashboardPage() {
           studentRows.map(({ student, classItem }, index) => {
             const subjectNames = Array.isArray(student?.subjects)
               ? student.subjects
-                  .map((subject: any) => cleanDashboardLabel(subject?.name ?? subject?.subject_name ?? subject, ""))
+                  .map((subject: DashboardRecord) => cleanDashboardLabel(subject?.name ?? subject?.subject_name ?? subject, ""))
                   .filter(Boolean)
                   .join(", ")
               : "";
@@ -992,7 +1014,7 @@ export default function DashboardPage() {
       if (title === "Total Students") return loadStudents();
       if (title === "Total Schools") {
         return uniqueDetailItems(
-          (Array.isArray(schools) ? schools : []).map((school: any, index: number) => ({
+          (Array.isArray(schools) ? schools : []).map((school, index: number) => ({
             key: String(school?.id ?? index),
             title: cleanDashboardLabel(school?.name ?? school?.school_name, `School ${index + 1}`),
             meta: cleanDashboardLabel(school?.address ?? school?.email ?? "School record", "School record"),
@@ -1002,7 +1024,7 @@ export default function DashboardPage() {
       }
       if (title === "Total Admins") {
         return uniqueDetailItems(
-          (Array.isArray(superAdmins) ? superAdmins : []).map((admin: any, index: number) => ({
+          (Array.isArray(superAdmins) ? superAdmins : []).map((admin, index: number) => ({
             key: String(admin?.id ?? index),
             title: cleanDashboardLabel(admin?.name ?? admin?.email, `Admin ${index + 1}`),
             meta: cleanDashboardLabel(admin?.email ?? admin?.role ?? "Admin account", "Admin account"),
@@ -1063,7 +1085,7 @@ export default function DashboardPage() {
       const terms = await fetchTerm(classId);
       const scopedSubjectId = canUseSubjectContext ? activeSubjectId ?? undefined : undefined;
       const termResults = await Promise.all(
-        (Array.isArray(terms) ? terms : []).map(async (term: any) => {
+        (Array.isArray(terms) ? terms : []).map(async (term) => {
           const assessments = await fetchAssessmentByStudent(Number(term?.id), scopedSubjectId);
           return { term, assessments: Array.isArray(assessments) ? assessments : [] };
         })
@@ -1071,8 +1093,8 @@ export default function DashboardPage() {
 
       const rows = termResults.flatMap(({ term, assessments }) =>
         assessments
-          .filter((assessment: any) => String(assessment?.type ?? "").toLowerCase() === "assessment")
-          .filter((assessment: any) => {
+          .filter((assessment) => String(assessment?.type ?? "").toLowerCase() === "assessment")
+          .filter((assessment) => {
             const assignedRows = Array.isArray(assessment?.assigned)
               ? assessment.assigned
               : Array.isArray(assessment?.assign_assessments)
@@ -1082,23 +1104,23 @@ export default function DashboardPage() {
             if (assignedRows.length === 0) return true;
 
             return assignedRows.some(
-              (row: any) =>
+              (row) =>
                 Number(row?.term_id) === Number(term?.id) &&
                 String(row?.status ?? "").toLowerCase() === "assigned"
             );
           })
-          .map((assessment: any) => {
+          .map((assessment) => {
             const tasks = Array.isArray(assessment?.tasks) ? assessment.tasks : [];
             const datedTasks = tasks
-              .map((task: any) => ({
+              .map((task: DashboardRecord) => ({
                 dueTs: parseDueTimestamp(task?.due_date),
                 dueDate: task?.due_date || null,
                 updatedAt: task?.updated_at || null,
               }))
-              .filter((task: any) => task.dueTs !== null);
-            const nearestTask = datedTasks.sort((a: any, b: any) => Number(a.dueTs) - Number(b.dueTs))[0];
+              .filter((task) => task.dueTs !== null);
+            const nearestTask = datedTasks.sort((a, b) => Number(a.dueTs) - Number(b.dueTs))[0];
             const latestUpdated = tasks
-              .map((task: any) => task?.updated_at)
+              .map((task) => task?.updated_at)
               .filter(Boolean)
               .sort((a: string, b: string) => Date.parse(b) - Date.parse(a))[0] || null;
 
@@ -1114,7 +1136,7 @@ export default function DashboardPage() {
           })
       );
 
-      return rows.sort((a: any, b: any) => {
+      return rows.sort((a, b) => {
         if (a.dueTs === null && b.dueTs === null) return 0;
         if (a.dueTs === null) return 1;
         if (b.dueTs === null) return -1;
@@ -1149,9 +1171,9 @@ export default function DashboardPage() {
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined
       );
 
-      const deduped = new Map<string, any>();
+      const deduped = new Map<string, TrackerSummary>();
 
-      (Array.isArray(rows) ? rows : []).forEach((row: any, index: number) => {
+      (Array.isArray(rows) ? rows : []).forEach((row, index: number) => {
         const tracker = row?.tracker ?? {};
         const trackerId = Number(row?.tracker_id ?? tracker?.id ?? row?.id ?? 0);
         const key =
@@ -1169,9 +1191,9 @@ export default function DashboardPage() {
           row?.deadline_date ??
           null;
         const topics = Array.isArray(tracker?.topics) ? tracker.topics : [];
-        const completedTopics = topics.filter((topic: any) =>
+        const completedTopics = topics.filter((topic: DashboardRecord) =>
           (Array.isArray(topic?.status_progress) ? topic.status_progress : []).some(
-            (progress: any) => Boolean(progress?.is_completed)
+            (progress: DashboardRecord) => Boolean(progress?.is_completed)
           )
         ).length;
 
@@ -1188,7 +1210,7 @@ export default function DashboardPage() {
         });
       });
 
-      return Array.from(deduped.values()).sort((a: any, b: any) => {
+      return Array.from(deduped.values()).sort((a, b) => {
         if (a.dueTs === null && b.dueTs === null) {
           const aUpdated = parseUpdatedTimestamp(a.updatedAt) ?? 0;
           const bUpdated = parseUpdatedTimestamp(b.updatedAt) ?? 0;
@@ -1235,11 +1257,11 @@ export default function DashboardPage() {
     const now = Date.now();
 
     const activeTasks = terms
-      .flatMap((term: any) =>
+      .flatMap((term) =>
         (term?.assign_assessments ?? [])
-          .filter((a: any) => String(a?.status ?? "").toLowerCase() === "assigned")
-          .flatMap((assigned: any) =>
-            (assigned?.assessment?.tasks ?? []).map((task: any) => ({
+          .filter((a: DashboardRecord) => String(a?.status ?? "").toLowerCase() === "assigned")
+          .flatMap((assigned: DashboardRecord) =>
+            (assigned?.assessment?.tasks ?? []).map((task: DashboardRecord) => ({
               ...task,
               termName: term?.name ?? "Term",
               assessmentName: assigned?.assessment?.name ?? "Assessment",
@@ -1248,7 +1270,7 @@ export default function DashboardPage() {
             }))
           )
       )
-      .sort((a: any, b: any) => {
+      .sort((a, b) => {
         const aIsUpcoming = a.dueTs === null || a.dueTs >= now;
         const bIsUpcoming = b.dueTs === null || b.dueTs >= now;
 
@@ -1260,8 +1282,8 @@ export default function DashboardPage() {
         return aIsUpcoming ? a.dueTs - b.dueTs : b.dueTs - a.dueTs;
       });
 
-    const grouped = new Map<string, any>();
-    activeTasks.forEach((task: any) => {
+    const grouped = new Map<string, AssessmentSummary>();
+    activeTasks.forEach((task) => {
       const key = String(task.assessmentId ?? "");
       if (!key) return;
 
@@ -1279,6 +1301,7 @@ export default function DashboardPage() {
       }
 
       const current = grouped.get(key);
+      if (!current) return;
       const nextDue =
         current.dueTs === null
           ? task.dueTs
@@ -1300,7 +1323,7 @@ export default function DashboardPage() {
       });
     });
 
-    return Array.from(grouped.values()).sort((a: any, b: any) => {
+    return Array.from(grouped.values()).sort((a, b) => {
       if (a.dueTs === null && b.dueTs === null) return 0;
       if (a.dueTs === null) return 1;
       if (b.dueTs === null) return -1;
@@ -1315,7 +1338,7 @@ export default function DashboardPage() {
         ? studentHomeAssessmentsFromTerms
         : studentActiveAssessments;
   const studentHomeItems = useMemo(() => {
-    const assessmentItems = studentHomeAssessments.map((assessment: any, index: number) => ({
+    const assessmentItems = studentHomeAssessments.map((assessment, index: number) => ({
       kind: "assessment" as const,
       key: `assessment-${assessment.assessmentId ?? index}`,
       title: assessment.assessmentName || "Assessment",
@@ -1325,7 +1348,7 @@ export default function DashboardPage() {
           ? `${assessment.taskCount} task${assessment.taskCount === 1 ? "" : "s"}`
           : null,
         assessment.dueDate
-          ? `Due ${new Date(assessment.dueDate).toLocaleDateString()}`
+          ? `Due ${new Date(String(assessment.dueDate)).toLocaleDateString()}`
           : null,
       ].filter(Boolean),
       href: assessment.assessmentId
@@ -1335,7 +1358,7 @@ export default function DashboardPage() {
       updatedTs: parseUpdatedTimestamp(assessment.updatedAt),
     }));
 
-    const trackerItems = studentHomeTrackers.map((tracker: any, index: number) => ({
+    const trackerItems = studentHomeTrackers.map((tracker, index: number) => ({
       kind: "tracker" as const,
       key: `tracker-${tracker.trackerId ?? index}`,
       title: tracker.trackerName || "Tracker",
@@ -1726,7 +1749,7 @@ export default function DashboardPage() {
   const isTeacherInlinePanel = activeStat?.title === "Total Teachers";
   const isStudentInlinePanel = activeStat?.title === "Total Students";
   const isCompactInlinePanel = isYearInlinePanel || isClassInlinePanel || isTeacherInlinePanel;
-  const studentFilterOptions = useMemo(() => {
+  const studentFilterOptions = (() => {
     const matchesSelected = (item: StatDetailItem, getValue: (item: StatDetailItem) => unknown, selected: string) => {
       if (!selected) return true;
       return normalizeDetailFilterValue(getValue(item)).toLowerCase() === selected.toLowerCase();
@@ -1760,9 +1783,9 @@ export default function DashboardPage() {
       subjects: buildOptions(classMatchedDetails, (item) => item.subjectLabel),
       genders: buildOptions(subjectMatchedDetails, (item) => item.gender),
     };
-  }, [activeStatDetails, studentInlineFilters.class, studentInlineFilters.subject, studentInlineFilters.year]);
+  })();
   const hasStudentInlineFilters = Object.values(studentInlineFilters).some(Boolean);
-  const filteredActiveStatDetails = useMemo(() => {
+  const filteredActiveStatDetails = (() => {
     if (!isStudentInlinePanel) return activeStatDetails;
 
     const matchesFilter = (value: unknown, selected: string) => {
@@ -1776,7 +1799,7 @@ export default function DashboardPage() {
       matchesFilter(item.subjectLabel, studentInlineFilters.subject) &&
       matchesFilter(item.gender, studentInlineFilters.gender)
     );
-  }, [activeStatDetails, isStudentInlinePanel, studentInlineFilters]);
+  })();
   const shouldShowAllInlineRecords = isStudentInlinePanel || isClassInlinePanel;
   const visibleActiveStatDetails = shouldShowAllInlineRecords
     ? filteredActiveStatDetails
@@ -2018,11 +2041,11 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                           <p className="text-base font-semibold text-slate-800 md:text-[1.02rem]">
-                            {item.title}
+                            {String(item.title ?? "")}
                           </p>
                           {item.metaParts?.length ? (
                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-500 md:text-sm">
-                              {item.metaParts.map((part: string, index: number) => (
+                              {item.metaParts.filter((part): part is string => part != null).map((part: string, index: number) => (
                                 <span key={`${item.key}-meta-${part}-${index}`} className="flex items-center gap-2">
                                   {index > 0 ? <span className="text-slate-300">•</span> : null}
                                   <span>{part}</span>

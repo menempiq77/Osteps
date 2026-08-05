@@ -416,7 +416,7 @@ export default function QuranQuizPage() {
     if (optionCount <= 2) return;
 
     const values = quizForm.getFieldsValue();
-    const nextValues: Record<string, any> = {};
+    const nextValues: Record<string, string | number | number[] | null | undefined> = {};
 
     let writeIndex = 1;
     for (let readIndex = 1; readIndex <= optionCount; readIndex++) {
@@ -441,20 +441,22 @@ export default function QuranQuizPage() {
     setOptionCount((prev) => Math.max(2, prev - 1));
   };
 
-  const buildQuestionPayload = (values: Record<string, any>): QuestionPayload => {
+  const buildQuestionPayload = (
+    values: Record<string, string | number | number[] | null | undefined>
+  ): QuestionPayload => {
     let options: string[] = [];
     let correctAnswer: number | number[] | string | null = null;
 
-    if (["multiple_choice", "check_boxes", "drop_down"].includes(values.type)) {
+    if (["multiple_choice", "check_boxes", "drop_down"].includes(String(values.type))) {
       for (let i = 1; i <= optionCount; i++) {
         if (values[`option${i}`]) {
           options.push(String(values[`option${i}`]).trim());
         }
       }
-      correctAnswer = values.correctAnswer;
+      correctAnswer = values.correctAnswer ?? null;
     } else if (values.type === "true_false") {
       options = ["True", "False"];
-      correctAnswer = values.correctAnswer;
+      correctAnswer = values.correctAnswer ?? null;
     } else if (values.type === "reading") {
       // Store the uploaded book URL in correct_answer so students can read it.
       correctAnswer = readingBookUrl || null;
@@ -462,7 +464,7 @@ export default function QuranQuizPage() {
 
     return {
       question_text: String(values.question_text ?? "").trim(),
-      type: values.type,
+      type: String(values.type ?? ""),
       correct_answer: correctAnswer,
       marks: Math.max(1, Number(values.marks ?? 1)),
       options: options.length > 0 ? options : undefined,
@@ -643,10 +645,10 @@ export default function QuranQuizPage() {
       const questionData = buildQuestionPayload(values);
 
       if (isEditingQuestion && editState.questionId) {
-        await updateQuizQuestion(editState.questionId, numericQuizId, questionData);
+        await updateQuizQuestion(editState.questionId, numericQuizId, { ...questionData });
         messageApi.success("Question updated successfully");
       } else {
-        await addQuizQuestion(numericQuizId, questionData);
+        await addQuizQuestion(numericQuizId, { ...questionData });
         messageApi.success("Question added successfully");
       }
 
@@ -884,7 +886,7 @@ export default function QuranQuizPage() {
       setSavingBulk(true);
 
       for (const question of parsedQuestions) {
-        await addQuizQuestion(numericQuizId, question);
+        await addQuizQuestion(numericQuizId, { ...question });
       }
 
       setBulkPasteText("");
@@ -963,7 +965,7 @@ export default function QuranQuizPage() {
 
       for (const question of generatedQuestions) {
         try {
-          await addQuizQuestion(numericQuizId, question);
+          await addQuizQuestion(numericQuizId, { ...question });
           addedCount += 1;
         } catch (error) {
           failedCount += 1;

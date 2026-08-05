@@ -48,6 +48,8 @@ import {
   updateLibrary,
 } from "@/services/libraryApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { UploadFile } from "antd/es/upload/interface";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 const { useBreakpoint } = Grid;
 
 type LibraryItem = {
@@ -60,13 +62,27 @@ type LibraryItem = {
   size: string;
   category: "Quran" | "Hadees" | "Tafseer" | "Seerah" | "Fiqh" | "Dua";
   description?: string;
-  tags?: string[] | string;
+  tags?: string[];
   library_resources_id?: number;
   library_categories_id?: number;
   file_path?: string;
   thumbnail_url?: string | null;
   updated_at?: string;
   uploaded_by?: string;
+  subject?: string;
+  created_at?: string;
+};
+type LibraryOption = { id: string | number; name: string; color?: string };
+type LibraryRequest = LibraryItem & { status?: string };
+type UploadValues = {
+  title?: string;
+  type?: string | number;
+  category?: string | number;
+  description?: string;
+  tags?: string | string[];
+  thumbnail_url?: string;
+  source?: string;
+  link?: string;
 };
 
 export default function LibraryPage() {
@@ -83,21 +99,21 @@ export default function LibraryPage() {
   const [isEditing, setIsEditing] = React.useState(false);
   const [form] = Form.useForm();
   const screens = useBreakpoint();
-  const [fileList, setFileList] = React.useState<any[]>([]);
+  const [fileList, setFileList] = React.useState<UploadFile[]>([]);
   const [loading, setLoading] = React.useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [categories, setCategories] = useState<any[]>([]);
-  const [resources, setResources] = useState<any[]>([]);
+  const [categories, setCategories] = useState<LibraryOption[]>([]);
+  const [resources, setResources] = useState<LibraryOption[]>([]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
-  const [debugError, setDebugError] = useState<any>(null);
+  const [debugError, setDebugError] = useState<unknown>(null);
   const queryClient = useQueryClient();
 
   // ── Approvals bell (SCHOOL_ADMIN only) ──────────────────────────────────
   const isSchoolAdmin = currentUser?.role === "SCHOOL_ADMIN";
   const [approvalsOpen, setApprovalsOpen] = useState(false);
-  const [pendingItems, setPendingItems] = useState<any[]>([]);
+  const [pendingItems, setPendingItems] = useState<LibraryRequest[]>([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
 
   const loadPendingItems = async () => {
@@ -105,7 +121,7 @@ export default function LibraryPage() {
     try {
       setApprovalsLoading(true);
       const data = await fetchLibraryRequests();
-      setPendingItems(data.filter((item: any) => item.status === "pending"));
+      setPendingItems(data.filter((item: LibraryRequest) => item.status === "pending"));
     } catch {
       // silently ignore
     } finally {
@@ -171,15 +187,11 @@ export default function LibraryPage() {
   const {
     data: libraryItems = [],
     isLoading,
-  } = useQuery({
+  } = useQuery<LibraryItem[]>({
     queryKey: ["libraryItems"],
     queryFn: async () => {
       const data = await fetchLibrary();
       return data;
-    },
-    onError: (err: any) => {
-      console.error(err);
-      messageApi.error("Failed to fetch Library Items");
     },
   });
 
@@ -225,18 +237,18 @@ export default function LibraryPage() {
       : []),
   ];
 
-  const handleUpload = async (values: any) => {
+  const handleUpload = async (values: UploadValues) => {
     setLoading(true);
     try {
       const tags = Array.isArray(values.tags)
         ? values.tags.map((tag: string) => tag.trim()).filter(Boolean)
         : typeof values.tags === "string"
-        ? values.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        ? values.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)
         : [];
       const formData = new FormData();
-      formData.append("title", values.title);
-      formData.append("library_resources_id", values.type);
-      formData.append("library_categories_id", values.category);
+      formData.append("title", String(values.title ?? ""));
+      formData.append("library_resources_id", String(values.type ?? ""));
+      formData.append("library_categories_id", String(values.category ?? ""));
       formData.append("description", values.description || "");
       formData.append("school_id", schoolId?.toString() || "");
       if (tags.length > 0) {
@@ -251,12 +263,9 @@ export default function LibraryPage() {
         formData.append("external_link", values.link);
         formData.append("link", values.link);
       } else if (fileList.length > 0) {
-        const fileToUpload = fileList[0]?.originFileObj || fileList[0];
-        const isNewUpload = Boolean(fileToUpload?.originFileObj || fileToUpload instanceof File);
-
-        if (isNewUpload) {
-          const normalizedFile = fileToUpload?.originFileObj || fileToUpload;
-          formData.append("file_path", normalizedFile);
+        const fileToUpload = fileList[0]?.originFileObj;
+        if (fileToUpload) {
+          formData.append("file_path", fileToUpload);
         }
       }
 
@@ -276,18 +285,18 @@ export default function LibraryPage() {
       setFileList([]);
       setCurrentItem(null);
       setIsEditing(false);
-    } catch (error: any) {
-      const apiMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message;
+    } catch (error: unknown) {
+      const errorRecord = asRecord(error);
+      const response = asRecord(errorRecord?.response);
+      const data = asRecord(response?.data);
+      const apiMessage = data?.message ?? data?.error ?? errorMessage(error, "");
       setDebugError({
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
+        status: response?.status,
+        data,
+        message: apiMessage,
       });
       messageApi.error(
-        apiMessage ||
+        String(apiMessage || "") ||
           `Failed to ${
             isEditing ? "update" : "upload"
           } resource. Please try again.`
@@ -302,7 +311,7 @@ export default function LibraryPage() {
 
     try {
       const item = libraryItems.find((i) => i.id === itemToDelete);
-      await deleteLibrary(itemToDelete, item?.file_path);
+      await deleteLibrary(Number(itemToDelete), item?.file_path);
       messageApi.success("Deleted successfully");
       await queryClient.invalidateQueries({ queryKey: ["libraryItems"] });
 
@@ -348,9 +357,9 @@ export default function LibraryPage() {
     );
   };
 
-  const openResourceDirectly = (item: any) => {
+  const openResourceDirectly = (item: LibraryItem) => {
     if (!item?.file_path) return;
-    const resourceType = getResourceName(item.library_resources_id).toLowerCase();
+    const resourceType = getResourceName(item.library_resources_id ?? 0).toLowerCase();
 
     // Use the cleanFilePath helper to handle both absolute and relative /storage/ patterns
     const cleanPath = cleanFilePath(item.file_path);
@@ -358,7 +367,7 @@ export default function LibraryPage() {
 
     setCurrentItem({
       ...item,
-      type: resourceType,
+      type: resourceType as LibraryItem["type"],
       url: cleanPath,
       uploadedBy: item.uploaded_by || "Unknown",
       uploadDate: item.updated_at
@@ -369,7 +378,7 @@ export default function LibraryPage() {
           })
         : "N/A",
       size: item.size || "N/A",
-      subject: getCategoryName(item.library_categories_id),
+      subject: getCategoryName(item.library_categories_id ?? 0),
       tags: parseTags(item.tags),
       thumbnail_url: item.thumbnail_url || undefined,
     });
@@ -525,7 +534,7 @@ export default function LibraryPage() {
   const filteredItems = libraryItems?.filter((item) => {
     const typeMatch =
       activeTypeTab === "all" ||
-      getResourceName(item.library_resources_id).toLowerCase() ===
+      getResourceName(item.library_resources_id ?? "").toLowerCase() ===
         activeTypeTab;
 
     const categoryMatch =
@@ -538,8 +547,8 @@ export default function LibraryPage() {
       [
         item.title,
         item.description,
-        getCategoryName(item.library_categories_id),
-        getResourceName(item.library_resources_id),
+        getCategoryName(item.library_categories_id ?? ""),
+        getResourceName(item.library_resources_id ?? ""),
         parseTags(item.tags).join(" "),
       ]
         .filter(Boolean)
@@ -774,7 +783,7 @@ export default function LibraryPage() {
           >
             {filteredItems?.map((item) => {
               const resourceType = getResourceName(
-                item.library_resources_id
+                item.library_resources_id ?? ""
               ).toLowerCase();
               const cleanPath = cleanFilePath(item.file_path);
               const isExternal = isExternalLink(cleanPath);
@@ -848,7 +857,7 @@ export default function LibraryPage() {
 
                     <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold capitalize text-slate-700 shadow-sm backdrop-blur">
                       <span>{getEmojiForType(resourceType)}</span>
-                      {getResourceName(item.library_resources_id)}
+                      {getResourceName(item.library_resources_id ?? "")}
                     </span>
 
                     {isExternal && coverUrl && (
@@ -915,10 +924,10 @@ export default function LibraryPage() {
 
                   <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3">
                     <Tag
-                      color={getCategoryColor(item.library_categories_id)}
+                      color={getCategoryColor(item.library_categories_id ?? "")}
                       className="m-0 rounded-full px-2.5 py-[1px]"
                     >
-                      {getCategoryName(item.library_categories_id)}
+                      {getCategoryName(item.library_categories_id ?? "")}
                     </Tag>
                     <span className="text-xs text-slate-400">
                       {item.updated_at
@@ -1018,7 +1027,7 @@ export default function LibraryPage() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {pendingItems.map((item: any) => (
+                  {pendingItems.map((item: LibraryRequest) => (
                   <div key={item.id} className="px-5 py-4 hover:bg-slate-50 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -1027,14 +1036,14 @@ export default function LibraryPage() {
                           <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.description}</p>
                         )}
                         <p className="text-xs text-slate-400 mt-1">
-                          {new Date(item.created_at).toLocaleDateString("en-GB", {
+                          {new Date(item.created_at ?? "").toLocaleDateString("en-GB", {
                             day: "2-digit", month: "short", year: "numeric",
                           })}
                         </p>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-1.5 mt-0.5">
                         <button
-                          onClick={() => handleApprove(item.id)}
+                          onClick={() => handleApprove(Number(item.id))}
                           className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold
                                      bg-emerald-50 text-emerald-700 border border-emerald-200
                                      hover:bg-emerald-100 transition-colors active:scale-95"
@@ -1043,7 +1052,7 @@ export default function LibraryPage() {
                           <CheckOutlined /> Approve
                         </button>
                         <button
-                          onClick={() => handleReject(item.id)}
+                          onClick={() => handleReject(Number(item.id))}
                           className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold
                                      bg-red-50 text-red-600 border border-red-200
                                      hover:bg-red-100 transition-colors active:scale-95"

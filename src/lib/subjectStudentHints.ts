@@ -78,7 +78,7 @@ export const mergeSubjectStudentHints = (
 };
 
 export const matchesSubjectStudentHint = (
-  student: Record<string, any>,
+  student: Record<string, unknown>,
   bucket: StudentHintBucket
 ): boolean => {
   if (!student || !bucket) return false;

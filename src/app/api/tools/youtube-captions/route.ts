@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { errorMessage, asRecord } from "@/lib/safeRecord";;
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -56,7 +57,7 @@ const withQueryParam = (rawUrl: string, key: string, value: string): string => {
   }
 };
 
-const extractJsonObject = (content: string, marker: string): any | null => {
+const extractJsonObject = (content: string, marker: string): Record<string, unknown> | null => {
   const markerIndex = content.indexOf(marker);
   if (markerIndex === -1) return null;
 
@@ -102,7 +103,7 @@ const extractJsonObject = (content: string, marker: string): any | null => {
   return null;
 };
 
-const parseJson3Transcript = (payload: any): string => {
+const parseJson3Transcript = (payload: Record<string, unknown>): string => {
   const events = Array.isArray(payload?.events) ? payload.events : [];
   const parts: string[] = [];
 
@@ -170,7 +171,7 @@ const parseVttTranscript = (vtt: string): string => {
   return decodeHtml(cleaned.replace(/\s+/g, " ").trim());
 };
 
-const pickTrack = (tracks: any[]) => {
+const pickTrack = (tracks: Record<string, unknown>[]) => {
   if (!tracks.length) return null;
   return (
     tracks.find((t) => String(t?.languageCode || "").toLowerCase() === "en") ||
@@ -187,7 +188,7 @@ const INVIDIOUS_FALLBACKS = [
   "https://invidious.einfachzocken.eu",
 ];
 
-const pickInvidiousLabel = (captions: any[]): string | null => {
+const pickInvidiousLabel = (captions: Record<string, unknown>[]): string | null => {
   if (!Array.isArray(captions) || !captions.length) return null;
   const preferred =
     captions.find((c) =>
@@ -201,7 +202,7 @@ const pickInvidiousLabel = (captions: any[]): string | null => {
 };
 
 const tryInvidiousCaptionFallback = async (videoId: string) => {
-  const diagnostics: any[] = [];
+  const diagnostics: Record<string, unknown>[] = [];
 
   for (const base of INVIDIOUS_FALLBACKS) {
     try {
@@ -214,7 +215,7 @@ const tryInvidiousCaptionFallback = async (videoId: string) => {
         },
       });
       const listText = await listRes.text();
-      let listJson: any = null;
+      let listJson: Record<string, unknown> | null = null;
       try {
         listJson = JSON.parse(listText);
       } catch {
@@ -269,17 +270,17 @@ const tryInvidiousCaptionFallback = async (videoId: string) => {
         return {
           text: parsed.trim(),
           langCode:
-            captions.find((c: any) => String(c?.label || "") === label)?.languageCode ||
+            captions.find((c: Record<string, unknown>) => String(c?.label || "") === label)?.languageCode ||
             null,
           source: "invidious-fallback",
           debug: diagnostics,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       diagnostics.push({
         base,
         stage: "exception",
-        note: error?.message || "request_failed",
+        note: errorMessage(error) || "request_failed",
       });
     }
   }
@@ -288,7 +289,7 @@ const tryInvidiousCaptionFallback = async (videoId: string) => {
 };
 
 const tryYtDlpCaptionFallback = async (videoUrl: string) => {
-  const diagnostics: Record<string, any> = {};
+  const diagnostics: Record<string, unknown> = {};
   const customBin = (process.env.YT_DLP_PATH || "").trim();
   const tempDir = path.join(
     os.tmpdir(),
@@ -346,10 +347,10 @@ const tryYtDlpCaptionFallback = async (videoUrl: string) => {
         stderr = String(result.stderr || "");
         commandUsed = candidate.label;
         break;
-      } catch (err: any) {
+      } catch (err: unknown) {
         tried.push({
           command: commandText.slice(0, 220),
-          error: err?.message || "command failed",
+          error: errorMessage(err) || "command failed",
         });
       }
     }
@@ -383,8 +384,8 @@ const tryYtDlpCaptionFallback = async (videoUrl: string) => {
     diagnostics.parsedLength = parsed.length;
 
     return { text: parsed, source: "yt-dlp-fallback", debug: diagnostics };
-  } catch (error: any) {
-    diagnostics.error = error?.message || "yt-dlp failed";
+  } catch (error: unknown) {
+    diagnostics.error = errorMessage(error) || "yt-dlp failed";
     return { text: "", source: "yt-dlp-fallback", debug: diagnostics };
   } finally {
     try {
@@ -431,17 +432,23 @@ const isLikelyCaptionPayload = (body: string): boolean => {
   );
 };
 
-const summarizeTracks = (tracks: any[]) =>
-  tracks.map((t) => ({
-    languageCode: t?.languageCode || null,
-    name:
-      t?.name?.simpleText ||
-      (Array.isArray(t?.name?.runs)
-        ? t.name.runs.map((r: any) => r?.text || "").join("")
-        : null),
-    kind: t?.kind || null,
-    isTranslatable: !!t?.isTranslatable,
-  }));
+const summarizeTracks = (tracks: Record<string, unknown>[]) =>
+  tracks.map((t) => {
+    const record = asRecord(t);
+    const nameRecord = asRecord(record?.name);
+    const runs = Array.isArray(nameRecord?.runs)
+      ? (nameRecord.runs as Record<string, unknown>[])
+      : [];
+    const simpleText = String(nameRecord?.simpleText || "").trim() || null;
+    const runsText =
+      runs.map((r) => String(asRecord(r)?.text || "")).join("").trim() || null;
+    return {
+      languageCode: record?.languageCode || null,
+      name: simpleText || runsText,
+      kind: record?.kind || null,
+      isTranslatable: !!record?.isTranslatable,
+    };
+  });
 
 export async function POST(req: NextRequest) {
   try {
@@ -468,8 +475,7 @@ export async function POST(req: NextRequest) {
       extractJsonObject(watchHtml, "ytInitialPlayerResponse = ") ||
       extractJsonObject(watchHtml, "var ytInitialPlayerResponse = ");
 
-    const captionTracks =
-      playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+    const captionTracks =       asRecord(asRecord(playerResponse?.captions)?.playerCaptionsTracklistRenderer)?.captionTracks || [];
     const trackSummary = summarizeTracks(
       Array.isArray(captionTracks) ? captionTracks : []
     );
@@ -511,7 +517,7 @@ export async function POST(req: NextRequest) {
 
     let text = "";
     let parseSource = "";
-    const parseDiagnostics: Array<Record<string, any>> = [];
+    const parseDiagnostics: Array<Record<string, unknown>> = [];
 
     const json3Url = withQueryParam(baseUrl, "fmt", "json3");
     const json3Result = await fetchYoutubeText(json3Url);
@@ -660,7 +666,7 @@ export async function POST(req: NextRequest) {
       const blocked = parseDiagnostics.some(
         (d) => d.parseError === "youtube_blocked_or_rate_limited"
       );
-      let invidiousDiagnostics: any[] = [];
+      let invidiousDiagnostics: Record<string, unknown>[] = [];
 
       if (blocked) {
         const inv = await tryInvidiousCaptionFallback(videoId);
@@ -688,7 +694,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      let ytDlpDiagnostics: Record<string, any> | null = null;
+      let ytDlpDiagnostics: Record<string, unknown> | null = null;
       if (!text) {
         const ytDlp = await tryYtDlpCaptionFallback(videoUrl);
         ytDlpDiagnostics = ytDlp.debug || null;
@@ -772,10 +778,10 @@ export async function POST(req: NextRequest) {
         parseDiagnostics,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
-        message: error?.message || "Failed to load YouTube captions.",
+        message: errorMessage(error) || "Failed to load YouTube captions.",
         debug: {
           note: "Unexpected route exception",
         },

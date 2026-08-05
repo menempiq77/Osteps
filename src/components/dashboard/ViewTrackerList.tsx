@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spin, Select, Button } from "antd";
 import { ChevronLeft } from "lucide-react";
@@ -23,40 +23,55 @@ import {
   BUILT_IN_TRACKERS,
   supportsBuiltInTrackers,
 } from "@/lib/builtinTrackers";
+import { asRecord } from "@/lib/safeRecord";
 
-const buildYearsFromSubjectClasses = (subjectClasses: any[], schoolYears: any[] = []) => {
-  const schoolYearById = new Map(
-    (Array.isArray(schoolYears) ? schoolYears : [])
-      .map((year: any) => [Number(year?.id), year])
-      .filter(([id]) => Number.isFinite(id) && id > 0)
-  );
-  const yearsById = new Map<number, any>();
+type YearOption = {
+  id: string;
+  name: string;
+};
 
-  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item: any) => {
+type ClassOption = {
+  id: string;
+  class_name: string;
+  year_id?: number;
+};
+
+const buildYearsFromSubjectClasses = (subjectClasses: Record<string, unknown>[], schoolYears: Record<string, unknown>[] = []) => {
+  const schoolYearById = new Map<number, Record<string, unknown>>();
+  for (const year of Array.isArray(schoolYears) ? schoolYears : []) {
+    const id = Number(asRecord(year)?.id);
+    if (Number.isFinite(id) && id > 0) {
+      schoolYearById.set(id, asRecord(year) ?? {});
+    }
+  }
+  const yearsById = new Map<number, YearOption>();
+
+  (Array.isArray(subjectClasses) ? subjectClasses : []).forEach((item) => {
+    const record = asRecord(item);
+    const yearRecord = asRecord(record?.year ?? record?.class ?? record?.base_class)?.year;
     const yearId = Number(
-      item?.year_id ??
-        item?.year?.id ??
-        item?.class?.year_id ??
-        item?.class?.year?.id ??
-        item?.base_class?.year_id ??
-        item?.base_class?.year?.id ??
+      record?.year_id ??
+        asRecord(record?.year)?.id ??
+        asRecord(record?.class)?.year_id ??
+        asRecord(asRecord(record?.class)?.year)?.id ??
+        asRecord(record?.base_class)?.year_id ??
+        asRecord(asRecord(record?.base_class)?.year)?.id ??
         0
     );
     if (!Number.isFinite(yearId) || yearId <= 0 || yearsById.has(yearId)) return;
 
     const schoolYear = schoolYearById.get(yearId);
     yearsById.set(yearId, {
-      id: yearId,
+      id: String(yearId),
       name:
-        schoolYear?.name ??
-        item?.year?.name ??
-        item?.class?.year?.name ??
-        item?.base_class?.year?.name ??
+        String(asRecord(schoolYear)?.name ?? "") ||
+        String(asRecord(record?.year)?.name ?? "") ||
+        String(asRecord(yearRecord)?.name ?? "") ||
         `Year ${yearId}`,
     });
   });
 
-  return Array.from(yearsById.values()).sort((left: any, right: any) => Number(left.id) - Number(right.id));
+  return Array.from(yearsById.values()).sort((left, right) => Number(left.id) - Number(right.id));
 };
 
 type Tracker = {
@@ -79,8 +94,6 @@ type Tracker = {
 
 export default function TrackerList() {
   const router = useRouter();
-  const [trackers, setTrackers] = useState<Tracker[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [selectedClass, setSelectedClass] = useState<string | undefined>(undefined);
   const { currentUser } = useSelector((state: RootState) => state.auth);
@@ -97,7 +110,7 @@ export default function TrackerList() {
     0
   );
 
-  const [trackersLoading, setTrackersLoading] = useState(false);
+
 
   // ── Years (subject-filtered) ──────────────────────────────────────────────
   const yearsQueryKey = canUseSubjectContext
@@ -106,7 +119,7 @@ export default function TrackerList() {
     ? ["vt-years", "teacher", schoolId]
     : ["vt-years", "school", schoolId];
 
-  const { data: years = [], isLoading: yearsLoading } = useQuery({
+  const { data: years = [], isLoading: yearsLoading } = useQuery<YearOption[]>({
     queryKey: yearsQueryKey,
     queryFn: async () => {
       if (canUseSubjectContext && activeSubjectId) {
@@ -119,7 +132,7 @@ export default function TrackerList() {
           const teacherYears = buildYearOptionsFromTeacherClasses(teacherClasses);
           if (teacherYears.length > 0) return teacherYears;
         }
-        let schoolYears: any[] = [];
+        let schoolYears: Record<string, unknown>[] = [];
         const numericSchoolId = Number(schoolId);
         if (Number.isFinite(numericSchoolId) && numericSchoolId > 0) {
           schoolYears = await fetchYearsBySchool(numericSchoolId).catch(() => []);
@@ -131,38 +144,31 @@ export default function TrackerList() {
         const teacherClasses = buildTeacherAssignedClassOptions(await fetchAssignYears());
         return buildYearOptionsFromTeacherClasses(teacherClasses);
       }
-      return await fetchYearsBySchool(schoolId);
+      return await fetchYearsBySchool(Number(schoolId));
     },
     enabled: !subjectContextLoading && !(canUseSubjectContext && !activeSubjectId),
     staleTime: 5 * 60 * 1000,
   });
 
-  // Sync selectedYear when years data arrives
-  useEffect(() => {
-    if (!years || years.length === 0) { setSelectedYear(undefined); return; }
-    setSelectedYear((prev) => {
-      const stillValid = prev && (years as any[]).some((y: any) => String(y.id) === prev);
-      return stillValid ? prev : String((years as any[])[0].id);
-    });
-  }, [years]);
+  const effectiveSelectedYear = selectedYear ?? (years[0]?.id ? String(years[0].id) : undefined);
 
   // ── Classes (subject-filtered) ────────────────────────────────────────────
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ["vt-classes", selectedYear, canUseSubjectContext, activeSubjectId, isTeacher],
+  const { data: classes = [], isLoading: classesLoading } = useQuery<ClassOption[]>({
+    queryKey: ["vt-classes", effectiveSelectedYear, canUseSubjectContext, activeSubjectId, isTeacher],
     queryFn: async () => {
-      if (!selectedYear) return [];
+      if (!effectiveSelectedYear) return [];
       if (canUseSubjectContext && activeSubjectId) {
         const [subjectClasses, assignedYears] = await Promise.all([
           fetchSubjectClasses({
             subject_id: Number(activeSubjectId),
-            year_id: Number(selectedYear),
+            year_id: Number(effectiveSelectedYear),
           }).catch(() => []),
           isTeacher ? fetchAssignYears().catch(() => []) : Promise.resolve([]),
         ]);
         if (isTeacher) {
           const teacherClasses = filterTeacherClassesByYear(
             buildTeacherAssignedClassOptions(assignedYears, subjectClasses),
-            selectedYear
+            effectiveSelectedYear
           );
           if (teacherClasses.length > 0) {
             return teacherClasses;
@@ -172,76 +178,61 @@ export default function TrackerList() {
           return [];
         }
         return await Promise.all(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: any) => {
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map(async (row: unknown) => {
+            const rowRecord = asRecord(row);
             const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
-              row,
+              row as Parameters<typeof resolveSubjectClassLinkedIdWithFallback>[0],
               Number(activeSubjectId)
             );
             return {
-              id: String(linkedClassId || row?.id || ""),
-              class_name: String(row?.base_class_label ?? row?.name ?? `Class ${row?.id ?? ""}`),
-              year_id: Number(row?.year_id ?? 0),
-            };
+              id: String(linkedClassId || rowRecord?.id || ""),
+              class_name: String(rowRecord?.base_class_label ?? rowRecord?.name ?? `Class ${rowRecord?.id ?? ""}`),
+              year_id: Number(rowRecord?.year_id ?? 0),
+            } as ClassOption;
           })
         );
       }
       if (isTeacher) {
         return filterTeacherClassesByYear(
           buildTeacherAssignedClassOptions(await fetchAssignYears()),
-          selectedYear
+          effectiveSelectedYear
         );
       }
-      return await fetchClasses(selectedYear);
+      return await fetchClasses(effectiveSelectedYear);
     },
-    enabled: !!selectedYear,
+    enabled: !!effectiveSelectedYear,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Sync selectedClass when classes data arrives
-  useEffect(() => {
-    if (!classes || (classes as any[]).length === 0) { setSelectedClass(undefined); return; }
-    setSelectedClass((prev) => {
-      const stillValid = prev && (classes as any[]).some((c: any) => String(c.id) === prev);
-      return stillValid ? prev : String((classes as any[])[0].id);
-    });
-  }, [classes]);
+  const effectiveSelectedClass = selectedClass ?? (classes[0]?.id ? String(classes[0].id) : undefined);
 
-  const loadTrackers = async () => {
-    if (!selectedClass) return;
-    try {
-      setTrackersLoading(true);
-      const data = await fetchTrackers(Number(selectedClass));
-      setTrackers(
-        data.map((tracker: any) => ({
+  const { data: trackers = [] } = useQuery<Tracker[]>({
+    queryKey: ["view-trackers", effectiveSelectedClass],
+    queryFn: async () => {
+      const data = await fetchTrackers(Number(effectiveSelectedClass));
+      return (data as Record<string, unknown>[]).map((tracker) => {
+        const record = asRecord(tracker.tracker);
+        return {
           ...tracker,
-          id: tracker.id.toString(),
-          trackerName: tracker?.tracker?.name ?? tracker?.name ?? "Untitled Tracker",
-          trackerStatus: tracker?.tracker?.status ?? tracker?.status ?? "pending",
+          id: String(tracker.id),
+          trackerName: record?.name ?? tracker.name ?? "Untitled Tracker",
+          trackerStatus: record?.status ?? tracker.status ?? "pending",
           deadline:
-            tracker?.tracker?.deadline ??
-            tracker?.tracker?.deadline_at ??
-            tracker?.tracker?.deadline_date ??
-            tracker?.tracker?.last_updated ??
-            tracker?.deadline ??
-            tracker?.deadline_at ??
-            tracker?.deadline_date ??
-            tracker?.last_updated ??
+            record?.deadline ??
+            record?.deadline_at ??
+            record?.deadline_date ??
+            record?.last_updated ??
+            tracker.deadline ??
+            tracker.deadline_at ??
+            tracker.deadline_date ??
+            tracker.last_updated ??
             null,
-        }))
-      );
-    } catch (err) {
-      setError("Failed to fetch trackers");
-      console.error(err);
-    } finally {
-      setTrackersLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClass) {
-      loadTrackers();
-    }
-  }, [selectedClass]);
+        } as Tracker;
+      });
+    },
+    enabled: !!effectiveSelectedClass,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const getStatusColor = (status: string) => {
     switch ((status || "").toLowerCase()) {
@@ -259,7 +250,7 @@ export default function TrackerList() {
   };
 
   const handleTrackerClick = (trackerId: string) => {
-    router.push(`/dashboard/viewtrackers/${selectedClass}/${trackerId}`);
+    router.push(`/dashboard/viewtrackers/${effectiveSelectedClass}/${trackerId}`);
   };
 
   if (subjectContextLoading || yearsLoading || (canUseSubjectContext && !activeSubjectId)) {
@@ -287,13 +278,13 @@ export default function TrackerList() {
           <div className="w-full min-w-[120px] lg:min-w-xs">
             <Select
               id="year-select"
-              value={selectedYear}
+              value={effectiveSelectedYear}
               placeholder="Select Year"
               onChange={(value) => setSelectedYear(value)}
               className="w-full"
               loading={yearsLoading}
-              options={(years as any[])?.map((item: any) => ({
-                value: item.id.toString(),
+              options={years.map((item) => ({
+                value: item.id,
                 label: item.name,
               }))}
             />
@@ -302,7 +293,7 @@ export default function TrackerList() {
           <div className="w-full min-w-[120px] lg:min-w-xs">
             <Select
               id="class-select"
-              value={selectedClass}
+              value={effectiveSelectedClass}
               placeholder="Select Class"
               onChange={(value) => setSelectedClass(value)}
               className="w-full"
@@ -310,7 +301,7 @@ export default function TrackerList() {
                 value: cls.id.toString(),
                 label: cls.class_name,
               }))}
-              loading={classes.length === 0 && !!selectedYear}
+              loading={classesLoading || (classes.length === 0 && !!effectiveSelectedYear)}
             />
           </div>
         </div>
@@ -397,7 +388,7 @@ export default function TrackerList() {
               ) : (
                 <tr>
                   <td colSpan={3} className="p-4 text-center text-gray-500">
-                    {selectedClass
+                    {effectiveSelectedClass
                       ? "No trackers found."
                       : "Please select a class to view trackers."}
                   </td>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -16,7 +16,7 @@ import { FilePdfOutlined, TrophyOutlined, CalendarOutlined, CheckCircleOutlined 
 import { IMG_BASE_URL } from "@/lib/config";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
-import { useSubjectContext } from "@/contexts/SubjectContext";
+import { asRecord } from "@/lib/safeRecord";
 
 type Tracker = {
   id: string;
@@ -44,11 +44,23 @@ type ClaimedCertificate = {
   certificate_path: string;
 };
 
+type Submission = {
+  student_id?: number | string;
+  type?: string;
+  status?: string;
+};
+
+type Topic = {
+  type?: string;
+  quiz?: {
+    submissions?: Submission[];
+  };
+};
+
 export default function TrackerList() {
   const { classId } = useParams();
   const router = useRouter();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTrackerId, setActiveTrackerId] = useState<string | null>(null);
@@ -83,30 +95,32 @@ export default function TrackerList() {
 
   const {
     data: claimedCertificates = [],
-    isLoading: certificatesLoading,
   } = useQuery<ClaimedCertificate[]>({
     queryKey: ["claimed-certificates"],
     queryFn: fetchMyClaimedCertificates,
   });
 
-  const loadTrackers = async () => {
+  const loadTrackers = useCallback(async () => {
     try {
       setLoading(true);
       // classId already scopes results to the student's subject-specific class,
       // so no additional subject_id filter is needed here.
       const data = await fetchTrackers(Number(classId));
       setTrackers(
-        data.map((tracker: any) => ({
-          ...tracker,
-          id: tracker.id.toString(),
-          tracker_id: tracker.tracker_id.toString(),
-          deadline:
-            tracker?.tracker?.deadline ??
-            tracker?.tracker?.deadline_at ??
-            tracker?.tracker?.deadline_date ??
-            tracker?.tracker?.last_updated ??
-            null,
-        }))
+        (data as Record<string, unknown>[]).map((tracker) => {
+          const rawTracker = asRecord(tracker.tracker);
+          return {
+            ...tracker,
+            id: String(tracker.id),
+            tracker_id: String(tracker.tracker_id),
+            deadline:
+              rawTracker?.deadline ??
+              rawTracker?.deadline_at ??
+              rawTracker?.deadline_date ??
+              rawTracker?.last_updated ??
+              null,
+          } as Tracker;
+        })
       );
       queryClient.invalidateQueries({
         queryKey: ["claimed-certificates"],
@@ -116,12 +130,12 @@ export default function TrackerList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId, queryClient]);
 
   useEffect(() => {
     if (!classId) return;
     loadTrackers();
-  }, [classId, activeSubjectId]);
+  }, [classId, loadTrackers]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -170,12 +184,12 @@ export default function TrackerList() {
           const trackerData = Array.isArray(response)
             ? response[0]
             : response;
-          const quizTopics = (trackerData?.topics ?? []).filter(
-            (topic: any) => topic?.type === "quiz"
+          const quizTopics = ((trackerData?.topics ?? []) as Topic[]).filter(
+            (topic) => topic?.type === "quiz"
           );
-          const completed = quizTopics.some((topic: any) =>
+          const completed = quizTopics.some((topic) =>
             topic?.quiz?.submissions?.some(
-              (submission: any) =>
+              (submission) =>
                 Number(submission?.student_id) === studentId &&
                 submission?.type === "tracker" &&
                 submission?.status === "completed"

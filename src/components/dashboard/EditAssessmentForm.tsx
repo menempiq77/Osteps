@@ -34,13 +34,16 @@ export default function EditAssessmentForm({
   const [selectedQuiz, setSelectedQuiz] = useState("");
 
   useEffect(() => {
-    setType(initialData.type);
-    setSelectedQuiz("");
-    form.setFieldsValue({
-      name: initialData.name,
-      type: initialData.type,
-      quiz: undefined,
-    });
+    const id = setTimeout(() => {
+      setType(initialData.type);
+      setSelectedQuiz("");
+      form.setFieldsValue({
+        name: initialData.name,
+        type: initialData.type,
+        quiz: undefined,
+      });
+    }, 0);
+    return () => clearTimeout(id);
   }, [form, initialData.name, initialData.type]);
 
   const handleSubmit = (values: { name?: string; quiz?: string }) => {

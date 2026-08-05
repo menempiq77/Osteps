@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
@@ -18,17 +19,6 @@ import {
   ArrowLeftOutlined,
   PrinterOutlined,
 } from "@ant-design/icons";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip as ReTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { RootState } from "@/store/store";
 import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { fetchGrades } from "@/services/gradesApi";
@@ -43,6 +33,11 @@ import {
   resolveCoinBalance,
   type LeaderboardRawEntry,
 } from "@/lib/leaderboard";
+
+const ReportChart = dynamic(() => import("./_components/ReportChart"), {
+  ssr: false,
+  loading: () => <div className="h-[140px] animate-pulse rounded-lg bg-slate-50" />,
+});
 
 type AnyObj = Record<string, unknown>;
 
@@ -136,45 +131,6 @@ function StatTile({
       </p>
       <p className="mt-1 mb-0 text-2xl font-extrabold leading-none">{value}</p>
       {hint ? <p className="mt-1 mb-0 text-[11px] text-slate-400">{hint}</p> : null}
-    </div>
-  );
-}
-
-function Donut({
-  percent,
-  color,
-  label,
-}: {
-  percent: number;
-  color: string;
-  label: string;
-}) {
-  const data = [
-    { name: "v", value: Math.max(0, Math.min(100, percent)) },
-    { name: "r", value: Math.max(0, 100 - percent) },
-  ];
-  return (
-    <div className="relative h-[140px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            innerRadius={48}
-            outerRadius={62}
-            startAngle={90}
-            endAngle={-270}
-            stroke="none"
-          >
-            <Cell fill={color} />
-            <Cell fill="#eef2f7" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-extrabold text-slate-800">{percent}%</span>
-        <span className="text-[11px] font-medium text-slate-500">{label}</span>
-      </div>
     </div>
   );
 }
@@ -337,21 +293,10 @@ export default function StudentReportPage() {
     const rows = behaviourRows.filter(
       (row) => !isAttendanceBehaviour(String((row?.behaviour as AnyObj)?.name ?? ""))
     );
-    let positive = 0;
-    let negative = 0;
-    let posCount = 0;
-    let negCount = 0;
     const events = rows
       .map((row, i) => {
         const b = (row?.behaviour as AnyObj) ?? {};
         const points = num(b?.points);
-        if (points > 0) {
-          positive += points;
-          posCount += 1;
-        } else if (points < 0) {
-          negative += points;
-          negCount += 1;
-        }
         return {
           key: String(row?.id ?? i),
           id: num(row?.id),
@@ -366,6 +311,12 @@ export default function StudentReportPage() {
         (a, b) =>
           new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
       );
+    const positiveEvents = events.filter((event) => event.points > 0);
+    const negativeEvents = events.filter((event) => event.points < 0);
+    const positive = positiveEvents.reduce((sum, event) => sum + event.points, 0);
+    const negative = negativeEvents.reduce((sum, event) => sum + event.points, 0);
+    const posCount = positiveEvents.length;
+    const negCount = negativeEvents.length;
     return {
       events,
       positive,
@@ -755,7 +706,7 @@ export default function StudentReportPage() {
           {attendance.total ? (
             <div className="flex items-center gap-4">
               <div className="w-1/2">
-                <Donut percent={attendance.percent} color="#22c55e" label="Present" />
+                <ReportChart type="donut" percent={attendance.percent} color="#22c55e" label="Present" />
               </div>
               <div className="w-1/2 space-y-2 text-sm">
                 <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2">
@@ -784,23 +735,7 @@ export default function StudentReportPage() {
           {behaviourPieData.length ? (
             <div className="flex items-center gap-4">
               <div className="h-[140px] w-1/2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={behaviourPieData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={42}
-                      outerRadius={62}
-                      stroke="none"
-                    >
-                      {behaviourPieData.map((d) => (
-                        <Cell key={d.name} fill={d.color} />
-                      ))}
-                    </Pie>
-                    <ReTooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <ReportChart type="behaviour" data={behaviourPieData} />
               </div>
               <div className="w-1/2 space-y-2 text-sm">
                 <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2">
@@ -841,34 +776,7 @@ export default function StudentReportPage() {
         {academic.count ? (
           <>
             <div className="mb-4 h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={academic.assessments.map((a) => ({
-                    name: a.name.length > 16 ? `${a.name.slice(0, 16)}…` : a.name,
-                    percent: a.percent,
-                  }))}
-                  margin={{ top: 8, right: 8, bottom: 8, left: -16 }}
-                >
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 11 }}
-                    interval={0}
-                    angle={-12}
-                    textAnchor="end"
-                    height={48}
-                  />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <ReTooltip formatter={(v) => [`${v}%`, "Score"]} />
-                  <Bar dataKey="percent" radius={[6, 6, 0, 0]}>
-                    {academic.assessments.map((a) => (
-                      <Cell
-                        key={a.key}
-                        fill={a.percent >= 70 ? "#22c55e" : a.percent >= 50 ? "#f59e0b" : "#ef4444"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <ReportChart type="academic" assessments={academic.assessments} />
             </div>
             <Table
               size="small"

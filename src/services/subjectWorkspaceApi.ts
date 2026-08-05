@@ -17,17 +17,24 @@ type AssignStudentsToSubjectsPayload = {
   allowCrossClass?: boolean;
 };
 
-const getBackendErrorMessage = (error: any): string => {
+type SubjectWorkspaceError = {
+  response?: { status?: number; data?: { msg?: string; message?: string } };
+  message?: string;
+};
+
+const getBackendErrorMessage = (error: unknown): string => {
+  const err = error as SubjectWorkspaceError | undefined;
   return String(
-    error?.response?.data?.msg ||
-      error?.response?.data?.message ||
-      error?.message ||
+    err?.response?.data?.msg ||
+      err?.response?.data?.message ||
+      err?.message ||
       "Subject workspace request failed."
   );
 };
 
-export const isMissingSubjectWorkspaceRoute = (error: any): boolean => {
-  const status = Number(error?.response?.status ?? 0);
+export const isMissingSubjectWorkspaceRoute = (error: unknown): boolean => {
+  const err = error as SubjectWorkspaceError | undefined;
+  const status = Number(err?.response?.status ?? 0);
   const message = getBackendErrorMessage(error).toLowerCase();
   return (
     status === 404 ||
@@ -148,7 +155,7 @@ const ensureDefaultSubjectClass = async (
     }
 
     throw new Error(`No subject class available for subject ${subjectId}.`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isMissingSubjectWorkspaceRoute(error)) {
       throw new Error(
         "Student-to-subject assignment needs the subject workspace backend routes to be deployed first. Missing routes: /subject-classes and/or /subject-classes/enroll-students."
@@ -301,7 +308,7 @@ export const checkSubjectWorkspaceAvailability = async (subjectId: number): Prom
   try {
     await fetchSubjectClasses({ subject_id: Number(subjectId) });
     return { available: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isMissingSubjectWorkspaceRoute(error)) {
       return {
         available: false,

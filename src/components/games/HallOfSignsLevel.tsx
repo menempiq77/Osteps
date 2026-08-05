@@ -17,6 +17,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   HallSign,
@@ -553,9 +554,11 @@ export default function HallOfSignsLevel({
           })}
 
           <div className="pointer-events-none absolute bottom-[4%] left-1/2 z-10 w-[58px] -translate-x-1/2 sm:w-[82px] md:w-[96px]">
-            <img
+            <Image
               src="/games/lost-library/explorer.webp"
               alt="Your library explorer"
+              width={512}
+              height={512}
               className="h-auto w-full drop-shadow-[0_14px_8px_rgba(0,0,0,.5)]"
             />
           </div>

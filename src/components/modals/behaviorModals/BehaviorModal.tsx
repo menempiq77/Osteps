@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Modal, Form, Input, Select, Tag } from "antd";
+import type { FormInstance } from "antd";
 
 interface BehaviorType {
   id: string | number;
@@ -12,10 +13,10 @@ interface BehaviorType {
 interface BehaviorModalProps {
   visible: boolean;
   onCancel: () => void;
-  onOk: (values: any) => void;
+  onOk: (values: Record<string, unknown>) => void;
   studentName: string;
   behaviorTypes: BehaviorType[];
-  form: any;
+  form: FormInstance<Record<string, unknown>>;
   isEditing: boolean;
   confirmLoading?: boolean;
 }
@@ -33,7 +34,7 @@ const BehaviorModal: React.FC<BehaviorModalProps> = ({
     <Modal
       title={`Add Behavior Record for ${studentName}`}
       open={visible}
-      onOk={onOk}
+      onOk={onOk as unknown as React.MouseEventHandler<HTMLElement>}
       onCancel={onCancel}
       confirmLoading={confirmLoading}
       width={600}

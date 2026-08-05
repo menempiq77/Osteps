@@ -20,6 +20,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { errorMessage } from "@/lib/safeRecord";
 import {
   ImportFromSimilarSubjectModal,
   type ImportableItem,
@@ -28,6 +29,7 @@ import {
 type Quiz = {
   id: string;
   name: string;
+  description?: string;
   subject_id?: string | number | null;
   subject?: {
     id?: string | number | null;
@@ -111,7 +113,7 @@ export default function QuizPage() {
       if (!schoolId) return [];
       const rows = await fetchQuizes(
         String(schoolId),
-        activeSubjectId ?? undefined,
+        activeSubjectId ?? undefined
       );
       return (Array.isArray(rows) ? rows : []).map((quiz: Quiz) => ({
         ...quiz,
@@ -140,7 +142,8 @@ export default function QuizPage() {
   const quizQueryKey = ["quizzes", schoolId, activeSubjectId] as const;
 
   const addQuizMutation = useMutation({
-    mutationFn: (payload: any) => addQuize(payload, activeSubjectId ?? undefined),
+    mutationFn: (payload: Record<string, unknown>) =>
+      addQuize({ name: String(payload.name ?? ""), ...payload }, activeSubjectId ?? undefined),
     onSuccess: async (result) => {
       const createdQuiz = (result?.data ?? result) as Quiz | undefined;
       const newId = result?.data?.id ?? result?.id ?? undefined;
@@ -163,14 +166,14 @@ export default function QuizPage() {
       );
       handleCancel();
     },
-    onError: (error: any) => {
-      messageApi.error(error.response?.data?.message || "Failed to add quiz");
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to add quiz"));
     },
   });
 
   const updateQuizMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: QuizFormValues }) =>
-      updateQuize(id, data, activeSubjectId ?? undefined),
+      updateQuize(id, { ...data }, activeSubjectId ?? undefined),
     onSuccess: async (result) => {
       const updatedQuiz = (result?.data ?? result) as Quiz | undefined;
       if (updatedQuiz?.id) {
@@ -190,10 +193,8 @@ export default function QuizPage() {
       );
       handleCancel();
     },
-    onError: (error: any) => {
-      messageApi.error(
-        error.response?.data?.message || "Failed to update quiz"
-      );
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to update quiz"));
     },
   });
 
@@ -209,10 +210,8 @@ export default function QuizPage() {
       setDeleteConfirmVisible(false);
       setQuizToDelete(null);
     },
-    onError: (error: any) => {
-      messageApi.error(
-        error.response?.data?.message || "Failed to delete quiz"
-      );
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to delete quiz"));
     },
   });
 
@@ -223,7 +222,7 @@ export default function QuizPage() {
       if (editingId) {
         await updateQuizMutation.mutateAsync({ id: editingId, data: values });
       } else {
-        await addQuizMutation.mutateAsync(values);
+        await addQuizMutation.mutateAsync({ ...values });
       }
     } finally {
       setSubmitting(false);
@@ -251,8 +250,11 @@ export default function QuizPage() {
   ): Promise<ImportableItem[]> => {
     if (!schoolId) return [];
     const rows = await fetchQuizes(String(schoolId), sourceSubjectId);
-    return filterQuizzesBySubject(Array.isArray(rows) ? rows : [], sourceSubjectId).map(
-      (quiz: any) => ({
+    return filterQuizzesBySubject(
+      Array.isArray(rows) ? (rows as Quiz[]) : [],
+      sourceSubjectId
+    ).map(
+      (quiz) => ({
         id: quiz.id,
         name: quiz.name,
         description: quiz.description ?? undefined,

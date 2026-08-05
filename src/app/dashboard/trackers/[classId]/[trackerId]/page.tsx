@@ -157,7 +157,7 @@ export default function TrackerTopicsPage() {
     (async () => {
       try {
         const list = await fetchTrackers(Number(classId));
-        const match = list?.find((t: any) => {
+        const match = list?.find((t: { tracker_id?: number; id?: number }) => {
           const id = Number(t?.tracker_id ?? t?.id);
           return id === Number(trackerId);
         });
@@ -305,12 +305,9 @@ export default function TrackerTopicsPage() {
         loadStudentTrackerData({ showLoading: false }),
         loadStudentProgressPoints(),
       ]);
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.msg ||
-        "Could not complete this topic";
-      messageApi.error(errorMessage);
+    } catch (error: unknown) {
+      const messageText = error instanceof Error ? error.message : "Could not complete this topic";
+      messageApi.error(messageText);
       console.error("Failed to complete tracker topic:", error);
     } finally {
       setCompletingTopicId(null);

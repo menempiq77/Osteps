@@ -11,18 +11,21 @@ import {
   Row,
   Col,
 } from "antd";
+import type { FormInstance } from "antd/es/form";
 
 const { Option } = Select;
+
+type UnsafeRecord = Record<string, unknown>;
 
 interface TimetableModalProps {
   isModalVisible: boolean;
   isEditMode: boolean;
   onCancel: () => void;
   onSubmit: () => void;
-  form: any;
-  yearsData: any[];
-  classesData: any[];
-  teachers: any[];
+  form: FormInstance<UnsafeRecord>;
+  yearsData: UnsafeRecord[];
+  classesData: UnsafeRecord[];
+  teachers: UnsafeRecord[];
   isTeacher: boolean;
   handleYearChange: (value: string) => void;
 }
@@ -78,8 +81,8 @@ const TimetableModal: React.FC<TimetableModalProps> = ({
             <Form.Item name="year" label="Year" rules={[{ required: true }]}>
               <Select placeholder="Select year" onChange={handleYearChange}>
                 {yearsData?.map((year) => (
-                  <Option key={year.id} value={year.id}>
-                    {year.name}
+                  <Option key={String(year.id)} value={String(year.id)}>
+                    {String(year.name)}
                   </Option>
                 ))}
               </Select>
@@ -88,8 +91,8 @@ const TimetableModal: React.FC<TimetableModalProps> = ({
             <Form.Item name="class" label="Class" rules={[{ required: true }]}>
               <Select placeholder="Select class">
                 {classesData?.map((cls) => (
-                  <Option key={cls.id} value={cls.id}>
-                    {cls.class_name}
+                  <Option key={String(cls.id)} value={String(cls.id)}>
+                    {String(cls.class_name)}
                   </Option>
                 ))}
               </Select>
@@ -103,8 +106,8 @@ const TimetableModal: React.FC<TimetableModalProps> = ({
               >
                 <Select placeholder="Select teacher">
                   {teachers?.map((teacher) => (
-                    <Option key={teacher.id} value={teacher.id}>
-                      {teacher.teacher_name}
+                    <Option key={String(teacher.id)} value={String(teacher.id)}>
+                      {String(teacher.teacher_name)}
                     </Option>
                   ))}
                 </Select>

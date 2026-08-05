@@ -1,7 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
-import AllAssessmentList from "@/components/dashboard/AllAssessmentList";
+import AllAssessmentList, {
+  type Assessment as AssessmentListItem,
+} from "@/components/dashboard/AllAssessmentList";
 import {
   addAssessment,
   addTask,
@@ -27,12 +29,21 @@ import {
   type ImportableItem,
 } from "@/components/modals/ImportFromSimilarSubjectModal";
 
-interface Assessment {
-  id: string;
+type Assessment = AssessmentListItem;
+type QuizRecord = {
+  id: string | number;
   name: string;
-  type: "assessment" | "quiz";
-  term_id: string;
-}
+  subject_id?: string | number | null;
+  subject?: { id?: string | number | null };
+};
+type AssessmentImportRow = {
+  id: string | number;
+  name?: string;
+  type?: string;
+  subject_id?: string | number | null;
+  subject?: { id?: string | number | null };
+  quiz?: { name?: string };
+};
 
 const ASSESSMENT_SUBJECT_MAP_KEY = "osteps_assessment_subject_map";
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
@@ -46,7 +57,7 @@ function readQuizSubjectMap(): Record<string, number> {
   }
 }
 
-function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+function filterQuizzesBySubject(quizzes: QuizRecord[], subjectId: number): QuizRecord[] {
   const map = readQuizSubjectMap();
   return quizzes.filter((q) => {
     const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
@@ -107,7 +118,7 @@ export default function Page() {
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [rawAssessments, setRawAssessments] = useState<Assessment[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [rawQuizzes, setRawQuizzes] = useState<any[]>([]);
+  const [rawQuizzes, setRawQuizzes] = useState<QuizRecord[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
     null,
   );
@@ -215,8 +226,6 @@ export default function Page() {
   const handleAddAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";
-    term_id: string;
-    school_id: string;
   }) => {
     try {
       let newAssessment;
@@ -248,7 +257,7 @@ export default function Page() {
   const handleEditAssessment = async (assessmentData: {
     name: string;
     type: "assessment" | "quiz";
-    school_id: string;
+    term_id: string;
   }) => {
     if (!editingAssessment) return;
 
@@ -293,11 +302,11 @@ export default function Page() {
   ): Promise<ImportableItem[]> => {
     const rows = await fetchSchoolAssessment(schoolIdNum, sourceSubjectId);
     return (Array.isArray(rows) ? rows : [])
-      .filter((row: any) => {
+      .filter((row: AssessmentImportRow) => {
         const rowSubjectId = Number(row?.subject_id ?? row?.subject?.id ?? 0);
         return rowSubjectId === 0 || rowSubjectId === sourceSubjectId;
       })
-      .map((row: any) => ({
+      .map((row: AssessmentImportRow) => ({
         id: row.id,
         name: row.name ?? row?.quiz?.name ?? "Untitled",
         description: row.type === "quiz" ? "Quiz" : undefined,
@@ -375,9 +384,9 @@ export default function Page() {
       );
 
       if (assessment?.type === "quiz") {
-        await deleteAssignTermQuiz(assessmentToDelete);
+        await deleteAssignTermQuiz(Number(assessmentToDelete));
       } else {
-        await deleteAssessment(assessmentToDelete);
+        await deleteAssessment(Number(assessmentToDelete));
       }
       untagAssessment(assessmentToDelete);
       setRawAssessments(

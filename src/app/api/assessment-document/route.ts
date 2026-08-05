@@ -3,6 +3,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { DATA_DIR, LEGACY_DATA_DIRS } from "@/lib/server/dataDir";
 import { getDbPool } from "@/lib/server/db";
+import { RowDataPacket } from "mysql2/promise";
+import { asRecord } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,7 +75,7 @@ const fetchLaravelStudentTasks = async (
     if (!res.ok) return [];
     const payload = (await res.json()) as { data?: unknown[] };
     return Array.isArray(payload?.data) ? payload.data : [];
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to fetch student assessment tasks from Laravel:", error);
     return [];
   }
@@ -113,7 +115,7 @@ const syncTeacherMarkToLaravel = async (
         teacher_assessment_feedback: feedback,
       }),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to sync teacher mark to Laravel:", error);
   }
 };
@@ -122,7 +124,7 @@ const syncTeacherMarkToLaravel = async (
 // remains the fast cache, but the MySQL table is the durable source of truth
 // that survives deploys, directory changes, and server re-installs.
 
-type DbDocumentRow = {
+interface DbDocumentRow extends RowDataPacket {
   id: number;
   assessment_id: number;
   task_id: number;
@@ -136,7 +138,7 @@ type DbDocumentRow = {
   marked_at: string | null;
   created_at: string;
   updated_at: string;
-};
+}
 
 const parseJsonColumn = (value: string | null): unknown => {
   if (!value) return null;
@@ -182,7 +184,7 @@ const fetchDbState = async (
       updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
     };
     return buildState(assessmentId, taskId, studentId, parsed);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to fetch assessment document from database:", error);
     return null;
   }
@@ -219,7 +221,7 @@ const upsertDbState = async (state: DocumentState): Promise<void> => {
         new Date(state.updatedAt).toISOString().slice(0, 19).replace("T", " "),
       ]
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to upsert assessment document to database:", error);
   }
 };
@@ -321,7 +323,7 @@ const extractFirstJsonObject = (raw: string) => {
 const parseStoredState = (raw: string): Partial<DocumentState> => {
   try {
     return JSON.parse(raw) as Partial<DocumentState>;
-  } catch (error) {
+  } catch (error: unknown) {
     const firstObject = extractFirstJsonObject(raw);
     if (!firstObject) throw error;
     return JSON.parse(firstObject) as Partial<DocumentState>;
@@ -440,8 +442,7 @@ const readState = async (
     // survives even if the `.data` files are lost or moved.
     await upsertDbState(fileState);
     return fileState;
-  } catch (error: any) {
-    if (error?.code !== "ENOENT") throw error;
+  } catch (error: unknown) {     if (asRecord(error)?.code !== "ENOENT") throw error;
   }
 
   // The primary store is empty. Try the database source of truth next and
@@ -450,7 +451,7 @@ const readState = async (
   if (dbState) {
     try {
       await writeState(dbState);
-    } catch (writeError) {
+    } catch (writeError: unknown) {
       console.error("Failed to restore assessment document file from database:", writeError);
     }
     return dbState;
@@ -467,7 +468,7 @@ const readState = async (
       const recoveredState = buildState(assessmentId, taskId, studentId, parsed);
       await writeState(recoveredState);
       return recoveredState;
-    } catch (migrationError) {
+    } catch (migrationError: unknown) {
       console.error("Failed to migrate legacy assessment document state:", migrationError);
     }
   }
@@ -492,9 +493,10 @@ const readState = async (
         const isMarked =
           dbStatus === "completed" ||
           (teacherMark != null && String(teacherMark).trim() !== "");
+        const safeDbStatus = (dbStatus as DocumentState["status"]) || "draft";
 
         const dbBackedState = buildState(assessmentId, taskId, studentId, {
-          status: isMarked ? "marked" : (dbStatus as any) || "draft",
+          status: isMarked ? "marked" : safeDbStatus,
           studentLocked: isMarked || dbStatus === "completed",
           metadata: {
             selfAssessmentMark: dbTask.self_assessment_mark ?? undefined,
@@ -513,7 +515,7 @@ const readState = async (
         await writeState(dbBackedState);
         return dbBackedState;
       }
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       console.error("Failed to load assessment document state from Laravel fallback:", dbError);
     }
   }

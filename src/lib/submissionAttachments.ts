@@ -9,7 +9,7 @@ export type SubmissionAttachment = {
   uploaded_at?: string | null;
 };
 
-const isPlainObject = (value: unknown): value is Record<string, any> =>
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 export const buildStorageUrl = (path: string | null | undefined) => {

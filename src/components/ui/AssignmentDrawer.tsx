@@ -10,6 +10,7 @@ import {
   Upload,
   UploadFile,
 } from "antd";
+import type { UploadChangeParam } from "antd/es/upload";
 import {
   FileTextOutlined,
   PlayCircleOutlined,
@@ -24,6 +25,7 @@ import dayjs from "dayjs";
 import { requestDocumentFullscreenFromGesture } from "@/lib/browserFullscreen";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
 import { isSubmittedStatus } from "@/lib/studentSubmissionStatus";
+import { asRecord } from "@/lib/safeRecord";
 import {
   SubmissionAttachment,
   parseSubmissionAttachments,
@@ -206,7 +208,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
 
   const isNATask =
     !selectedTask?.task_type || selectedTask?.task_type === "null";
-  const examWindow = resolveExamWindow(selectedTask);
+  const examWindow = resolveExamWindow(selectedTask as Parameters<typeof resolveExamWindow>[0]);
   const isOnlineExamTask = Boolean(
     selectedTask?.exam_mode && selectedTask?.task_type === "pdf" && selectedTask?.file_path
   );
@@ -244,8 +246,11 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     stopMicLevelMonitor();
     recordingPeakRef.current = 0;
 
-    const AudioContextConstructor =
-      window.AudioContext || (window as any).webkitAudioContext;
+    const audioWindow = window as typeof window & {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioContextConstructor = audioWindow.AudioContext || audioWindow.webkitAudioContext;
     if (!AudioContextConstructor) return;
 
     try {
@@ -411,8 +416,8 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
         status: "done",
         size: file.size,
         type: file.type,
-        originFileObj: file as any,
-      },
+        originFileObj: file as File,
+      } as UploadFile,
     ]);
     if (soundDetected) {
       setRecordingWarning(null);
@@ -525,7 +530,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       };
 
       recorder.onstop = () => {
-        const chunks = recordingChunksRef.current;
+        const chunks = recordingChunksRef.current as Blob[];
         const shouldSave = shouldSaveRecordingRef.current;
         const finalMimeType = mimeType || chunks[0]?.type || "audio/webm";
         const soundDetected = recordingPeakRef.current > 0.015;
@@ -628,10 +633,10 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     };
   }, [isOpen, isAudioSubmissionTask, selectedAudioInputId]);
 
-  const handleFileChange = (info: any) => {
+  const handleFileChange = (info: UploadChangeParam<UploadFile>) => {
     const newFileList = [...info.fileList].map((file) => {
       if (file.response) {
-        file.url = file.response.url;
+        file.url = (file.response as { url?: string }).url;
       }
       return file;
     });
@@ -649,18 +654,18 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     return false;
   };
 
- const handleSubmit = async (values: any) => {
+ const handleSubmit = async (values: Record<string, unknown>) => {
   setIsSubmitting(true);
 
   try {
     const formData = new FormData();
     formData.append("task_id", selectedTask?.id || "");
-    formData.append("additional_notes", values.notes || "");
+    formData.append("additional_notes", String(values.notes ?? ""));
 
-    if (values.selfAssessment !== undefined) {
+    if (typeof values.selfAssessment === "number") {
       formData.append(
         "self_assessment_mark",
-        values.selfAssessment.toString()
+        String(values.selfAssessment)
       );
     }
 
@@ -679,7 +684,7 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
       }
     });
 
-    const response = await uploadTaskByStudent(formData, assessmentId);
+    const response = await uploadTaskByStudent(formData, Number(assessmentId));
 
     if (response?.status_code === 409) {
       messageApi.warning(
@@ -694,10 +699,18 @@ const AssignmentDrawer: React.FC<AssignmentDrawerProps> = ({
     setFileList([]);
     setExistingAttachments([]);
     replaceRecordingPreviewUrl(null);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error submitting Task:", error);
-    const statusCode = Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0);
-    const backendMessage = error?.response?.data?.msg || error?.response?.data?.message;
+    const errorRecord = asRecord(error);
+    const responseRecord = asRecord(errorRecord?.response);
+    const dataRecord = asRecord(responseRecord?.data);
+    const statusCode = Number(dataRecord?.status_code ?? responseRecord?.status ?? 0);
+    const backendMessage =
+      typeof dataRecord?.msg === "string"
+        ? dataRecord.msg
+        : typeof dataRecord?.message === "string"
+          ? dataRecord.message
+          : "";
     if (statusCode === 409) {
       messageApi.warning(backendMessage || "You have already submitted this task.");
     } else {

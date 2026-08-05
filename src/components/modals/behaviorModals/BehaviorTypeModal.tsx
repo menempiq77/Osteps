@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
 import { Modal, Form, Input, Select, Tag, InputNumber } from "antd";
-import { BehaviorType } from "./types";
+import type { FormInstance } from "antd";
 
 interface BehaviorTypeModalProps {
   visible: boolean;
   onCancel: () => void;
   onOk: () => void;
-  form: any;
+  form: FormInstance<Record<string, unknown>>;
   editingType: { id: string; name: string; points: number; color: string } | null;
   colorOptions: { value: string; label: string }[];
 }

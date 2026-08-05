@@ -29,7 +29,7 @@ const withTimetableSubjectPayload = <T extends Record<string, unknown>>(
       subject_id: subjectScope,
     };
   }
-  return withSubjectPayload(payload as any);
+  return withSubjectPayload(payload);
 };
 
 export const fetchTimetableData = async (
@@ -78,7 +78,7 @@ export const addTimetableSlot = async (timetableData: {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(withTimetableSubjectPayload(timetableData as any, subjectScope)),
+    body: JSON.stringify(withTimetableSubjectPayload(timetableData, subjectScope)),
   });
   if (!response.ok) throw new Error('Failed to add timetable slot');
   return response.json();
@@ -108,7 +108,7 @@ export const updateTimetableSlot = async (
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(withTimetableSubjectPayload(timetableData as any, subjectScope)),
+    body: JSON.stringify(withTimetableSubjectPayload(timetableData, subjectScope)),
   });
   if (!response.ok) throw new Error('Failed to update timetable slot');
   return response.json();

@@ -55,7 +55,7 @@ type TaskFormData = {
   file?: FileList;
 };
 
-type Task = {
+export type AssessmentDrawerTask = {
   id: number;
   task_name: string;
   description: string;
@@ -88,6 +88,15 @@ type Task = {
   };
 };
 
+type Task = AssessmentDrawerTask;
+
+type QuizOption = {
+  id: string | number;
+  name?: string;
+  subject_id?: string | number;
+  subject?: { id?: string | number };
+};
+
 type AssessmentTasksDrawerProps = {
   visible: boolean;
   onClose: () => void;
@@ -95,7 +104,7 @@ type AssessmentTasksDrawerProps = {
   assessmentId: number;
   initialTasks: Task[];
   onTasksChange: (tasks: Task[]) => void;
-  quizzes: any[];
+  quizzes: QuizOption[];
   loading: boolean;
   setLoading: (loading: boolean) => void;
   selectedTermId: string | null;
@@ -129,7 +138,7 @@ function getScopedSubjectId(): number | null {
   return null;
 }
 
-function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+function filterQuizzesBySubject(quizzes: QuizOption[], subjectId: number): QuizOption[] {
   const map = readQuizSubjectMap();
   return quizzes.filter((q) => {
     const backendSubjectId = q?.subject_id ?? q?.subject?.id ?? null;
@@ -230,7 +239,7 @@ export function AssessmentTasksDrawer({
   const [editingQuizName, setEditingQuizName] = useState("");
   const [editingQuizDescription, setEditingQuizDescription] = useState("");
   const [editingQuizWeight, setEditingQuizWeight] = useState<number>(0);
-  const [createdQuizzes, setCreatedQuizzes] = useState<any[]>([]);
+  const [createdQuizzes, setCreatedQuizzes] = useState<QuizOption[]>([]);
   const [orderedTasks, setOrderedTasks] = useState<Task[]>([]);
   const [messageApi, contextHolder] = message.useMessage();
   const scopedSubjectId = getScopedSubjectId();
@@ -463,12 +472,12 @@ export function AssessmentTasksDrawer({
 
       const selectedQuiz = availableQuizzes.find((q) => Number(q.id) === Number(selectedQuizId));
       if (selectedQuiz) {
-        const newQuizTask = {
+        const newQuizTask: AssessmentDrawerTask = {
           id: Date.now(), // temporary unique ID for frontend
-          quiz_id: selectedQuizId,
+          quiz_id: Number(selectedQuizId),
           type: "quiz",
           quiz: selectedQuiz,
-          task_name: selectedQuiz.name,
+          task_name: selectedQuiz.name || "",
           description: "",
           task_type: "quiz",
           due_date: "",
@@ -619,7 +628,7 @@ export function AssessmentTasksDrawer({
 
       if (task?.type === "quiz") {
         // Remove quiz assignment
-        await removeTaskQuiz(task.quiz_id); // or task.quiz_id if your backend expects quiz_id
+        await removeTaskQuiz(Number(task.quiz_id)); // or task.quiz_id if your backend expects quiz_id
         messageApi.success("Quiz unassigned successfully");
       } else {
         // Remove normal task
@@ -970,8 +979,8 @@ export function AssessmentTasksDrawer({
                 <DatePicker
                   {...field}
                   value={field.value ? dayjs(field.value) : undefined}
-                  onChange={(date: Dayjs | null, dateString: string) =>
-                    field.onChange(dateString)
+                  onChange={(_date: Dayjs | null, dateString: string | string[]) =>
+                    field.onChange(Array.isArray(dateString) ? dateString[0] : dateString)
                   }
                   disabled={loading}
                   status={errors.dueDate ? "error" : ""}
@@ -1245,7 +1254,7 @@ export function AssessmentTasksDrawer({
         title={
           <div className="flex justify-between items-center">
             <span>{assignmentName}</span>
-            <div style={{ "--antd-wave-shadow-color": "#38C16C" }}>
+            <div style={{ ["--antd-wave-shadow-color" as string]: "#38C16C" }}>
               <style>{`
                     .green-select .ant-select-selection-placeholder {
                       color: #38C16C !important;

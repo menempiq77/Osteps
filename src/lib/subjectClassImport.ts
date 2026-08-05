@@ -90,7 +90,7 @@ export const importSubjectClassIntoSubject = async (params: {
     const studentIds = Array.from(
       new Set(
         (Array.isArray(baseStudents) ? baseStudents : [])
-          .map((student: any) => Number(student?.id ?? student?.student_id ?? 0))
+          .map((student: Record<string, unknown>) => Number(student?.id ?? student?.student_id ?? 0))
           .filter((id) => Number.isFinite(id) && id > 0)
       )
     );

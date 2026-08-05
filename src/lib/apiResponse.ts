@@ -28,13 +28,10 @@ export const isEmbeddedFailure = (payload: unknown, fallbackStatus = 200): boole
 
 /** Pull a human-readable message out of a response body, else `fallback`. */
 export const getPayloadMessage = (payload: unknown, fallback: string): string => {
-  const body = payload as Record<string, any> | null | undefined;
-  return (
-    body?.msg ||
-    body?.message ||
-    body?.data?.message ||
-    fallback
-  );
+  const body = payload as Record<string, unknown> | null | undefined;
+  const data = body?.data as Record<string, unknown> | null | undefined;
+  const candidate = body?.msg ?? body?.message ?? data?.message ?? fallback;
+  return typeof candidate === "string" ? candidate : fallback;
 };
 
 /**
@@ -59,16 +56,22 @@ export const throwOnEmbeddedFailure = (
 
 /** Extract the best available error message from a caught axios-style error. */
 export const getApiErrorMessage = (error: unknown, fallback: string): string => {
-  const data = (error as { response?: { data?: Record<string, any> } })?.response?.data;
+  const err = error as
+    | { response?: { data?: Record<string, unknown> }; message?: string }
+    | null
+    | undefined;
+  const data = err?.response?.data;
+  const nestedData = data?.data as Record<string, unknown> | undefined;
+  const errors = data?.errors as unknown;
   const candidate =
     data?.msg ||
     data?.message ||
-    data?.data?.message ||
-    (Array.isArray(data?.errors) ? data.errors[0] : undefined) ||
-    (data?.errors && typeof data.errors === "object"
-      ? Object.values(data.errors)[0]
+    nestedData?.message ||
+    (Array.isArray(errors) ? errors[0] : undefined) ||
+    (errors && typeof errors === "object"
+      ? Object.values(errors as Record<string, unknown>)[0]
       : undefined) ||
-    (error as { message?: string })?.message ||
+    err?.message ||
     fallback;
   return String(Array.isArray(candidate) ? candidate[0] : candidate);
 };

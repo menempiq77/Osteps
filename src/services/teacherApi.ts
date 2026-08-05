@@ -24,7 +24,7 @@ export const fetchTeachersByStudent = async () => {
 };
 // add Teacher
 export const addTeacher = async (teacherData: { name: string }) => {
-  const response = await api.post('/add-teacher', withSubjectPayload(teacherData as any));
+  const response = await api.post('/add-teacher', withSubjectPayload(teacherData));
   return response.data;
 };
 //assign teacher
@@ -45,7 +45,7 @@ export const getAssignClassesTeacher = async (teacherId: string | number) => {
   return response.data;
 };
 // edit Teacher
-export const updateTeacher = async (id: string, teacherData: any) => {
+export const updateTeacher = async (id: string, teacherData: Record<string, unknown>) => {
   const response = await api.post(`/update-teacher/${id}`, withSubjectPayload(teacherData));
   return response.data;
 };

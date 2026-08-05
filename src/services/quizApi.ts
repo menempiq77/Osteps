@@ -19,7 +19,7 @@ export const addQuize = async (quizData: { name: string; description?: string; [
   return response.data;
 };
 // edit Quiz
-export const updateQuize = async (id: string, quizData: any, subjectId?: number) => {
+export const updateQuize = async (id: string, quizData: Record<string, unknown>, subjectId?: number) => {
   const response = await api.post(`/update-quiz/${id}`, withSubjectPayload(quizData, subjectId));
   return response.data;
 };
@@ -29,7 +29,7 @@ export const deleteQuize = async (id: number) => {
   return response.data;
 };
 //submit quiz by student
-export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any, type: string, subjectId?: number) => {
+export const submitQuizByStudent = async (quizId: number, studentId: number, answers: unknown, type: string, subjectId?: number) => {
   const response = await api.post('/submitQuizAnswers', withSubjectPayload({
     quiz_id: quizId,
     student_id: studentId,
@@ -39,7 +39,7 @@ export const submitQuizByStudent = async (quizId: number, studentId: number, ans
   return response.data;
 };
 //submit task quiz by student
-export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: any, type: string, subjectId?: number, selfAssessmentMark?: number) => {
+export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: unknown, type: string, subjectId?: number, selfAssessmentMark?: number) => {
   const response = await api.post('/submitQuizAnswers', withSubjectPayload({
     quiz_id: quizId,
     student_id: studentId,
@@ -83,7 +83,12 @@ export const addQuizQuestion = async (
   return response.data;
 };
 // add QuizQuestions
-export const updateQuizQuestion = async (questionId: number, quizId: number, quizQuestionData: { name: string }, subjectId?: number) => {
+export const updateQuizQuestion = async (
+  questionId: number,
+  quizId: number,
+  quizQuestionData: Record<string, unknown>,
+  subjectId?: number
+) => {
   const response = await api.post(`/update-quiz-question/${questionId}`, withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };

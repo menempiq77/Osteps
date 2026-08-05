@@ -14,14 +14,14 @@ export const fetchBehaviourType = async (subjectId?: number) => {
 };
 // add BehaviourType
 export const addBehaviourType = async (
-  behaviourTypeData: Record<string, any>,
+  behaviourTypeData: Record<string, unknown>,
   subjectId?: number
 ) => {
   const response = await api.post('/add-behaviour', withSubjectPayload(behaviourTypeData, subjectId));
   return response.data;
 };
 // edit BehaviourType
-export const updateBehaviourType = async (id: string, behaviourTypeData: any, subjectId?: number) => {
+export const updateBehaviourType = async (id: string, behaviourTypeData: Record<string, unknown>, subjectId?: number) => {
   const response = await api.put(`/update-behaviour/${id}`, withSubjectPayload(behaviourTypeData, subjectId));
   return response.data;
 };
@@ -43,14 +43,14 @@ export const fetchBehaviour = async (studentId: number, subjectId?: number) => {
 };
 // add behaviour
 export const addBehaviour = async (
-  behaviourData: Record<string, any>,
+  behaviourData: Record<string, unknown>,
   subjectId?: number
 ) => {
   const response = await api.post('/add-studentBehaviour', withSubjectPayload(behaviourData, subjectId));
   return response.data;
 };
 // edit behaviour
-export const updateBehaviour = async (id: string, behaviourData: any, subjectId?: number) => {
+export const updateBehaviour = async (id: string, behaviourData: Record<string, unknown>, subjectId?: number) => {
   const response = await api.put(`/update-studentBehaviour/${id}`, withSubjectPayload(behaviourData, subjectId));
   return response.data;
 };

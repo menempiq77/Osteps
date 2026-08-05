@@ -18,17 +18,25 @@ interface AssessmentAssignDrawerProps {
   onClose: () => void;
 }
 
+type ClassRow = {
+  id: number;
+  year_id?: number;
+  class_name: string;
+  year_name?: string;
+  number_of_terms?: number | string;
+};
+
 const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, " ").trim();
 
-const getAssessmentAssignmentStatus = (term: any, assessmentId: string | number | null) => {
+const getAssessmentAssignmentStatus = (term: Record<string, unknown>, assessmentId: string | number | null) => {
   const targetId = Number(assessmentId);
   if (!Number.isFinite(targetId)) return "N/A";
 
   const matches = (Array.isArray(term?.assign_assessments) ? term.assign_assessments : [])
-    .filter((row: any) => Number(row?.assessment_id) === targetId)
-    .sort((a: any, b: any) => {
-      const aTime = Date.parse(a?.updated_at || a?.created_at || "");
-      const bTime = Date.parse(b?.updated_at || b?.created_at || "");
+    .filter((row: Record<string, unknown>) => Number(row?.assessment_id) === targetId)
+    .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      const aTime = Date.parse(String(a?.updated_at ?? a?.created_at ?? ""));
+      const bTime = Date.parse(String(b?.updated_at ?? b?.created_at ?? ""));
       if (Number.isFinite(aTime) || Number.isFinite(bTime)) {
         return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
       }
@@ -58,47 +66,51 @@ export default function AssessmentAssignDrawer({
 
   // Reset selections when drawer opens
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const id = setTimeout(() => {
       setSelectedYear(null);
       setSelectedClass(null);
-    }
+    }, 0);
+    return () => clearTimeout(id);
   }, [open]);
 
   // Fetch all classes (subject-filtered)
   const {
     data: allClasses = [],
     isLoading: classesLoading,
-  } = useQuery({
+  } = useQuery<ClassRow[]>({
     queryKey: ["assessment-assign-all-classes", schoolId, isTeacher, activeSubjectId ?? "legacy"],
     queryFn: async () => {
       if (!schoolId) return [];
 
-      let fetched: any[] = [];
+      let fetched: ClassRow[] = [];
 
       if (isTeacher) {
         const res = await fetchAssignYears();
-        const rawClasses = res.map((item: any) => item.classes).filter(Boolean);
-        const unique = Array.from(new Map(rawClasses.map((c: any) => [c.id, c])).values());
-        fetched = unique.map((c: any) => ({
+        const rawClasses = (res as Record<string, unknown>[])
+          .map((item) => item.classes as Record<string, unknown> | undefined)
+          .filter(Boolean) as Record<string, unknown>[];
+        const unique = Array.from(new Map(rawClasses.map((c) => [c.id, c])).values());
+        fetched = unique.map((c) => ({
           id: Number(c.id),
-          year_id: Number(c.year_id ?? c.year?.id ?? 0) || undefined,
-          class_name: c.class_name ?? c.name ?? `Class ${c.id}`,
-          year_name: c.year?.name,
-          number_of_terms: c.number_of_terms,
+          year_id: Number(c.year_id ?? (c.year as Record<string, unknown> | undefined)?.id ?? 0) || undefined,
+          class_name: String(c.class_name ?? c.name ?? `Class ${c.id}`),
+          year_name: String((c.year as Record<string, unknown> | undefined)?.name ?? ""),
+          number_of_terms: c.number_of_terms as number | string | undefined,
         }));
       } else {
-        const years: any[] = (await fetchYearsBySchool(Number(schoolId))) ?? [];
+        const years = ((await fetchYearsBySchool(Number(schoolId))) ?? []) as Record<string, unknown>[];
         const classArrays = await Promise.all(
-          years.map((y: any) => fetchClasses(String(y.id)).catch(() => []))
+          years.map((y) => fetchClasses(String(y.id)).catch(() => []))
         );
-        fetched = classArrays.flat().map((c: any) => ({
-          id: Number(c.id),
-          year_id: Number(c.year_id ?? 0) || undefined,
-          class_name: c.class_name ?? c.name ?? `Class ${c.id}`,
-          year_name: years.find((y: any) => String(y.id) === String(c.year_id))?.name,
-          number_of_terms: c.number_of_terms,
+        fetched = classArrays.flat().map((c) => ({
+          id: Number((c as Record<string, unknown>).id),
+          year_id: Number((c as Record<string, unknown>).year_id ?? 0) || undefined,
+          class_name: String((c as Record<string, unknown>).class_name ?? (c as Record<string, unknown>).name ?? `Class ${(c as Record<string, unknown>).id}`),
+          year_name: String(years.find((y) => String(y.id) === String((c as Record<string, unknown>).year_id))?.name ?? ""),
+          number_of_terms: (c as Record<string, unknown>).number_of_terms as number | string | undefined,
         }));
-        console.log("[AssignDrawer] raw classes from API:", classArrays.flat().map((c: any) => ({ id: c.id, class_name: c.class_name, number_of_terms: c.number_of_terms })));
+        console.log("[AssignDrawer] raw classes from API:", classArrays.flat().map((c) => ({ id: (c as Record<string, unknown>).id, class_name: (c as Record<string, unknown>).class_name, number_of_terms: (c as Record<string, unknown>).number_of_terms })));
       }
 
       // Filter by subject
@@ -109,11 +121,12 @@ export default function AssessmentAssignDrawer({
           const directIds = new Set<number>();
           const labelKeys = new Set<string>();
 
-          for (const sc of subjectClassRows as any[]) {
-            const directId = Number(sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? 0);
+          for (const sc of subjectClassRows as Record<string, unknown>[]) {
+            const scRecord = sc;
+            const directId = Number(scRecord.class_id ?? scRecord.base_class_id ?? (scRecord.class as Record<string, unknown> | undefined)?.id ?? (scRecord.classes as Record<string, unknown> | undefined)?.id ?? 0);
             if (directId > 0) { directIds.add(directId); continue; }
-            const yearId = Number(sc.year_id ?? 0);
-            const label = normalize(String(sc.base_class_label ?? sc.name ?? ""));
+            const yearId = Number(scRecord.year_id ?? 0);
+            const label = normalize(String(scRecord.base_class_label ?? scRecord.name ?? ""));
             if (yearId > 0 && label) labelKeys.add(`${yearId}::${label}`);
           }
 
@@ -150,9 +163,12 @@ export default function AssessmentAssignDrawer({
 
   // Auto-select first year once options are available
   useEffect(() => {
-    if (!selectedYear && yearOptions.length > 0) {
-      setSelectedYear(yearOptions[0].id);
-    }
+    const id = setTimeout(() => {
+      if (!selectedYear && yearOptions.length > 0) {
+        setSelectedYear(yearOptions[0].id);
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [yearOptions, selectedYear]);
 
   // Classes for the selected year
@@ -163,13 +179,17 @@ export default function AssessmentAssignDrawer({
 
   // Auto-select first class when year changes
   useEffect(() => {
-    setSelectedClass(null);
+    const id = setTimeout(() => setSelectedClass(null), 0);
+    return () => clearTimeout(id);
   }, [selectedYear]);
 
   useEffect(() => {
-    if (!selectedClass && classList.length > 0) {
-      setSelectedClass(String(classList[0].id));
-    }
+    const id = setTimeout(() => {
+      if (!selectedClass && classList.length > 0) {
+        setSelectedClass(String(classList[0].id));
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [classList, selectedClass]);
 
   // Fetch terms for selected class
@@ -186,7 +206,7 @@ export default function AssessmentAssignDrawer({
   const termList = useMemo(() => (Array.isArray(terms) ? terms : []), [terms]);
 
   const selectedClassRecord = classList.find(
-    (cls: any) => String(cls.id) === String(selectedClass)
+    (cls) => String(cls.id) === String(selectedClass)
   );
 
   const resolveClassTermCount = (value: unknown): number => {
@@ -205,7 +225,7 @@ export default function AssessmentAssignDrawer({
   );
 
   const visibleTerms = useMemo(() => {
-    const sorted = [...termList].sort((a: any, b: any) => Number(a?.id ?? 0) - Number(b?.id ?? 0));
+    const sorted = [...termList].sort((a, b) => Number((a as Record<string, unknown>)?.id ?? 0) - Number((b as Record<string, unknown>)?.id ?? 0));
     console.log("[AssignDrawer] selectedClass:", selectedClass, "number_of_terms raw:", selectedClassRecord?.number_of_terms, "configuredTermCount:", configuredTermCount, "total terms:", sorted.length);
     return configuredTermCount > 0 ? sorted.slice(0, configuredTermCount) : sorted;
   }, [termList, configuredTermCount]);
@@ -320,7 +340,7 @@ export default function AssessmentAssignDrawer({
                   placeholder="Select Class"
                   disabled={!selectedYear || classList.length === 0}
                 >
-                  {classList.map((cls: any) => (
+                  {classList.map((cls) => (
                     <Select.Option key={cls.id} value={String(cls.id)}>
                       {cls.class_name}
                     </Select.Option>
@@ -343,13 +363,15 @@ export default function AssessmentAssignDrawer({
                 </div>
               ) : visibleTerms.length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  {visibleTerms.map((term: any, index: number) => {
+                  {visibleTerms.map((term: Record<string, unknown>, index: number) => {
                     const assignmentStatus = getAssessmentAssignmentStatus(term, assessmentId);
                     const assigned = assignmentStatus === "assigned";
+                    const termId = String(term.id ?? index);
+                    const termName = String(term.name ?? "");
 
                     return (
                       <div
-                        key={term.id}
+                        key={termId}
                         className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
                           assigned
                             ? "border-green-200 bg-green-50"
@@ -361,7 +383,7 @@ export default function AssessmentAssignDrawer({
                             Term {index + 1}
                           </p>
                           <p className="text-sm font-semibold text-gray-800">
-                            {term.name}
+                            {termName}
                           </p>
                         </div>
 
@@ -374,7 +396,7 @@ export default function AssessmentAssignDrawer({
                               <Button
                                 danger
                                 size="small"
-                                onClick={() => handleUnassignTerm(term.id)}
+                                onClick={() => handleUnassignTerm(Number(termId))}
                               >
                                 Unassign
                               </Button>
@@ -383,7 +405,7 @@ export default function AssessmentAssignDrawer({
                             <Button
                               type="primary"
                               size="small"
-                              onClick={() => handleAssignTerm(term.id)}
+                              onClick={() => handleAssignTerm(Number(termId))}
                             >
                               Assign
                             </Button>

@@ -16,7 +16,7 @@ import {
   LabelList,
 } from "recharts";
 
-type ChartRow = Record<string, any>;
+type ChartRow = Record<string, unknown>;
 
 interface DashboardChartsProps {
   barChartData: ChartRow[];

@@ -484,17 +484,20 @@ function ImageUploadInput({
   // Seed the picture list from a previously stored answer (read-only / re-edit).
   useEffect(() => {
     if (initializedRef.current) return;
-    if (Array.isArray(value.images) && value.images.length > 0) {
-      setFileList(
-        value.images.map((img, index) => ({
-          uid: `existing-${index}`,
-          name: `Image ${index + 1}`,
-          status: "done",
-          url: buildStorageUrl(img),
-        })) as UploadFile[]
-      );
-    }
-    initializedRef.current = true;
+    const id = setTimeout(() => {
+      if (Array.isArray(value.images) && value.images.length > 0) {
+        setFileList(
+          value.images.map((img, index) => ({
+            uid: `existing-${index}`,
+            name: `Image ${index + 1}`,
+            status: "done",
+            url: buildStorageUrl(img),
+          })) as UploadFile[]
+        );
+      }
+      initializedRef.current = true;
+    }, 0);
+    return () => clearTimeout(id);
   }, [value.images]);
 
   const emitChange = (list: UploadFile[], nextComment: string) => {

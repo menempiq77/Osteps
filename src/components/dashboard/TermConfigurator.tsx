@@ -1,18 +1,19 @@
 "use client";
 import { useFieldArray, Control } from "react-hook-form";
+import { asRecord } from "@/lib/safeRecord";
 
 export default function TermConfigurator({
   control,
   register,
   errors,
 }: {
-  control: Control<any>;
-  register: any;
-  errors: any;
+  control: Control;
+  register: (name: string, options?: Record<string, unknown>) => Record<string, unknown>;
+  errors: Record<string, unknown>;
 }) {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "terms",
+    name: "terms" as const,
   });
 
   return (
@@ -52,9 +53,9 @@ export default function TermConfigurator({
                 })}
                 className="w-full p-2 border rounded-md border-gray-300"
               />
-              {errors.terms?.[index]?.name && (
+              {Boolean(asRecord(asRecord(errors.terms)?.[index])?.name) && (
                 <p className="text-red-500 text-sm">
-                  {errors.terms[index].name.message}
+                  {String(asRecord(asRecord(asRecord(errors.terms)?.[index])?.name)?.message ?? "")}
                 </p>
               )}
             </div>
