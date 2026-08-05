@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:behavior-matrix": "npx --yes newman@latest run postman/behavior-role-matrix.postman_collection.json -e postman/behavior-role-matrix.postman_environment.json",
-    "test:behavior-matrix:auto": "powershell -ExecutionPolicy Bypass -File .\\postman\\login-and-run-behavior-matrix.ps1"
+    "test:behavior-matrix:auto": "powershell -ExecutionPolicy Bypass -File .\\postman\\login-and-run-behavior-matrix.ps1",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -48,6 +49,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.22",
+    "@playwright/test": "1.62.0",
     "@types/node": "^20",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
