@@ -21,6 +21,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { toSubjectScopedPath } from "@/lib/subjectRouting";
+import { normalizeUserRole } from "@/lib/userRole";
 
 export type DashboardNavItem = {
   name: string;
@@ -46,11 +47,7 @@ type BuildDashboardNavigationOptions = {
 export const formatDashboardSubjectName = (value?: string | null) =>
   String(value || "Subject").replace(/islamiat/gi, "Islamic").trim();
 
-export const normalizeDashboardRole = (value?: string | null) =>
-  String(value || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
+export const normalizeDashboardRole = normalizeUserRole;
 
 const buildBaseNavigation = ({
   roleKey,
@@ -620,7 +617,7 @@ export const buildDashboardNavigation = ({
 
   /* Hide Settings from sidebar for non-super-admin roles.
      Keep access via home utilities/cards only. */
-  if (normalizedRole !== "SUPER_ADMIN" && normalizedRole !== "ADMIN") {
+  if (normalizedRole !== "SUPER_ADMIN") {
     items = items.filter((item) => item.name !== "Settings");
   }
 

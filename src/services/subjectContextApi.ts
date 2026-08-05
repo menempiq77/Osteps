@@ -4,6 +4,7 @@ import { fetchSubjectClasses, fetchStaffSubjectAssignments } from "@/services/su
 import { fetchAssignYears } from "@/services/yearsApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { normalizeSubjectImageUrl } from "@/lib/subjectImage";
+import { normalizeUserRole } from "@/lib/userRole";
 import type { SubjectBrief, SubjectContextResponse, SubjectRole, SubjectRoleScope } from "@/types/subjectContext";
 
 const normalizeSubjects = (raw: unknown): SubjectBrief[] => {
@@ -252,13 +253,10 @@ export const fetchMySubjectContext = async (options?: {
   userId?: string | number | null;
   email?: string | null;
 }): Promise<SubjectContextResponse> => {
-  const roleKey = String(options?.role || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
+  const roleKey = normalizeUserRole(options?.role);
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
   const isStudent = roleKey === "STUDENT";
-  const isStaffWorkspaceRole = ["ADMIN", "HOD", "TEACHER"].includes(roleKey);
+  const isStaffWorkspaceRole = ["HOD", "TEACHER"].includes(roleKey);
   const canDeriveSubjectsFromClasses = roleKey === "TEACHER";
   const known = normalizeSubjects(options?.knownSubjects ?? []);
   const knownSubjectRoles = normalizeSubjectRoles(options?.knownSubjectRoles ?? []);
