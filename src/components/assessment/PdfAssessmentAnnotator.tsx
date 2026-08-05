@@ -36,6 +36,11 @@ import {
   saveAssessmentDocumentAnnotations,
   saveAssessmentDocumentMetadata,
 } from "@/services/documentAssessmentApi";
+import {
+  getCurrentFullscreenElement,
+  type FullscreenCapableDocument,
+  useExamLockdown,
+} from "./exam/useExamLockdown";
 import { draftAssessmentMark } from "@/services/aiMarkingApi";
 import type {
   AiDraftMarkResponse,
@@ -263,16 +268,6 @@ type StudentSwitcherOption = {
   status?: string;
 };
 
-type FullscreenCapableDocument = Document & {
-  webkitFullscreenElement?: Element | null;
-  msFullscreenElement?: Element | null;
-};
-
-type FullscreenCapableElement = HTMLElement & {
-  webkitRequestFullscreen?: () => Promise<void> | void;
-  msRequestFullscreen?: () => Promise<void> | void;
-};
-
 type PdfAssessmentAnnotatorProps = {
   assessmentId: string;
   taskId: string;
@@ -386,9 +381,6 @@ const getStoredDocumentDraft = (key: string) => {
 
 const clampZoomLevel = (value: number) =>
   Math.min(MAX_ZOOM_LEVEL, Math.max(MIN_ZOOM_LEVEL, Math.round(value * 100) / 100));
-
-const getCurrentFullscreenElement = (doc: FullscreenCapableDocument) =>
-  doc.fullscreenElement ?? doc.webkitFullscreenElement ?? doc.msFullscreenElement ?? null;
 
 const isTouchFriendlyExamDevice = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
@@ -1326,8 +1318,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   // relying on the distant dashboard layout wrapper. This holds its pixel height.
   const [viewerScrollHeight, setViewerScrollHeight] = useState<number | null>(null);
   const [toolbarPortalReady, setToolbarPortalReady] = useState(false);
-  const [isExamFullscreen, setIsExamFullscreen] = useState(false);
-  const [examFullscreenSupported, setExamFullscreenSupported] = useState(true);
   const [examStartModalOpen, setExamStartModalOpen] = useState(false);
   const [examExitModalOpen, setExamExitModalOpen] = useState(false);
   const [examExitReason, setExamExitReason] = useState("");
@@ -1552,6 +1542,13 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const shouldEnforceExamScreen =
     role === "student" && examWindow.examMode && examWindow.state === "open";
   const shouldRequireExamFullscreen = shouldEnforceExamScreen && !touchFriendlyExamDevice;
+  const {
+    isFullscreen: isExamFullscreen,
+    setIsFullscreen: setIsExamFullscreen,
+    supported: examFullscreenSupported,
+    requestFullscreen: requestExamFullscreen,
+    isFullscreenActive: isExamFullscreenActive,
+  } = useExamLockdown(shouldRequireExamFullscreen, examContainerRef);
   const examWatermarkText = useMemo(() => {
     const studentName = teacherExamStudentInfo?.studentName || "Selected student";
     const className = teacherExamStudentInfo?.className || "Exam mode";
@@ -2785,95 +2782,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   useEffect(() => {
     setTextFontSize(DEFAULT_TEXT_FONT_SIZE);
   }, [role]);
-
-  const isExamFullscreenActive = useCallback(() => {
-    if (typeof document === "undefined") return false;
-
-    const fullscreenDocument = document as FullscreenCapableDocument;
-    const currentFullscreenElement = getCurrentFullscreenElement(fullscreenDocument);
-    return (
-      currentFullscreenElement === fullscreenDocument.documentElement ||
-      currentFullscreenElement === examContainerRef.current
-    );
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const fullscreenTarget = document.documentElement as FullscreenCapableElement;
-    setExamFullscreenSupported(
-      Boolean(
-        fullscreenTarget.requestFullscreen ||
-          fullscreenTarget.webkitRequestFullscreen ||
-          fullscreenTarget.msRequestFullscreen
-      )
-    );
-  }, []);
-
-  const requestExamFullscreen = useCallback(async () => {
-    if (typeof document === "undefined") return false;
-
-    const fullscreenDocument = document as FullscreenCapableDocument;
-    const fullscreenTarget = fullscreenDocument.documentElement as FullscreenCapableElement;
-
-    if (isExamFullscreenActive()) {
-      setIsExamFullscreen(true);
-      return true;
-    }
-
-    if (
-      !fullscreenTarget.requestFullscreen &&
-      !fullscreenTarget.webkitRequestFullscreen &&
-      !fullscreenTarget.msRequestFullscreen
-    ) {
-      setExamFullscreenSupported(false);
-      setIsExamFullscreen(false);
-      return false;
-    }
-
-    try {
-      if (fullscreenTarget.requestFullscreen) {
-        try {
-          await fullscreenTarget.requestFullscreen({ navigationUI: "hide" });
-        } catch {
-          await fullscreenTarget.requestFullscreen();
-        }
-      } else if (fullscreenTarget.webkitRequestFullscreen) {
-        await Promise.resolve(fullscreenTarget.webkitRequestFullscreen());
-      } else if (fullscreenTarget.msRequestFullscreen) {
-        await Promise.resolve(fullscreenTarget.msRequestFullscreen());
-      }
-
-      const isNowFullscreen = isExamFullscreenActive();
-      setExamFullscreenSupported(true);
-      setIsExamFullscreen(isNowFullscreen);
-      return isNowFullscreen;
-    } catch (error) {
-      console.error("Failed to enter exam fullscreen:", error);
-      const isNowFullscreen = isExamFullscreenActive();
-      setIsExamFullscreen(isNowFullscreen);
-      return isNowFullscreen;
-    }
-  }, [isExamFullscreenActive]);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const updateFullscreenState = () => {
-      setIsExamFullscreen(isExamFullscreenActive());
-    };
-
-    updateFullscreenState();
-    document.addEventListener("fullscreenchange", updateFullscreenState);
-    document.addEventListener("webkitfullscreenchange", updateFullscreenState);
-    document.addEventListener("MSFullscreenChange", updateFullscreenState);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", updateFullscreenState);
-      document.removeEventListener("webkitfullscreenchange", updateFullscreenState);
-      document.removeEventListener("MSFullscreenChange", updateFullscreenState);
-    };
-  }, [isExamFullscreenActive]);
 
   useEffect(() => {
     approvedExamExitRef.current = false;
