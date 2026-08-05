@@ -1,5 +1,6 @@
 // src/services/schoolApi.ts
 import { createApiClient } from "@/lib/apiClient";
+import { recordAuditEvent } from "@/services/auditLogApi";
 
 const api = createApiClient();
 
@@ -26,6 +27,7 @@ export const deleteSchool = async (id: string) => {
 
 export const impersonateSchoolAdmin = async (schoolId: string | number) => {
   const response = await api.post(`/impersonate-school-admin/${schoolId}`);
+  recordAuditEvent({ actorId: "current-user", actorRole: "unknown", action: "impersonate_school_admin", targetId: schoolId, description: `Impersonated school admin for school ${schoolId}` });
   return response.data.data;
 };
 export default api;

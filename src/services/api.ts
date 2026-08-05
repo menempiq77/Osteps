@@ -6,6 +6,7 @@ import { normalizeTaskRecord } from '@/lib/taskTypeMetadata';
 import { withSubjectQuery } from '@/lib/subjectScope';
 import { shouldUseLegacyUnscopedSubjectData } from '@/lib/subjectScope';
 import { throwOnEmbeddedFailure } from '@/lib/apiResponse';
+import { recordAuditEvent } from '@/services/auditLogApi';
 
 type ApiRecord = Record<string, unknown>;
 
@@ -473,6 +474,7 @@ export const addStudentTaskMarks = async (studentId: number, taskData: {
   throwOnEmbeddedFailure(payload, {
     fallbackMessage: "Failed to save student marks",
   });
+  recordAuditEvent({ actorId: "current-user", actorRole: "unknown", action: "change_student_marks", targetId: studentId, description: `Updated marks for student ${studentId}` });
   return payload;
 };
 
