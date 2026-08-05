@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux";
 import ImageLightbox from "./ImageLightbox";
 import { RootState } from "@/store/store";
+import { usePolling } from "@/hooks/usePolling";
 import {
   fetchConversations,
   fetchMessages,
@@ -121,8 +122,6 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevUnreadRef = useRef(0);
 
   const userId = currentUser?.id ? Number(currentUser.id) : 0;
@@ -179,26 +178,6 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
     setTimeout(() => setNotification(null), 2000);
   }, []);
 
-  // Fetch unread count periodically and notify on new messages
-  useEffect(() => {
-    if (!currentUser) return;
-    const poll = async () => {
-      const count = await fetchUnreadCount().catch(() => 0);
-      if (count > prevUnreadRef.current) {
-        playMessageSound("receive");
-        showNotification("New message");
-        if (typeof window !== "undefined" && Notification.permission === "granted") {
-          new Notification("New message", { body: "You have a new chat message" });
-        }
-      }
-      prevUnreadRef.current = count;
-      setUnreadTotal(count);
-    };
-    poll();
-    const interval = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [currentUser, showNotification]);
-
   // Fetch conversations when widget opens
   const loadConversations = useCallback(async () => {
     if (!currentUser) return;
@@ -212,16 +191,6 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
       setLoading(false);
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    if (open && view === "list") {
-      loadConversations();
-      pollRef.current = setInterval(loadConversations, POLL_INTERVAL);
-    }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [open, view, loadConversations]);
 
   // Fetch messages when opening a conversation
   const loadMessages = useCallback(
@@ -244,28 +213,50 @@ export default function ChatWidget({ open, onToggle }: { open: boolean; onToggle
     []
   );
 
-  // Poll for new messages in active conversation
-  useEffect(() => {
-    if (view === "chat" && activeConversation) {
-      const poll = async () => {
-        try {
-          const res = await fetchMessages(activeConversation.id);
-          const loaded = res.data.reverse();
-          setMessages(loaded);
-          setActiveParticipants(res.participants ?? []);
-          saveMessages(activeConversation.id, loaded);
-          await markConversationRead(activeConversation.id);
-          fetchUnreadCount().then(setUnreadTotal).catch(() => {});
-        } catch (err) {
-          console.error("[Chat] poll messages error:", err);
-        }
-      };
-      activePollRef.current = setInterval(poll, POLL_INTERVAL);
-      return () => {
-        if (activePollRef.current) clearInterval(activePollRef.current);
-      };
+  const pollUnread = useCallback(async () => {
+    const count = await fetchUnreadCount().catch(() => 0);
+    if (count > prevUnreadRef.current) {
+      playMessageSound("receive");
+      showNotification("New message");
+      if (typeof window !== "undefined" && Notification.permission === "granted") {
+        new Notification("New message", { body: "You have a new chat message" });
+      }
     }
-  }, [view, activeConversation]);
+    prevUnreadRef.current = count;
+    setUnreadTotal(count);
+  }, [showNotification]);
+
+  const pollActiveMessages = useCallback(async () => {
+    if (!activeConversation) return;
+    try {
+      const res = await fetchMessages(activeConversation.id);
+      const loaded = res.data.reverse();
+      setMessages(loaded);
+      setActiveParticipants(res.participants ?? []);
+      saveMessages(activeConversation.id, loaded);
+      await markConversationRead(activeConversation.id);
+      fetchUnreadCount().then(setUnreadTotal).catch(() => {});
+    } catch (err) {
+      console.error("[Chat] poll messages error:", err);
+    }
+  }, [activeConversation]);
+
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: pollUnread,
+    enabled: !!currentUser,
+  });
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: loadConversations,
+    enabled: !!currentUser && open && view === "list",
+  });
+  usePolling({
+    baseIntervalMs: POLL_INTERVAL,
+    run: pollActiveMessages,
+    enabled: view === "chat" && !!activeConversation,
+    immediate: false,
+  });
 
   // Scroll to bottom when messages change
   useEffect(() => {

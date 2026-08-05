@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { usePolling } from "@/hooks/usePolling";
 import { QRCodeSVG } from "qrcode.react";
 import {
   LivePoll,
@@ -86,8 +87,6 @@ export default function LivePollsPage() {
   const [showQR, setShowQR] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const resultsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const loadPolls = useCallback(async () => {
     setLoading(true);
     try {
@@ -100,12 +99,6 @@ export default function LivePollsPage() {
   useEffect(() => {
     if (canCreate) loadPolls();
   }, [canCreate, loadPolls]);
-
-  useEffect(() => {
-    return () => {
-      if (resultsIntervalRef.current) clearInterval(resultsIntervalRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     if (view === "present" && activePoll) {
@@ -123,7 +116,6 @@ export default function LivePollsPage() {
         e.preventDefault();
         setPresentQIndex((i) => Math.max(0, i - 1));
       } else if (e.key === "Escape") {
-        stopResultsPolling();
         setView("list");
         loadPolls();
       } else if (e.key === "q" || e.key === "Q") {
@@ -244,7 +236,6 @@ export default function LivePollsPage() {
       setPresentQIndex(0);
       setShowQR(false);
       setView("present");
-      startResultsPolling(pollId);
     } catch { /* ignore */ }
   };
 
@@ -258,22 +249,20 @@ export default function LivePollsPage() {
     } catch { /* ignore */ }
   };
 
-  const startResultsPolling = (pollId: number) => {
-    if (resultsIntervalRef.current) clearInterval(resultsIntervalRef.current);
-    resultsIntervalRef.current = setInterval(async () => {
-      try {
-        const res = await fetchResults(pollId);
-        setResults({ questions: res.questions, total_participants: res.total_participants });
-      } catch { /* ignore */ }
-    }, 3000);
-  };
+  const pollResults = useCallback(async () => {
+    if (!activePoll) return;
+    try {
+      const res = await fetchResults(activePoll.id);
+      setResults({ questions: res.questions, total_participants: res.total_participants });
+    } catch { /* ignore */ }
+  }, [activePoll]);
 
-  const stopResultsPolling = () => {
-    if (resultsIntervalRef.current) {
-      clearInterval(resultsIntervalRef.current);
-      resultsIntervalRef.current = null;
-    }
-  };
+  usePolling({
+    baseIntervalMs: 3000,
+    run: pollResults,
+    enabled: view === "present" && !!activePoll && !!results,
+    immediate: false,
+  });
 
   const handleJoin = async () => {
     setJoinError("");
@@ -543,7 +532,7 @@ export default function LivePollsPage() {
               {presentQIndex + 1}/{totalQs}
             </span>
             <button
-              onClick={() => { stopResultsPolling(); setView("list"); loadPolls(); }}
+              onClick={() => { setView("list"); loadPolls(); }}
               className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 transition"
             >
               Exit
