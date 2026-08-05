@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Raleway } from "next/font/google";
 import "./globals.css";
 import { PwaProvider } from "@/components/pwa/PwaProvider";
+import WebVitalsReporter from "@/components/WebVitalsReporter";
 import { Providers } from "./provider";
 
 const raleway = Raleway({
@@ -68,7 +69,10 @@ export default function RootLayout({
       </head>
       <body className={`font-sans antialiased`} suppressHydrationWarning={true}>
         <PwaProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            <WebVitalsReporter />
+            {children}
+          </Providers>
         </PwaProvider>
       </body>
     </html>
