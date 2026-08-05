@@ -8,6 +8,7 @@ import { addStudentTaskMarks } from "@/services/api";
 import { fetchGrades } from "@/services/gradesApi";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { isStudentReportOwner } from "@/lib/subjectStudentScope";
 
 interface Task {
   id: number;
@@ -156,7 +157,8 @@ export default function Page() {
 
   const studentsWithTotals = apiData
     .filter((student) =>
-      !isStudentRole || String(student.student_id) === String(currentUser?.student)
+      !isStudentRole ||
+      isStudentReportOwner(student.student_id, currentUser?.student)
     )
     .filter(
       (student) =>
