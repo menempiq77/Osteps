@@ -21,8 +21,11 @@ import {
   CheckCircleFilled,
 } from "@ant-design/icons";
 import { UploadOutlined } from "@ant-design/icons";
+import type { FormInstance, UploadFile } from "antd";
 
 type ImageResult = { thumb: string; full: string; title: string };
+type ResourceOption = { id: string | number; name?: string };
+type CategoryOption = { id: string | number; name?: string };
 
 // Free, keyless image search via Wikimedia Commons (CORS-enabled with origin=*).
 async function searchCommonsImages(query: string): Promise<ImageResult[]> {
@@ -44,30 +47,30 @@ async function searchCommonsImages(query: string): Promise<ImageResult[]> {
   const res = await fetch(endpoint);
   const data = await res.json();
   const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
-  return (pages as any[])
+  return (pages as Record<string, unknown>[])
     .map((p) => {
-      const info = p?.imageinfo?.[0];
+      const info = ((p?.imageinfo as unknown[])?.[0] as Record<string, unknown>) || undefined;
       if (!info?.thumburl) return null;
       return {
-        thumb: info.thumburl as string,
-        full: (info.url as string) || (info.thumburl as string),
+        thumb: String(info.thumburl),
+        full: String(info.url || info.thumburl),
         title: String(p?.title || "").replace(/^File:/, ""),
       };
     })
-    .filter(Boolean) as ImageResult[];
+    .filter((item): item is ImageResult => item !== null);
 }
 
 interface UploadResourceModalProps {
   open: boolean;
   onCancel: () => void;
-  onFinish: (values: any) => void;
-  form: any;
+  onFinish: (values: Record<string, unknown>) => void;
+  form: FormInstance<Record<string, unknown>>;
   loading: boolean;
   isEditing: boolean;
-  fileList: any[];
-  setFileList: (files: any[]) => void;
-  categories: any[];
-  resources: any[];
+  fileList: UploadFile[];
+  setFileList: (files: UploadFile[]) => void;
+  categories: CategoryOption[];
+  resources: ResourceOption[];
 }
 
 const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
@@ -101,7 +104,7 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
   const selectedResourceType = Form.useWatch("type", form);
   const selectedSource = Form.useWatch("source", form);
   const linkValue = Form.useWatch("link", form);
-  const thumbnailUrlValue = Form.useWatch("thumbnail_url", form);
+  const thumbnailUrlValue = String(Form.useWatch("thumbnail_url", form) ?? "");
   const [thumbPreviewError, setThumbPreviewError] = useState(false);
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [imageQuery, setImageQuery] = useState("");
@@ -171,13 +174,13 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
     return resources.find((resource) => Number(resource.id) === selectedId) || null;
   }, [resources, selectedResourceType]);
 
-  const resourceName = selectedResource?.name?.toLowerCase();
+  const resourceName = String(selectedResource?.name ?? "").toLowerCase();
   const sourceMode = (selectedSource as "upload" | "link") || "upload";
   const isLinkMode = sourceMode === "link";
 
   const getAcceptedFileTypes = () => {
     if (!selectedResource) return "";
-    const resourceName = selectedResource.name.toLowerCase();
+    const resourceName = String(selectedResource.name ?? "").toLowerCase();
     
     switch (resourceName) {
       case 'video':
@@ -229,8 +232,8 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
             }}
           >
             {resources?.map((resource) => (
-              <Select.Option key={resource.id} value={resource.id}>
-                {resource.name}
+              <Select.Option key={String(resource.id)} value={String(resource.id)}>
+                {String(resource.name ?? "")}
               </Select.Option>
             ))}
           </Select>
@@ -243,8 +246,8 @@ const UploadResourceModal: React.FC<UploadResourceModalProps> = ({
         >
           <Select placeholder="Select Category">
             {categories?.map((category) => (
-              <Select.Option key={category.id} value={category.id}>
-                {formatCategoryLabel(category.name)}
+              <Select.Option key={String(category.id)} value={String(category.id)}>
+                {formatCategoryLabel(String(category.name ?? ""))}
               </Select.Option>
             ))}
           </Select>

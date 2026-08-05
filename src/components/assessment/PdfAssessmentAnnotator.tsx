@@ -46,6 +46,7 @@ import type {
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
+import { asRecord } from "@/lib/safeRecord";
 import type { jsPDF } from "jspdf";
 
 type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
@@ -429,15 +430,15 @@ const sanitizeReturnToPath = (value: string | null | undefined) => {
   return normalizedValue;
 };
 
-const extractStudentClassName = (profileData: Record<string, any> | null | undefined) =>
+const extractStudentClassName = (profileData: Record<string, unknown> | null | undefined) =>
   String(
     profileData?.subject_class_name ??
-      profileData?.subject_context?.subject_class_name ??
-      profileData?.subject_context?.base_class_label ??
-      profileData?.subject_class?.name ??
-      profileData?.subject_class?.base_class_label ??
-      profileData?.class?.class_name ??
-      profileData?.class?.name ??
+      asRecord(profileData?.subject_context)?.subject_class_name ??
+      asRecord(profileData?.subject_context)?.base_class_label ??
+      asRecord(profileData?.subject_class)?.name ??
+      asRecord(profileData?.subject_class)?.base_class_label ??
+      asRecord(profileData?.class)?.class_name ??
+      asRecord(profileData?.class)?.name ??
       profileData?.class_name ??
       "Unknown class"
   ).trim() || "Unknown class";
@@ -505,7 +506,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
 
   const raw = value as Partial<AiDraftMarkResponse>;
   const suggestedMark =
-    raw.suggestedMark == null || raw.suggestedMark === ""
+    raw.suggestedMark == null || String(raw.suggestedMark).trim() === ""
       ? null
       : Number(raw.suggestedMark);
   const confidence =
@@ -527,7 +528,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
             correctAnswer: String(entry.correctAnswer ?? "").trim() || undefined,
             marksAwarded: Number(entry.marksAwarded ?? 0),
             maxMarksForQuestion:
-              entry.maxMarksForQuestion == null || entry.maxMarksForQuestion === ""
+              entry.maxMarksForQuestion == null || String(entry.maxMarksForQuestion).trim() === ""
                 ? null
                 : Number(entry.maxMarksForQuestion),
             reason: String(entry.reason ?? "").trim(),
@@ -4350,7 +4351,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
-      event.pointerType === "touch" &&
       pendingTouchPageAction?.pointerId === event.pointerId
     ) {
       if (pendingTouchPageAction.mode === "cursor") return;
@@ -4450,7 +4450,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
-      event.pointerType === "touch" &&
       pendingTouchPageAction?.pointerId === event.pointerId
     ) {
       event.preventDefault();
@@ -4459,8 +4458,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       return;
     }
     if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
+      touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2
     ) {
       pendingTouchPageActionRef.current = null;
       return;
@@ -4573,7 +4571,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     setTextFontSize(annotation.fontSize);
     setTextFontWeight(annotation.fontWeight === "bold" ? "bold" : "normal");
     setTextUnderline(Boolean(annotation.underline));
-    setTextAlignment(annotation.textAlign ?? "left");
+    setTextAlignment((annotation.textAlign as TextAlignment) ?? "left");
     setEditingText({
       id: annotation.id,
       page: annotation.page,
@@ -4584,7 +4582,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
       fontWeight: annotation.fontWeight === "bold" ? "bold" : "normal",
       underline: Boolean(annotation.underline),
-      textAlign: annotation.textAlign ?? "left",
+      textAlign: (annotation.textAlign as TextAlignment) ?? "left",
       autoWidth: false,
     });
   };
@@ -4794,7 +4792,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
 
       setEditingText((current) =>
-        current?.id === currentResize.id ? { ...current, width, x } : current
+        current?.id === currentResize.id ? ({ ...current, width, x } as EditingText) : current
       );
       setLayerAnnotationsLocally(
         activeAnnotationsRef.current.map((annotation) =>
@@ -5023,12 +5021,19 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
       try {
         await uploadTaskByStudent(formData, Number(assessmentId));
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorRecord = asRecord(error);
+        const responseRecord = asRecord(errorRecord?.response);
+        const dataRecord = asRecord(responseRecord?.data);
+        const statusCode = Number(
+          dataRecord?.status_code ?? responseRecord?.status ?? 0
+        );
+        const responseMessage = String(
+          dataRecord?.msg || dataRecord?.message || errorRecord?.message || ""
+        );
         const duplicateSubmission =
-          Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) === 409 ||
-          /already submitted|teacher marked/i.test(
-            String(error?.response?.data?.msg || error?.response?.data?.message || error?.message || "")
-          );
+          statusCode === 409 ||
+          /already submitted|teacher marked/i.test(responseMessage);
         if (!duplicateSubmission) throw error;
       }
     },
@@ -5380,12 +5385,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           aiDraftPreview: normalizedDraft,
         });
         messageApi.warning(
-          normalizedDraft.providerTrace?.selected
+          normalizedDraft?.providerTrace?.selected
             ? `AI could not draft a safe mark with ${normalizedDraft.providerTrace.selected}. Your current mark and feedback were not changed.`
             : "AI could not draft a safe mark. Your current mark and feedback were not changed."
         );
         return;
       }
+
+      if (!normalizedDraft) return;
 
       const nextTeacherMarks = String(normalizedDraft.suggestedMark);
       const nextTeacherFeedback = normalizedDraft.feedback.trim();
@@ -5660,7 +5667,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           resolve();
         };
         image.onerror = () => reject(new Error("Could not export rendered page"));
-        image.src = page.previewUrl;
+        image.src = page.previewUrl!;
       });
     } else if (documentKind === "docx") {
       context.fillStyle = "#111827";
@@ -6426,9 +6433,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     Recheck: {aiDraftPreview.providerTrace.recheck}
                   </p>
                 ) : null}
-                {aiDraftPreview.providerTrace?.attempts?.length > 1 ? (
+                {(aiDraftPreview.providerTrace?.attempts?.length ?? 0) > 1 ? (
                   <p className="text-xs text-gray-500">
-                    Tried: {aiDraftPreview.providerTrace.attempts.join(" -> ")}
+                    Tried: {(aiDraftPreview.providerTrace?.attempts ?? []).join(" -> ")}
                   </p>
                 ) : null}
                 <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
@@ -7073,7 +7080,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               color: annotation.color,
                               fontSize: annotation.fontSize,
                               fontWeight: annotation.fontWeight === "bold" ? 700 : 400,
-                              textAlign: annotation.textAlign ?? "left",
+                              textAlign: (annotation.textAlign as TextAlignment) ?? "left",
                               textDecorationLine: annotation.underline ? "underline" : "none",
                               cursor: !isEditableText
                                 ? "default"

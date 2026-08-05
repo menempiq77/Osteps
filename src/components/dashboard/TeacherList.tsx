@@ -98,14 +98,19 @@ async function assignHODToAllSubjectClasses(teacherId: number, subjectIds: numbe
 export default function TeacherList() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const [error, setError] = useState<string | null>(null);
   const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
   const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<Teacher | null>(null);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
-  const [themeName, setThemeName] = useState<TeacherThemeName>("green");
+  const [themeName, setThemeName] = useState<TeacherThemeName>(() => {
+    if (typeof window === "undefined") return "green";
+    const storedTheme = localStorage.getItem(TEACHER_THEME_STORAGE_KEY) as TeacherThemeName | null;
+    return storedTheme && Object.prototype.hasOwnProperty.call(TEACHER_THEMES, storedTheme)
+      ? storedTheme
+      : "green";
+  });
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isHOD = currentUser?.role === "HOD";
@@ -118,20 +123,20 @@ export default function TeacherList() {
   const {
     data: teachers = [],
     isLoading,
-    isError,
-  } = useQuery({
+    isError: teachersError,
+  } = useQuery<Teacher[]>({
     queryKey: ["teachers"],
     queryFn: async () => {
       const response = await fetchTeachers();
-      return response.map((teacher: any) => ({
-        id: teacher.id.toString(),
+      return response.map((teacher: Record<string, unknown>) => ({
+        id: String(teacher.id),
         userId: Number(teacher.user_id || 0) > 0 ? Number(teacher.user_id) : null,
-        name: teacher.teacher_name,
-        phone: teacher.phone,
-        email: teacher.email,
-        role: teacher.role,
+        name: String(teacher.teacher_name || ""),
+        phone: String(teacher.phone || ""),
+        email: String(teacher.email || ""),
+        role: String(teacher.role || ""),
         subjects: Array.isArray(teacher.subjects)
-          ? teacher.subjects.map((s: any) => {
+          ? teacher.subjects.map((s: Record<string, unknown>) => {
               const name = typeof s === "object" ? s.name : s;
               return {
                 id: Number(typeof s === "object" ? s.id : 0),
@@ -141,34 +146,28 @@ export default function TeacherList() {
           : [],
       }));
     },
-    onError: (err) => {
-      console.error(err);
-      setError("Failed to fetch teachers");
-      messageApi.error("Failed to fetch teachers");
-    },
-  });
-
-  const { data: subjects = [] } = useQuery({
-    queryKey: ["subjects"],
-    queryFn: async () => {
-      const data = await fetchSubjects();
-      return data;
-    },
-    onError: (err) => {
-      console.error(err);
-      messageApi.error("Failed to fetch subjects");
-    },
   });
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(TEACHER_THEME_STORAGE_KEY) as TeacherThemeName | null;
-    const nextTheme =
-      storedTheme && Object.prototype.hasOwnProperty.call(TEACHER_THEMES, storedTheme)
-        ? storedTheme
-        : "green";
-    setThemeName(nextTheme);
-    applyTeacherTheme(nextTheme);
-  }, []);
+    if (teachersError) {
+      messageApi.error("Failed to fetch teachers");
+    }
+  }, [teachersError, messageApi]);
+
+  const { data: subjects = [], isError: subjectsError } = useQuery<Subject[]>({
+    queryKey: ["subjects"],
+    queryFn: async () => (await fetchSubjects()) as Subject[],
+  });
+
+  useEffect(() => {
+    if (subjectsError) {
+      messageApi.error("Failed to fetch subjects");
+    }
+  }, [subjectsError, messageApi]);
+
+  useEffect(() => {
+    applyTeacherTheme(themeName);
+  }, [themeName]);
 
   const filteredTeachers = (() => {
     let rows = teachers;
@@ -216,10 +215,18 @@ export default function TeacherList() {
     localStorage.setItem(TEACHER_THEME_STORAGE_KEY, nextTheme);
   };
 
-  const handleSaveEdit = async (teacher: TeacherFormInput) => {
+  const handleSaveEdit = async (teacher: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    role: string;
+    subjects: number[];
+    password?: string;
+  }) => {
     try {
       const existingTeacher = teachers.find((item) => item.id === teacher.id) ?? null;
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
@@ -256,9 +263,17 @@ export default function TeacherList() {
     }
   };
 
-  const handleAddNewTeacher = async (teacher: TeacherFormInput) => {
+  const handleAddNewTeacher = async (teacher: {
+    name: string;
+    phone: string;
+    email: string;
+    subjects: number[];
+    role: "TEACHER" | "HOD";
+    password: string;
+  }) => {
     try {
       await addTeacher({
+        name: teacher.name,
         teacher_name: teacher.name,
         phone: teacher.phone,
         email: teacher.email,
@@ -266,11 +281,11 @@ export default function TeacherList() {
         school_id: schoolId,
         subjects: teacher.subjects,
         password: teacher.password,
-      });
+      } as Parameters<typeof addTeacher>[0]);
 
       const refreshedTeachers = await fetchTeachers();
       const createdTeacher = (Array.isArray(refreshedTeachers) ? refreshedTeachers : []).find(
-        (item: any) =>
+        (item: Record<string, unknown>) =>
           String(item?.email || "").trim().toLowerCase() === String(teacher.email || "").trim().toLowerCase()
       );
       const createdUserId = Number(createdTeacher?.user_id || 0);
@@ -336,7 +351,6 @@ export default function TeacherList() {
       );
     } catch (err) {
       console.error("Failed to delete teacher:", err);
-      setError("Failed to delete teacher");
       messageApi.error("Failed to delete teacher");
     }
   };

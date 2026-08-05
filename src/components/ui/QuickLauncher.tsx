@@ -219,10 +219,11 @@ export default function QuickLauncher() {
   const [loadedFavoriteStorageKey, setLoadedFavoriteStorageKey] = useState(favoriteStorageKey);
 
   const roleKey = normalizeDashboardRole(currentUser?.role);
+  const currentUserRecord = currentUser as unknown as Record<string, unknown> | undefined;
   const currentUserLabel = String(
-    (currentUser as any)?.name ??
-      (currentUser as any)?.user_name ??
-      (currentUser as any)?.email ??
+    currentUserRecord?.name ??
+      currentUserRecord?.user_name ??
+      currentUserRecord?.email ??
       roleLabel(currentUser?.role)
   );
   const isStudent = roleKey === "STUDENT";
@@ -261,7 +262,7 @@ export default function QuickLauncher() {
               include_inactive: true,
             });
             const rows = Array.isArray(classes) ? classes : [];
-            const isActive = (row: any) =>
+            const isActive = (row: Record<string, unknown>) =>
               row?.is_active === undefined ? true : Number(row?.is_active) === 1;
             const hasActiveClass = rows.some((row) => isActive(row));
             const hasArchivedClass = rows.some((row) => !isActive(row));
@@ -693,17 +694,22 @@ export default function QuickLauncher() {
   };
 
   useEffect(() => {
-    setFavoriteIds(readQuickLauncherFavoriteIds(currentUser));
-    setLoadedFavoriteStorageKey(favoriteStorageKey);
+    const id = setTimeout(() => {
+      setFavoriteIds(readQuickLauncherFavoriteIds(currentUser));
+      setLoadedFavoriteStorageKey(favoriteStorageKey);
+    }, 0);
+    return () => clearTimeout(id);
   }, [currentUser, favoriteStorageKey]);
 
   useEffect(() => {
     if (loadedFavoriteStorageKey !== favoriteStorageKey) return;
-    writeQuickLauncherFavoriteIds(favoriteIds, currentUser);
+    const id = setTimeout(() => writeQuickLauncherFavoriteIds(favoriteIds, currentUser), 0);
+    return () => clearTimeout(id);
   }, [currentUser, favoriteIds, favoriteStorageKey, loadedFavoriteStorageKey]);
 
   useEffect(() => {
-    setOpen(false);
+    const id = setTimeout(() => setOpen(false), 0);
+    return () => clearTimeout(id);
   }, [pathname]);
 
   useEffect(() => {

@@ -14,8 +14,9 @@ export const fetchClassStudentsBehaviorSummary = async (
       }
     );
     return response.data?.data || [];
-  } catch (error: any) {
-    const status = Number(error?.response?.status || 0);
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number } };
+    const status = Number(err?.response?.status || 0);
     if (status === 404 || status === 401 || status === 403) {
       return [];
     }

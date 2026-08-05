@@ -6,6 +6,10 @@ type SubjectCardsHeroGpuProps = {
   colors: string[];
 };
 
+interface GPUDeviceWithShader extends GPUDevice {
+  createShaderModule(descriptor: { code: string }): unknown;
+}
+
 const FALLBACK_COLORS = ["#38C16C", "#0ea5e9", "#8b5cf6", "#f97316"];
 
 const hexToVec4 = (value: string): [number, number, number, number] => {
@@ -91,6 +95,64 @@ fn fsMain(in: VertexOut) -> @location(0) vec4f {
 }
 `;
 
+// Minimal WebGPU type stubs for the hero shader (avoids explicit `any`).
+interface GPUAdapter {
+  requestDevice(): Promise<GPUDevice | null>;
+}
+interface GPUDevice {
+  createBuffer(desc: unknown): GPUBuffer;
+  createRenderPipeline(desc: unknown): GPURenderPipeline;
+  createCommandEncoder(): GPUCommandEncoder;
+  createBindGroup(desc: unknown): GPUBindGroup;
+  queue: GPUQueue;
+  destroy(): void;
+}
+interface GPUBuffer {
+  byteLength: number;
+}
+interface GPURenderPipeline {
+  getBindGroupLayout(index: number): GPUBindGroupLayout;
+}
+interface GPUCommandEncoder {
+  beginRenderPass(desc: unknown): GPURenderPassEncoder;
+  finish(): unknown;
+}
+interface GPURenderPassEncoder {
+  setPipeline(pipeline: GPURenderPipeline): void;
+  setBindGroup(index: number, bindGroup: GPUBindGroup): void;
+  draw(vertexCount: number): void;
+  end(): void;
+}
+interface GPUQueue {
+  writeBuffer(
+    buffer: GPUBuffer,
+    offset: number,
+    data: ArrayBufferView,
+    dataOffset?: number,
+    size?: number
+  ): void;
+  submit(commands: unknown[]): void;
+}
+interface GPUCanvasContext {
+  configure(config: unknown): void;
+  getCurrentTexture(): GPUTexture;
+}
+interface GPUTexture {
+  createView(): unknown;
+}
+type GPUBindGroupLayout = object;
+type GPUBindGroup = object;
+interface GPU {
+  requestAdapter(): Promise<GPUAdapter | null>;
+  getPreferredCanvasFormat(): string;
+}
+
+declare global {
+  interface Navigator {
+    gpu?: GPU;
+  }
+}
+
 export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const palette = useMemo(() => {
@@ -104,13 +166,13 @@ export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps
 
     let animationFrameId = 0;
     let mounted = true;
-    let context: any = null;
-    let device: any = null;
+    let context: GPUCanvasContext | null = null;
+    let device: GPUDevice | null = null;
     let observer: ResizeObserver | null = null;
 
     const setup = async () => {
       try {
-        const gpu = (navigator as Navigator & { gpu?: any }).gpu;
+        const gpu = navigator.gpu;
         if (!gpu) return;
 
         const adapter = await gpu.requestAdapter();
@@ -119,24 +181,25 @@ export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps
         device = await adapter.requestDevice();
         if (!device || !mounted) return;
 
-        context = canvas.getContext("webgpu");
+        context = canvas.getContext("webgpu") as GPUCanvasContext | null;
         if (!context) return;
 
         const format = gpu.getPreferredCanvasFormat();
         const uniformData = new Float32Array(24);
         const uniformBuffer = device.createBuffer({
           size: uniformData.byteLength,
-          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          usage: 0x40 | 0x80,
         });
 
+        const gpuDevice = device as unknown as GPUDeviceWithShader;
         const pipeline = device.createRenderPipeline({
           layout: "auto",
           vertex: {
-            module: device.createShaderModule({ code: shaderSource }),
+            module: gpuDevice.createShaderModule({ code: shaderSource }),
             entryPoint: "vsMain",
           },
           fragment: {
-            module: device.createShaderModule({ code: shaderSource }),
+            module: gpuDevice.createShaderModule({ code: shaderSource }),
             entryPoint: "fsMain",
             targets: [{
               format,
@@ -173,7 +236,7 @@ export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps
             canvas.width = width;
             canvas.height = height;
           }
-          context.configure({
+          context?.configure({
             device,
             format,
             alphaMode: "premultiplied",
@@ -206,10 +269,10 @@ export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps
             uniformData[offset + 3] = color[3];
           });
 
-          device.queue.writeBuffer(uniformBuffer, 0, uniformData.buffer, uniformData.byteOffset, uniformData.byteLength);
+          device!.queue.writeBuffer(uniformBuffer!, 0, uniformData, uniformData.byteOffset, uniformData.byteLength);
 
-          const commandEncoder = device.createCommandEncoder();
-          const textureView = context.getCurrentTexture().createView();
+          const commandEncoder = device!.createCommandEncoder();
+          const textureView = context!.getCurrentTexture().createView();
           const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
               view: textureView,
@@ -219,12 +282,12 @@ export default function SubjectCardsHeroGpu({ colors }: SubjectCardsHeroGpuProps
             }],
           });
 
-          renderPass.setPipeline(pipeline);
-          renderPass.setBindGroup(0, bindGroup);
+          renderPass.setPipeline(pipeline!);
+          renderPass.setBindGroup(0, bindGroup!);
           renderPass.draw(3);
           renderPass.end();
 
-          device.queue.submit([commandEncoder.finish()]);
+          device!.queue.submit([commandEncoder.finish()]);
           animationFrameId = window.requestAnimationFrame(render);
         };
 

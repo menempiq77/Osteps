@@ -16,7 +16,7 @@ export const addCategory = async (categoryData: { name: string }) => {
   return response.data;
 };
 // edit Category
-export const updateCategory = async (id: string, categoryData: any) => {
+export const updateCategory = async (id: string, categoryData: Record<string, unknown>) => {
   const response = await api.post(`/update-category/${id}`, categoryData);
   return response.data;
 };
@@ -38,7 +38,7 @@ export const addResource = async (resourcesData: { name: string }) => {
   return response.data;
 };
 // edit Resource
-export const updateResource = async (id: string, resourcesData: any) => {
+export const updateResource = async (id: string, resourcesData: Record<string, unknown>) => {
   const response = await api.post(`/update-resource/${id}`, resourcesData);
   return response.data;
 };
@@ -57,7 +57,7 @@ export const fetchLibrary = async () => {
   return response.data.data;
 };
 // add Library item
-export const addLibrary = async (libraryData: FormData): Promise<any> => {
+export const addLibrary = async (libraryData: FormData): Promise<Record<string, unknown>> => {
   const subjectId = resolveScopedSubjectId();
   if (subjectId && !libraryData.has('subject_id')) {
     libraryData.append('subject_id', String(subjectId));

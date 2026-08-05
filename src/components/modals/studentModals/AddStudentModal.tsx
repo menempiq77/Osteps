@@ -40,7 +40,7 @@ type SubjectClassFilterOption = {
 type AddStudentModalProps = {
   open: boolean;
   onCancel: () => void;
-  onOk: (values: any) => Promise<void> | void;
+  onOk: (values: Record<string, unknown>) => Promise<void> | void;
   classId: number;
   canAssignExisting?: boolean;
   existingStudents?: ExistingStudentOption[];
@@ -163,7 +163,7 @@ const existingStudentMatchesFilters = (
         );
         if (sourceClassMatch) return true;
 
-        const rawClassId = Number((student.raw as any)?.class_id ?? 0);
+        const rawClassId = Number(student.raw?.class_id ?? 0);
         if (rawClassId > 0 && rawClassId === Number(matchingOption.linkedClassId)) return true;
 
         // The selected subject class is linked to an exact school class, so do not fall
@@ -391,10 +391,13 @@ export const AddStudentModal = ({
 
   useEffect(() => {
     if (!open) return;
-    setMode(canUseExistingMode ? "existing" : "new");
-    setSelectedExistingStudentIds([]);
-    setExistingStudentSearch("");
-    setExistingFilters({ ...EMPTY_EXISTING_STUDENT_FILTERS });
+    const id = setTimeout(() => {
+      setMode(canUseExistingMode ? "existing" : "new");
+      setSelectedExistingStudentIds([]);
+      setExistingStudentSearch("");
+      setExistingFilters({ ...EMPTY_EXISTING_STUDENT_FILTERS });
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, canUseExistingMode]);
 
   const selectAllFilteredExistingStudents = () => {
@@ -437,10 +440,10 @@ export const AddStudentModal = ({
       }
 
       const values = await form.validateFields();
-      const rows = Array.isArray(values?.students) ? values.students : [];
+      const rows = Array.isArray(values?.students) ? (values.students as Record<string, unknown>[]) : [];
       const sanitizedRows = rows
-        .filter((row: any) => row && row.student_name && row.user_name && row.password)
-        .map((row: any) => ({
+        .filter((row) => row && row.student_name && row.user_name && row.password)
+        .map((row) => ({
           student_name: String(row.student_name).trim(),
           user_name: String(row.user_name).trim(),
           email: row.email ? String(row.email).trim() : "",

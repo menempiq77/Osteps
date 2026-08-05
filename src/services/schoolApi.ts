@@ -9,12 +9,12 @@ export const fetchSchools = async () => {
   return response.data.data;
 };
 // add Schools
-export const addSchool = async (schoolData: any) => {
+export const addSchool = async (schoolData: Record<string, unknown>) => {
   const response = await api.post('/add-school', schoolData);
   return response.data;
 };
 // edit Schools
-export const updateSchool = async (id: string, schoolData: any) => {
+export const updateSchool = async (id: string, schoolData: Record<string, unknown>) => {
   const response = await api.post(`/update-school/${id}`, schoolData);
   return response.data;
 };

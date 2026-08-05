@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
+import { AssessmentTasksDrawer, type AssessmentDrawerTask } from "../ui/AssessmentTasksDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -20,6 +20,7 @@ interface Task {
   dueDate: string;
   allocatedMarks: number;
   url?: string;
+  quiz?: { id?: string };
 }
 
 export interface Quiz {
@@ -39,7 +40,7 @@ interface AssessmentListProps {
   assessments: Assessment[];
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (assessment: Assessment) => void; 
-  quizzes: any[];
+  quizzes: Quiz[];
   termId: number;
 }
 export interface Term {
@@ -72,13 +73,13 @@ export default function AssessmentList({
     queryKey: ["terms", classId],
     queryFn: () => fetchTerm(Number(classId)),
     enabled: !!classId,
-    select: (data) => data || [],
-    onSuccess: (data: Term[]) => {
-      if (data.length > 0 && !selectedTermId) {
-        setSelectedTermId(data[0].id.toString());
-      }
-    },
   });
+
+  useEffect(() => {
+    if (terms && terms.length > 0 && !selectedTermId) {
+      setSelectedTermId(terms[0].id.toString());
+    }
+  }, [terms, selectedTermId]);
   useEffect(() => {
     if (drawerVisible && selectedAssessment) {
       loadTasks();
@@ -89,7 +90,7 @@ export default function AssessmentList({
     try {
       setLoading(true);
       if (!selectedAssessment) return;
-      const fetchedTasks: Task[] = await fetchTasks(selectedAssessment);
+      const fetchedTasks: Task[] = await fetchTasks(Number(selectedAssessment));
       setTasks(fetchedTasks);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -126,11 +127,23 @@ export default function AssessmentList({
     router.push(`/dashboard/classes/${classId}/terms/${termId}`);
   };
 
-  const handleTasksChange = async (updatedTasks: Task[]) => {
+  const adaptTasks = (localTasks: Task[]): AssessmentDrawerTask[] =>
+    localTasks.map(({ quiz, ...t }) => ({
+      ...t,
+      task_name: t.name,
+      description: "",
+      task_type: "general",
+      due_date: t.dueDate,
+      allocated_marks: t.allocatedMarks,
+      percentage_weight: 0,
+      quiz: quiz ? { id: quiz.id ?? "" } : undefined,
+    }));
+
+  const handleTasksChange = async (_updatedTasks: AssessmentDrawerTask[]) => {
     try {
       setLoading(true);
       if (selectedAssessment) {
-        const freshTasks = await fetchTasks(selectedAssessment);
+        const freshTasks = await fetchTasks(Number(selectedAssessment));
         setTasks(freshTasks);
       }
     } catch (error) {
@@ -250,7 +263,7 @@ export default function AssessmentList({
           "Assignment"
         }
         assessmentId={selectedAssessment ? parseInt(selectedAssessment) : 0}
-        initialTasks={Array?.isArray(tasks) ? tasks : []}
+        initialTasks={adaptTasks(Array?.isArray(tasks) ? tasks : [])}
         onTasksChange={handleTasksChange}
         quizzes={quizzes}
         loading={loading}

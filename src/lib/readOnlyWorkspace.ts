@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
@@ -66,13 +65,5 @@ export const useReadOnlyWorkspace = (): boolean => {
   const searchParams = useSearchParams();
   // Latch synchronously during render so the first data fetch already sees it.
   const activeNow = readOnlyFromSearchParams(searchParams);
-  const [active, setActive] = useState(activeNow);
-
-  useEffect(() => {
-    if (isReadOnlyWorkspace() && !active) {
-      setActive(true);
-    }
-  }, [active, searchParams]);
-
-  return active || isReadOnlyWorkspace();
+  return activeNow || isReadOnlyWorkspace();
 };

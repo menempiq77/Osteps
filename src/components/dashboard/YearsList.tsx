@@ -62,7 +62,8 @@ export default function YearsList({
   const isSchoolAdmin = roleKey === "SCHOOL_ADMIN";
 
   useEffect(() => {
-    setLocalYears(years || []);
+    const id = setTimeout(() => setLocalYears(years || []), 0);
+    return () => clearTimeout(id);
   }, [years]);
 
   const reorderYears = (draggedId: number, targetId: number) => {

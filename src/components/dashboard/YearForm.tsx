@@ -40,23 +40,26 @@ export default function YearForm({
   const [activeTab, setActiveTab] = useState("manual");
 
   useEffect(() => {
-    if (defaultValues) {
-      form.setFieldsValue({
-        name: defaultValues.name || "",
-        school_id: defaultValues.school_id,
-        color: defaultValues.color || "green",
-        number_of_terms: defaultValues.number_of_terms ?? undefined,
-        ...(defaultValues.id && { id: defaultValues.id }),
-      });
-    } else {
-      form.resetFields();
-      importForm.resetFields();
-      setActiveTab("manual");
-      form.setFieldsValue({
-        name: "",
-        color: "green",
-      });
-    }
+    const id = setTimeout(() => {
+      if (defaultValues) {
+        form.setFieldsValue({
+          name: defaultValues.name || "",
+          school_id: defaultValues.school_id,
+          color: defaultValues.color || "green",
+          number_of_terms: defaultValues.number_of_terms ?? undefined,
+          ...(defaultValues.id && { id: defaultValues.id }),
+        });
+      } else {
+        form.resetFields();
+        importForm.resetFields();
+        setActiveTab("manual");
+        form.setFieldsValue({
+          name: "",
+          color: "green",
+        });
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [defaultValues, form, importForm]);
 
   const onFinish = (values: YearFormValues) => {

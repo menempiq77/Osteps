@@ -15,7 +15,7 @@ export const createAskQuestion = async (questionData: { name: string }) => {
   return response.data;
 };
 // Update a Questions
-export const updateAskQuestion = async (id: string, questionData: any) => {
+export const updateAskQuestion = async (id: string, questionData: Record<string, unknown>) => {
   const response = await api.post(`/update-askQuestion/${id}`, questionData);
   return response.data;
 };
@@ -25,7 +25,7 @@ export const deleteAskQuestion = async (id: number) => {
   return response.data;
 };
 // Add a new Questions
-export const submitAskQuestion = async (id: string, questionData: any) => {
+export const submitAskQuestion = async (id: string, questionData: Record<string, unknown>) => {
   const response = await api.post(`/submitAnswer/${id}`, questionData);
   return response.data;
 };

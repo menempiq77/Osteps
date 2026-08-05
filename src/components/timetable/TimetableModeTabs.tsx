@@ -11,10 +11,10 @@ type TimetableModeTabsProps = {
   activeTab?: TimetableModeTabKey;
 };
 
-const TABS = [
+const TABS: { key: TimetableModeTabKey; label: string; href: string; view?: string }[] = [
   { key: "timetable", label: "Timetable", href: "/dashboard/timetable-builder" },
   { key: "calendar", label: "Calendar", href: "/dashboard/time_table", view: "calendar" },
-] as const;
+];
 
 export default function TimetableModeTabs({ className = "", activeTab }: TimetableModeTabsProps) {
   const pathname = usePathname();

@@ -11,6 +11,7 @@ interface SubjectsListProps {
   subjects: Subject[];
   onDeleteSubject: (id: number) => void;
   onEditSubject: (subject: Subject) => void;
+  isStudent?: boolean;
 }
 
 export default function SubjectsList({

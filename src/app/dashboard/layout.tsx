@@ -157,12 +157,12 @@ export default function DashboardLayout({
   }, [pathname]);
 
   useEffect(() => {
-    setIsHydrated(true);
+    setTimeout(() => setIsHydrated(true), 0);
   }, []);
 
   useEffect(() => {
     if (!isHydrated) return;
-    setImpersonating(isImpersonating());
+    setTimeout(() => setImpersonating(isImpersonating()), 0);
   }, [isHydrated, pathname]);
 
   const handleStopImpersonation = () => {
@@ -182,7 +182,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isHydrated) return;
-    setStoredSubjectName(getStoredSubjectName());
+    setTimeout(() => setStoredSubjectName(getStoredSubjectName()), 0);
   }, [isHydrated, pathname]);
 
   useEffect(() => {
@@ -190,8 +190,10 @@ export default function DashboardLayout({
     const raw = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName | null;
     const nextTheme: ThemeName =
       raw && Object.prototype.hasOwnProperty.call(THEMES, raw) ? raw : "green";
-    setThemeName(nextTheme);
-    applyTheme(nextTheme);
+    setTimeout(() => {
+      setThemeName(nextTheme);
+      applyTheme(nextTheme);
+    }, 0);
   }, [isHydrated]);
 
   const handleThemeChange = (nextTheme: ThemeName) => {
@@ -281,9 +283,12 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isHydrated) return;
-    setIsRouteTransitioning(true);
-    const timer = setTimeout(() => setIsRouteTransitioning(false), 420);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setIsRouteTransitioning(true), 0);
+    const timer2 = setTimeout(() => setIsRouteTransitioning(false), 420);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
   }, [pathname, isHydrated]);
 
   if (!currentUser && isImmersiveLessonGroupRoute) {
@@ -340,7 +345,7 @@ export default function DashboardLayout({
 
   const userRoleLabel = (() => {
     const role = (currentUser?.role || "").toUpperCase().replace(/\s+/g, "_");
-    if (role === "STUDENT") return (currentUser as any)?.studentClassName || "Student";
+    if (role === "STUDENT") return currentUser?.studentClassName || "Student";
     if (role === "SCHOOL_ADMIN") return "School Admin";
     if (role === "HOD") return "HOD";
     if (role === "TEACHER") return "Teacher";

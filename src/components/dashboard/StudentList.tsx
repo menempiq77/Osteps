@@ -82,6 +82,9 @@ import {
   resolveCoinBalance,
   type LeaderboardRawEntry,
 } from "@/lib/leaderboard";
+import { asRecord, errorMessage, toRecord } from "@/lib/safeRecord";
+
+type UnsafeRecord = Record<string, unknown>;
 
 type Student = {
   id: string;
@@ -106,7 +109,13 @@ type Student = {
   avatar?: string | null;
   coin_balance?: number;
   leaderboard_points?: number;
+  positive_points?: number;
+  negative_points?: number;
+  total_points?: number;
 };
+
+type NewStudentPayload = Parameters<typeof apiAddStudent>[0];
+type UpdateStudentPayload = Parameters<typeof apiUpdateStudent>[1];
 
 type EditSubjectOption = {
   value: number;
@@ -168,7 +177,7 @@ const MARKER_WIDTH_HORIZONTAL = 170;
 const MARKER_HEIGHT_HORIZONTAL = 40;
 const MARKER_WIDTH_VERTICAL = 56;
 const MARKER_HEIGHT_VERTICAL = 170;
-const EMPTY_LIST: any[] = [];
+const EMPTY_LIST:UnsafeRecord[] = [];
 const getDefaultRoomMarkers = (canvasWidth: number): RoomMarkers => {
   const safeWidth = Math.max(900, Math.floor(canvasWidth || BASE_CANVAS_WIDTH));
   return {
@@ -205,30 +214,30 @@ const toPositiveNumberIds = (values: unknown[]) =>
     )
   );
 
-const extractStudentSubjectClassIds = (student: Record<string, any>) =>
+const extractStudentSubjectClassIds = (student: UnsafeRecord) =>
   toPositiveNumberIds([
     student?.subject_class_id,
     student?.subjectClassId,
-    student?.pivot?.subject_class_id,
+    asRecord(student?.pivot)?.subject_class_id,
     ...(Array.isArray(student?.subjects)
-      ? (student.subjects as Array<Record<string, unknown>>).map(
-          (subject) => subject?.subject_class_id ?? (subject as any)?.pivot?.subject_class_id
+      ? (student.subjects as Array<UnsafeRecord>).map(
+          (subject) => subject?.subject_class_id ?? asRecord(subject?.pivot)?.subject_class_id
         )
       : []),
   ]);
 
-const extractStudentSubjectIds = (student: Record<string, any>) =>
+const extractStudentSubjectIds = (student: UnsafeRecord) =>
   toPositiveNumberIds([
     student?.subject_id,
     student?.subjectId,
-    student?.pivot?.subject_id,
+    asRecord(student?.pivot)?.subject_id,
     ...(Array.isArray(student?.subjects)
-      ? (student.subjects as Array<Record<string, unknown>>).map(
+      ? (student.subjects as Array<UnsafeRecord>).map(
           (subject) =>
             subject?.subject_id ??
             subject?.subjectId ??
             subject?.id ??
-            (subject as any)?.pivot?.subject_id
+            asRecord(subject?.pivot)?.subject_id
         )
       : []),
   ]);
@@ -243,7 +252,7 @@ const normalizeGenderRaw = (raw: unknown): "male" | "female" | "" => {
   return "";
 };
 
-const extractStudentCandidateIds = (student: Record<string, any> | undefined | null) =>
+const extractStudentCandidateIds = (student: UnsafeRecord | undefined | null) =>
   Array.from(
     new Set(
       [student?.id, student?.student_id, student?.studentId]
@@ -252,27 +261,27 @@ const extractStudentCandidateIds = (student: Record<string, any> | undefined | n
     )
   );
 
-const resolveExistingStudentName = (student: Record<string, any>) =>
+const resolveExistingStudentName = (student: UnsafeRecord) =>
   String(
     student?.student_name ??
       student?.name ??
       student?.full_name ??
       student?.studentName ??
-      student?.user?.name ??
+      asRecord(student?.user)?.name ??
       "Student"
   ).trim();
 
-const resolveExistingStudentUserName = (student: Record<string, any>) =>
+const resolveExistingStudentUserName = (student: UnsafeRecord) =>
   String(
     student?.user_name ??
       student?.username ??
       student?.student_username ??
-      student?.user?.user_name ??
-      student?.user?.username ??
+      asRecord(student?.user)?.user_name ??
+      asRecord(student?.user)?.username ??
       ""
   ).trim();
 
-const extractExistingStudentSubjectNames = (student: Record<string, any>) => {
+const extractExistingStudentSubjectNames = (student: UnsafeRecord) => {
   const rawSubjects = Array.isArray(student?.subjects)
     ? student.subjects
     : student?.subject_name
@@ -284,7 +293,7 @@ const extractExistingStudentSubjectNames = (student: Record<string, any>) => {
   return Array.from(
     new Set(
       rawSubjects
-        .map((subject: any) => {
+        .map((subject:UnsafeRecord) => {
           if (typeof subject === "string") return subject;
           if (subject && typeof subject === "object") {
             return String(subject.name ?? subject.subject_name ?? subject.title ?? "");
@@ -298,7 +307,7 @@ const extractExistingStudentSubjectNames = (student: Record<string, any>) => {
 };
 
 const toExistingStudentOption = (
-  student: Record<string, any>,
+  student: UnsafeRecord,
   fallbackClassId: string,
   subjectClassMetaById?: Map<string, ExistingStudentClassMeta>
 ): ExistingStudentOption | null => {
@@ -307,17 +316,17 @@ const toExistingStudentOption = (
 
   const className = String(
     student?.class_name ??
-      student?.class?.class_name ??
-      student?.classes?.class_name ??
-      student?.base_class?.class_name ??
+      asRecord(student?.class)?.class_name ??
+      asRecord(student?.classes)?.class_name ??
+      asRecord(student?.base_class)?.class_name ??
       student?.className ??
       (fallbackClassId ? `Class ${fallbackClassId}` : "")
   ).trim();
   const yearName = String(
     student?.year_name ??
-      student?.year?.name ??
-      student?.class?.year?.name ??
-      student?.classes?.year?.name ??
+      asRecord(student?.year)?.name ??
+      asRecord(asRecord(student?.class)?.year)?.name ??
+      asRecord(asRecord(student?.classes)?.year)?.name ??
       student?.yearName ??
       ""
   ).trim();
@@ -325,12 +334,12 @@ const toExistingStudentOption = (
     student?.gender ?? student?.student_gender ?? student?.sex ?? student?.student_sex
   );
   const rawSubjects = Array.isArray(student?.subjects)
-    ? (student.subjects as Array<Record<string, any>>)
+    ? (student.subjects as Array<UnsafeRecord>)
     : [];
   const subjectAssignments = rawSubjects
     .map((subject) => {
-      const subjectClassId = Number(subject?.subject_class_id ?? subject?.pivot?.subject_class_id ?? 0);
-      const subjectId = Number(subject?.id ?? subject?.subject_id ?? subject?.pivot?.subject_id ?? 0);
+      const subjectClassId = Number(subject?.subject_class_id ?? asRecord(subject?.pivot)?.subject_class_id ?? 0);
+      const subjectId = Number(subject?.id ?? subject?.subject_id ?? asRecord(subject?.pivot)?.subject_id ?? 0);
       const meta = subjectClassId > 0 ? subjectClassMetaById?.get(String(subjectClassId)) : undefined;
       const subjectName = String(
         subject?.name ?? subject?.subject_name ?? meta?.subjectName ?? ""
@@ -386,9 +395,9 @@ const getLocalDateInTimeZone = (timeZone?: string) => {
   }
 };
 
-const isAttendanceRecord = (record: any, behaviorTypeName: string) => {
+const isAttendanceRecord = (record:UnsafeRecord, behaviorTypeName: string) => {
   const typeName = normalizeText(behaviorTypeName || "");
-  const description = normalizeText(record?.description || "");
+  const description = normalizeText(String(record?.description ?? ""));
   return (
     typeName.includes("attendance") ||
     typeName.includes("absent") ||
@@ -399,14 +408,14 @@ const isAttendanceRecord = (record: any, behaviorTypeName: string) => {
   );
 };
 
-const isAbsentAttendanceRecord = (record: any, behaviorTypeName: string) => {
+const isAbsentAttendanceRecord = (record:UnsafeRecord, behaviorTypeName: string) => {
   const typeName = normalizeText(behaviorTypeName || "");
-  const description = normalizeText(record?.description || "");
+  const description = normalizeText(String(record?.description ?? ""));
   return typeName.includes("absent") || description.includes("attendance absent");
 };
 
-const getAttendanceEventTime = (record: any) => {
-  const created = new Date(record?.created_at || record?.updated_at || "").getTime();
+const getAttendanceEventTime = (record:UnsafeRecord) => {
+  const created = new Date(String(record?.created_at ?? record?.updated_at ?? "")).getTime();
   if (Number.isFinite(created) && created > 0) return created;
 
   const description = String(record?.description || "");
@@ -416,7 +425,7 @@ const getAttendanceEventTime = (record: any) => {
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
 
-  const dateOnly = new Date(record?.date || "").getTime();
+  const dateOnly = new Date(String(record?.date ?? "")).getTime();
   if (Number.isFinite(dateOnly) && dateOnly > 0) return dateOnly;
   return 0;
 };
@@ -443,19 +452,20 @@ const buildAutoLayout = (students: Student[], canvasWidth: number): SeatingState
   });
 };
 
-const extractAvatarPath = (payload: any): string | null => {
-  return (
-    payload?.data?.profile_path ||
-    payload?.data?.profile_photo ||
-    payload?.profile_path ||
-    payload?.profile_photo ||
-    null
-  );
+const extractAvatarPath = (payload: UnsafeRecord): string | null => {
+  const path = String(
+    asRecord(payload?.data)?.profile_path ??
+    asRecord(payload?.data)?.profile_photo ??
+    payload?.profile_path ??
+    payload?.profile_photo ??
+    ""
+  ).trim();
+  return path || null;
 };
 
-const getStudentImagePath = (student: any): string | null => {
+const getStudentImagePath = (student:UnsafeRecord): string | null => {
   const path =
-    student?.profile_path || student?.profile_photo || student?.avatar || null;
+    String(student?.profile_path ?? student?.profile_photo ?? student?.avatar ?? "");
   if (!path) return null;
   if (
     typeof path === "string" &&
@@ -526,7 +536,7 @@ export default function StudentList() {
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedStudentAction, setSelectedStudentAction] = useState<any | null>(
+  const [selectedStudentAction, setSelectedStudentAction] = useState<Student | null>(
     null
   );
   const [studentMarkers, setStudentMarkers] = useState<Record<string, StudentCardMarkerKey>>(
@@ -570,9 +580,9 @@ export default function StudentList() {
   const [fallbackRefreshCounter, setFallbackRefreshCounter] = useState(0);
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isPickingRandom, setIsPickingRandom] = useState(false);
-  const [randomStudent, setRandomStudent] = useState<any | null>(null);
+  const [randomStudent, setRandomStudent] = useState<Student | null>(null);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
-  const [avatarTargetStudent, setAvatarTargetStudent] = useState<any | null>(null);
+  const [avatarTargetStudent, setAvatarTargetStudent] = useState<Student | null>(null);
   const [avatarPresetTab, setAvatarPresetTab] = useState<"emoji" | "avatar" | "symbol">(
     "emoji"
   );
@@ -599,10 +609,11 @@ export default function StudentList() {
   const pickerAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const role = currentUser?.role;
   const hasAccess = role === "SCHOOL_ADMIN";
+  const currentUserRecord = asRecord(currentUser);
   const schoolId = Number(
-    typeof (currentUser as any)?.school === "object"
-      ? (currentUser as any)?.school?.id
-      : (currentUser as any)?.school ?? (currentUser as any)?.school_id ?? 0
+    typeof currentUserRecord?.school === "object"
+      ? asRecord(currentUserRecord?.school)?.id
+      : currentUserRecord?.school ?? currentUserRecord?.school_id ?? 0
   );
   const canArrangeSeats =
     role === "SCHOOL_ADMIN" || role === "HOD" || role === "TEACHER";
@@ -619,16 +630,16 @@ export default function StudentList() {
         : null;
   const isSubjectWorkspaceMode = !!scopedSubjectId;
   const scopedSubjectClassId = String(querySubjectClassId || "").trim();
-  const schoolTimeZone = useMemo(() => {
-    const userAny = currentUser as any;
-    return (
+  const schoolTimeZone = useMemo((): string => {
+    const userAny = asRecord(currentUser);
+    const raw =
       userAny?.school_timezone ||
       userAny?.schoolTimeZone ||
       userAny?.timezone ||
-      userAny?.school?.timezone ||
+      asRecord(userAny?.school)?.timezone ||
       process.env.NEXT_PUBLIC_SCHOOL_TIMEZONE ||
-      Intl.DateTimeFormat().resolvedOptions().timeZone
-    );
+      Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return String(raw ?? "").trim() || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }, [currentUser]);
   const attendanceDate = useMemo(
     () => getLocalDateInTimeZone(schoolTimeZone),
@@ -758,7 +769,7 @@ export default function StudentList() {
           try {
             const items = await fetchSubjectClasses({ subject_id: subjectId });
             return (Array.isArray(items) ? items : [])
-              .map((item: any) => {
+              .map((item:UnsafeRecord) => {
                 const subjectName =
                   editSubjectOptions.find((option) => Number(option.value) === Number(subjectId))?.label ||
                   `Subject ${subjectId}`;
@@ -770,19 +781,19 @@ export default function StudentList() {
                   linkedClassId: Number(
                     item.linked_class_id ??
                       item.linkedClassId ??
-                      item.linkedClass?.id ??
-                      item.linked_class?.id ??
+                      asRecord(item.linkedClass)?.id ??
+                      asRecord(item.linked_class)?.id ??
                       item.classId ??
                       item.class_id_value ??
                       item.class_id ??
-                      item.class?.class_id ??
-                      item.classes?.class_id ??
-                      item.base_class?.class_id ??
+                      asRecord(item.class)?.class_id ??
+                      asRecord(item.classes)?.class_id ??
+                      asRecord(item.base_class)?.class_id ??
                       item.base_class_id ??
                       item.baseClassId ??
-                      item.class?.id ??
-                      item.classes?.id ??
-                      item.base_class?.id ??
+                      asRecord(item.class)?.id ??
+                      asRecord(item.classes)?.id ??
+                      asRecord(item.base_class)?.id ??
                       0
                   ) || undefined,
                 };
@@ -831,7 +842,7 @@ export default function StudentList() {
   });
   const students = useMemo(
     () => {
-      const rows = (studentsData || EMPTY_LIST) as Record<string, any>[];
+      const rows = (studentsData || EMPTY_LIST) as UnsafeRecord[];
       if (!isSubjectWorkspaceMode) return rows as Student[];
       // Backend scopes by subject_class_id; trust server rows.
       return rows as Student[];
@@ -908,48 +919,48 @@ export default function StudentList() {
       const targetSubjectClassId = String(effectiveSubjectClassId || "").trim();
       const metaById = new Map<string, ExistingStudentClassMeta>();
 
-      rowsBySubject.flat().forEach((row: any) => {
+      rowsBySubject.flat().forEach((row:UnsafeRecord) => {
         const rowId = String(row?.id ?? "").trim();
         if (!rowId) return;
         const subjectId = Number(row?.subject_id ?? row?.subjectId ?? 0);
         const subjectName =
           editSubjectOptions.find((option) => Number(option.value) === subjectId)?.label ||
-          String(row?.subject?.name ?? row?.subject_name ?? "").replace(/islamiat/gi, "Islamic").trim();
+          String(asRecord(row?.subject)?.name ?? row?.subject_name ?? "").replace(/islamiat/gi, "Islamic").trim();
 
         const linkedClassId = String(
           row?.class_id ??
             row?.base_class_id ??
-            row?.class?.id ??
-            row?.classes?.id ??
-            row?.base_class?.id ??
+            asRecord(row?.class)?.id ??
+            asRecord(row?.classes)?.id ??
+            asRecord(row?.base_class)?.id ??
             ""
         ).trim();
         const label = normalizeText(
           String(
             row?.base_class_label ??
-              row?.class?.class_name ??
-              row?.classes?.class_name ??
-              row?.base_class?.class_name ??
+              asRecord(row?.class)?.class_name ??
+              asRecord(row?.classes)?.class_name ??
+              asRecord(row?.base_class)?.class_name ??
               row?.name ??
               ""
           )
         );
           const labelText = String(
             row?.base_class_label ??
-              row?.class?.class_name ??
-              row?.classes?.class_name ??
-              row?.base_class?.class_name ??
+              asRecord(row?.class)?.class_name ??
+              asRecord(row?.classes)?.class_name ??
+              asRecord(row?.base_class)?.class_name ??
               row?.name ??
               ""
           ).trim();
         const yearId = Number(
-          row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0
+          row?.year_id ?? asRecord(row?.class)?.year_id ?? asRecord(row?.classes)?.year_id ?? asRecord(row?.base_class)?.year_id ?? 0
         );
           const yearName = String(
-            row?.year?.name ??
-              row?.class?.year?.name ??
-              row?.classes?.year?.name ??
-              row?.base_class?.year?.name ??
+            asRecord(row?.year)?.name ??
+              asRecord(asRecord(row?.class)?.year)?.name ??
+              asRecord(asRecord(row?.classes)?.year)?.name ??
+              asRecord(asRecord(row?.base_class)?.year)?.name ??
               (yearId ? `Year ${yearId}` : "")
           ).trim();
           const rowMeta: ExistingStudentClassMeta = {
@@ -1016,7 +1027,7 @@ export default function StudentList() {
       !resolvingSubjectClass,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      let years: Array<Record<string, any>> = [];
+      let years: Array<UnsafeRecord> = [];
       try {
         const rows = schoolId > 0 ? await fetchYearsBySchool(schoolId) : await fetchYears();
         years = Array.isArray(rows) ? rows : [];
@@ -1032,7 +1043,7 @@ export default function StudentList() {
           try {
             const rows = await fetchClasses(yearId);
             return (Array.isArray(rows) ? rows : [])
-              .map((row: Record<string, any>) => ({
+              .map((row: UnsafeRecord) => ({
                 id: String(row?.id ?? "").trim(),
                 className: String(row?.class_name ?? row?.name ?? "").trim(),
                 yearId,
@@ -1170,7 +1181,7 @@ export default function StudentList() {
   const currentStudentCandidateIds = useMemo(
     () =>
       new Set(
-        (students as Array<Record<string, any>>).flatMap((student) =>
+        (students as Array<UnsafeRecord>).flatMap((student) =>
           extractStudentCandidateIds(student)
         )
       ),
@@ -1203,11 +1214,11 @@ export default function StudentList() {
           try {
             const rows = await fetchStudents(candidateClassId, 0, undefined);
             return (Array.isArray(rows) ? rows : []).map((row) => ({
-              row: row as Record<string, any>,
+              row: row as UnsafeRecord,
               candidateClassId,
             }));
           } catch {
-            return [] as Array<{ row: Record<string, any>; candidateClassId: string }>;
+            return [] as Array<{ row: UnsafeRecord; candidateClassId: string }>;
           }
         })
       );
@@ -1301,7 +1312,7 @@ export default function StudentList() {
     () =>
       existingStudentCandidates.filter((candidate) => {
         const candidateIds = extractStudentCandidateIds(
-          (candidate.raw as Record<string, any> | undefined) || { id: candidate.id }
+          (candidate.raw as UnsafeRecord | undefined) || { id: candidate.id }
         );
         return candidateIds.length === 0
           ? !currentStudentCandidateIds.has(String(candidate.id))
@@ -1379,15 +1390,17 @@ export default function StudentList() {
     );
   };
 
-  const rememberRecentAddedStudent = (studentLike: any, fallbackInput?: any) => {
-    const id = String(studentLike?.id ?? studentLike?.student_id ?? "").trim();
-    const userName = String(studentLike?.user_name ?? fallbackInput?.user_name ?? "")
+  const rememberRecentAddedStudent = (studentLike: unknown, fallbackInput?: unknown) => {
+    const studentRecord = asRecord(studentLike);
+    const fallbackRecord = asRecord(fallbackInput);
+    const id = String(studentRecord?.id ?? studentRecord?.student_id ?? "").trim();
+    const userName = String(studentRecord?.user_name ?? fallbackRecord?.user_name ?? "")
       .trim()
       .toLowerCase();
-    const email = String(studentLike?.email ?? fallbackInput?.email ?? "")
+    const email = String(studentRecord?.email ?? fallbackRecord?.email ?? "")
       .trim()
       .toLowerCase();
-    const name = String(studentLike?.student_name ?? fallbackInput?.student_name ?? "")
+    const name = String(studentRecord?.student_name ?? fallbackRecord?.student_name ?? "")
       .trim()
       .toLowerCase();
 
@@ -1436,7 +1449,7 @@ export default function StudentList() {
   const seatingApiReady = !!seatingScopeId && canArrangeSeats && !seatingQuery.isError;
   const seatingUnavailableMessage = getSeatingApiUnavailableMessage(seatingApiError);
 
-  const createStudentInCurrentClass = async (payload: any) => {
+  const createStudentInCurrentClass = async (payload: NewStudentPayload) => {
     const added = await apiAddStudent(payload, scopedSubjectId);
     const subjectId = Number(scopedSubjectId ?? 0);
     const subjectClassId = Number(effectiveSubjectClassId || 0);
@@ -1452,7 +1465,7 @@ export default function StudentList() {
       const normalizedEmail = String(payload.email || "").trim().toLowerCase();
       const normalizedName = String(payload.student_name || "").trim().toLowerCase();
       const createdStudent = (Array.isArray(classStudents) ? classStudents : []).find(
-        (student: Record<string, any>) =>
+        (student: UnsafeRecord) =>
           (normalizedUserName &&
             String(student?.user_name || "").trim().toLowerCase() === normalizedUserName) ||
           (normalizedEmail &&
@@ -1487,7 +1500,7 @@ export default function StudentList() {
 
   const addStudentMutation = useMutation({
     mutationFn: createStudentInCurrentClass,
-    onSuccess: async (result, variables: any) => {
+    onSuccess: async (result, variables: NewStudentPayload) => {
       rememberRecentAddedStudent(result.added, variables);
       await queryClient.invalidateQueries({ queryKey: ["all-students-list"] });
       await queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -1503,12 +1516,7 @@ export default function StudentList() {
       }
     },
     onError: (error: unknown) => {
-      const backendMessage =
-        (error as { message?: string })?.message?.trim() ||
-        (error as any)?.response?.data?.msg ||
-        (error as any)?.response?.data?.message ||
-        "Failed to add student.";
-      messageApi.error(backendMessage);
+      messageApi.error(errorMessage(error, "Failed to add student."));
     },
   });
 
@@ -1577,17 +1585,20 @@ export default function StudentList() {
       );
     },
     onError: (error: unknown) => {
-      const backendMessage =
-        (error as { message?: string })?.message?.trim() ||
-        (error as any)?.response?.data?.msg ||
-        (error as any)?.response?.data?.message ||
-        "Failed to assign existing students.";
-      messageApi.error(backendMessage);
+      messageApi.error(errorMessage(error, "Failed to assign existing students."));
     },
   });
 
   const updateStudentMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: any; assignment?: { subjectIds: number[]; subjectClassIds: number[]; previousSubjectClassIds?: number[] } }) =>
+    mutationFn: ({
+      id,
+      values,
+      assignment,
+    }: {
+      id: string;
+      values: UpdateStudentPayload;
+      assignment?: { subjectIds: number[]; subjectClassIds: number[]; previousSubjectClassIds?: number[] };
+    }) =>
       apiUpdateStudent(id, values, scopedSubjectId),
     onSuccess: async (_data, variables) => {
       console.log('[Student Update] Success - refetching student data');
@@ -1675,7 +1686,7 @@ export default function StudentList() {
     },
     onSuccess: (result, variables) => {
       const studentId = variables.cacheStudentId;
-      const serverPath = extractAvatarPath(result?.response);
+      const serverPath = extractAvatarPath(toRecord(result));
       queryClient.setQueryData(
         behaviorSummaryQueryKey,
         (old: StudentBehaviorSummary[] | undefined) => {
@@ -1703,17 +1714,11 @@ export default function StudentList() {
       queryClient.invalidateQueries({ queryKey: behaviorSummaryQueryKey });
       messageApi.success("Avatar updated.");
     },
-    onError: (error: any, variables) => {
+    onError: (error, variables) => {
       setSavingAvatarStudentIds((prev) =>
         prev.filter((id) => id !== variables.cacheStudentId)
       );
-      const backendMessage =
-        error?.response?.data?.msg ||
-        error?.response?.data?.message ||
-        error?.response?.data?.data?.message ||
-        error?.message ||
-        "Failed to update avatar.";
-      messageApi.error(String(backendMessage));
+      messageApi.error(errorMessage(error, "Failed to update avatar."));
     },
   });
 
@@ -1744,15 +1749,11 @@ export default function StudentList() {
         messageApi.success("Seating plan saved.");
       }
     },
-    onError: (error: any, variables) => {
-      const status = Number(error?.status || error?.response?.status || 0);
-      const backendMessage =
-        error?.backendMessage ||
-        error?.response?.data?.msg ||
-        error?.response?.data?.message ||
-        error?.response?.data?.data?.message ||
-        error?.message ||
-        "Failed to save seating plan.";
+    onError: (error, variables) => {
+      const errRecord = asRecord(error);
+      const status = Number(
+        errRecord?.status || asRecord(errRecord?.response)?.status || 0
+      );
       if (status === 404) {
         messageApi.error("Save failed: seating API route missing (404).");
         return;
@@ -1765,12 +1766,12 @@ export default function StudentList() {
         messageApi.warning("Auto-save failed. You can still use Save Layout.");
         return;
       }
-      messageApi.error(String(backendMessage));
+      messageApi.error(errorMessage(error, "Failed to save seating plan."));
     },
   });
 
   const addBehaviorMutation = useMutation({
-    mutationFn: (payload: any) => addBehaviour(payload, scopedSubjectId ?? undefined),
+    mutationFn: (payload:UnsafeRecord) => addBehaviour(payload, scopedSubjectId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: behaviorSummaryQueryKey,
@@ -1796,8 +1797,8 @@ export default function StudentList() {
           s.gender ?? s.student_gender ?? s.sex ?? s.student_sex
         );
         const rawGender = fromApiGender;
-        const subjectIds = extractStudentSubjectIds(s as Record<string, any>);
-        const classIds = extractStudentSubjectClassIds(s as Record<string, any>);
+        const subjectIds = extractStudentSubjectIds(s as UnsafeRecord);
+        const classIds = extractStudentSubjectClassIds(s as UnsafeRecord);
         return {
         id: sid,
         student_name: s.student_name,
@@ -1805,15 +1806,15 @@ export default function StudentList() {
         email: s.email,
         class_id: s.class_id,
         class_name: s.class_name,
-        subject_class_id: classIds[0] ?? (Number((s as any).subject_class_id ?? 0) || undefined),
+        subject_class_id: classIds[0] ?? (Number((s as UnsafeRecord).subject_class_id ?? 0) || undefined),
         subject_ids: subjectIds.length > 0 ? subjectIds : scopedSubjectId ? [scopedSubjectId] : [],
         class_ids: classIds.length > 0 ? classIds : effectiveSubjectClassId ? [Number(effectiveSubjectClassId)] : [],
         status: s.status || "active",
         gender: rawGender,
         student_gender: rawGender,
-        nationality: (s as any).nationality || undefined,
-        is_sen: Boolean((s as any).is_sen ?? (s as any).isSen),
-        sen_details: String((s as any).sen_details ?? (s as any).senDetails ?? "").trim(),
+        nationality: (s as UnsafeRecord).nationality || undefined,
+        is_sen: Boolean((s as UnsafeRecord).is_sen ?? (s as UnsafeRecord).isSen),
+        sen_details: String((s as UnsafeRecord).sen_details ?? (s as UnsafeRecord).senDetails ?? "").trim(),
         profile_path: getStudentImagePath(s),
         positive_points: fp?.positive ?? 0,
         negative_points: fp?.negative ?? 0,
@@ -1821,7 +1822,7 @@ export default function StudentList() {
         coin_balance: rewards?.coins ?? 0,
         leaderboard_points: rewards?.points ?? 0,
       };
-      });
+      }) as Student[];
     }
 
     const byId = new Map((students as Student[]).map((s) => [toStudentId(s.id), s]));
@@ -1830,17 +1831,17 @@ export default function StudentList() {
       const rewards = rewardsByStudentId[id];
       const fromStudents = byId.get(id);
       const fromApiGender = normalizeGenderRaw(
-        (item as any)?.gender ??
-          (item as any)?.student_gender ??
-          (item as any)?.sex ??
-          (item as any)?.student_sex ??
+        (item as UnsafeRecord)?.gender ??
+          (item as UnsafeRecord)?.student_gender ??
+          (item as UnsafeRecord)?.sex ??
+          (item as UnsafeRecord)?.student_sex ??
           fromStudents?.gender ??
           fromStudents?.student_gender ??
           fromStudents?.sex ??
           fromStudents?.student_sex
       );
       const rawGender = fromApiGender;
-      const source = ({ ...(fromStudents || {}), ...(item as any) } as Record<string, any>);
+      const source = ({ ...(fromStudents || {}), ...(item as UnsafeRecord) } as UnsafeRecord);
       const subjectIds = extractStudentSubjectIds(source);
       const classIds = extractStudentSubjectClassIds(source);
       return {
@@ -1852,7 +1853,7 @@ export default function StudentList() {
         class_name: fromStudents?.class_name,
         subject_class_id:
           classIds[0] ??
-          (Number((item as any)?.subject_class_id ?? fromStudents?.subject_class_id ?? 0) ||
+          (Number((item as UnsafeRecord)?.subject_class_id ?? fromStudents?.subject_class_id ?? 0) ||
             undefined),
         subject_ids: subjectIds.length > 0 ? subjectIds : scopedSubjectId ? [scopedSubjectId] : [],
         class_ids: classIds.length > 0 ? classIds : effectiveSubjectClassId ? [Number(effectiveSubjectClassId)] : [],
@@ -1864,19 +1865,21 @@ export default function StudentList() {
         student_gender: rawGender,
         nationality:
           String(
-            (item as any)?.nationality ??
-              (item as any)?.student_nationality ??
+            (item as UnsafeRecord)?.nationality ??
+              (item as UnsafeRecord)?.student_nationality ??
               fromStudents?.nationality ??
               ""
           ).trim() || undefined,
-        is_sen: Boolean((item as any)?.is_sen ?? (item as any)?.isSen ?? fromStudents?.is_sen),
+        is_sen: Boolean((item as UnsafeRecord)?.is_sen ?? (item as UnsafeRecord)?.isSen ?? fromStudents?.is_sen),
         sen_details: String(
-          (item as any)?.sen_details ??
-            (item as any)?.senDetails ??
+          (item as UnsafeRecord)?.sen_details ??
+            (item as UnsafeRecord)?.senDetails ??
             fromStudents?.sen_details ??
             ""
         ).trim(),
-        profile_path: getStudentImagePath(item) || getStudentImagePath(fromStudents),
+        profile_path:
+          getStudentImagePath(item as UnsafeRecord) ||
+          (fromStudents ? getStudentImagePath(fromStudents as UnsafeRecord) : undefined),
         positive_points:
           safeNumber(item.positive_points) ||
           fallbackPointsByStudent[id]?.positive ||
@@ -1890,7 +1893,7 @@ export default function StudentList() {
         coin_balance: rewards?.coins ?? 0,
         leaderboard_points: rewards?.points ?? 0,
       };
-    });
+    }) as Student[];
   }, [
     behaviorSummary,
     students,
@@ -1930,20 +1933,20 @@ export default function StudentList() {
     void (async () => {
       try {
         const profile = (await fetchStudentProfileData(student.id, scopedSubjectId ?? undefined)) as
-          | Record<string, unknown>
+          | UnsafeRecord
           | null;
 
         if (!profile || typeof profile !== "object") {
           return;
         }
 
-        const profileSubjectIds = extractStudentSubjectIds(profile as Record<string, any>);
-        const profileClassIds = extractStudentSubjectClassIds(profile as Record<string, any>);
+        const profileSubjectIds = extractStudentSubjectIds(profile as UnsafeRecord);
+        const profileClassIds = extractStudentSubjectClassIds(profile as UnsafeRecord);
         const nextGender = normalizeGenderRaw(
-          (profile as any)?.gender ??
-            (profile as any)?.student_gender ??
-            (profile as any)?.sex ??
-            (profile as any)?.student_sex ??
+          (profile as UnsafeRecord)?.gender ??
+            (profile as UnsafeRecord)?.student_gender ??
+            (profile as UnsafeRecord)?.sex ??
+            (profile as UnsafeRecord)?.student_sex ??
             student.gender ??
             student.student_gender
         );
@@ -1955,33 +1958,33 @@ export default function StudentList() {
 
           return {
             ...current,
-            student_name: String((profile as any)?.student_name ?? (profile as any)?.name ?? current.student_name),
-            user_name: String((profile as any)?.user_name ?? (profile as any)?.username ?? current.user_name),
-            email: String((profile as any)?.email ?? current.email ?? ""),
-            class_id: Number((profile as any)?.class_id ?? current.class_id ?? effectiveClassId ?? 0),
-            class_name: String((profile as any)?.class_name ?? current.class_name ?? "") || current.class_name,
+            student_name: String((profile as UnsafeRecord)?.student_name ?? (profile as UnsafeRecord)?.name ?? current.student_name),
+            user_name: String((profile as UnsafeRecord)?.user_name ?? (profile as UnsafeRecord)?.username ?? current.user_name),
+            email: String((profile as UnsafeRecord)?.email ?? current.email ?? ""),
+            class_id: Number((profile as UnsafeRecord)?.class_id ?? current.class_id ?? effectiveClassId ?? 0),
+            class_name: String((profile as UnsafeRecord)?.class_name ?? current.class_name ?? "") || current.class_name,
             subject_class_id:
               profileClassIds[0] ??
-              (Number((profile as any)?.subject_class_id ?? current.subject_class_id ?? 0) ||
+              (Number((profile as UnsafeRecord)?.subject_class_id ?? current.subject_class_id ?? 0) ||
                 current.subject_class_id),
             subject_ids: profileSubjectIds.length > 0 ? profileSubjectIds : current.subject_ids,
             class_ids: profileClassIds.length > 0 ? profileClassIds : current.class_ids,
-            status: String((profile as any)?.status ?? current.status ?? "active").toLowerCase() as
+            status: String((profile as UnsafeRecord)?.status ?? current.status ?? "active").toLowerCase() as
               | "active"
               | "inactive"
               | "suspended",
             gender: nextGender,
             student_gender: nextGender,
             nationality: String(
-              (profile as any)?.nationality ??
-                (profile as any)?.student_nationality ??
-                (profile as any)?.country ??
+              (profile as UnsafeRecord)?.nationality ??
+                (profile as UnsafeRecord)?.student_nationality ??
+                (profile as UnsafeRecord)?.country ??
                 current.nationality ??
                 ""
             ).trim() || undefined,
-            is_sen: Boolean((profile as any)?.is_sen ?? (profile as any)?.isSen ?? current.is_sen),
+            is_sen: Boolean((profile as UnsafeRecord)?.is_sen ?? (profile as UnsafeRecord)?.isSen ?? current.is_sen),
             sen_details: String(
-              (profile as any)?.sen_details ?? (profile as any)?.senDetails ?? current.sen_details ?? ""
+              (profile as UnsafeRecord)?.sen_details ?? (profile as UnsafeRecord)?.senDetails ?? current.sen_details ?? ""
             ).trim(),
           };
         });
@@ -2014,7 +2017,7 @@ export default function StudentList() {
             let total = 0;
             let positive = 0;
             let negative = 0;
-            (records || []).forEach((record: any) => {
+            (records || []).forEach((record:UnsafeRecord) => {
               const pts = Number(pointsByType.get(String(record?.behaviour_id)) || 0);
               total += pts;
               if (pts > 0) positive += pts;
@@ -2099,7 +2102,7 @@ export default function StudentList() {
       Math.max(0, Math.min(Math.max(0, canvasWidth - SEAT_CARD_WIDTH), x));
     if (canArrangeSeats && seatingQuery.data?.items?.length) {
       const savedWidth =
-        safeNumber((seatingQuery.data as any)?.room_meta?.width) || BASE_CANVAS_WIDTH;
+        safeNumber(asRecord((seatingQuery.data as UnsafeRecord)?.room_meta)?.width) || BASE_CANVAS_WIDTH;
       const scaleX = (x: unknown) =>
         Math.round((safeNumber(x) * canvasWidth) / savedWidth / GRID) * GRID;
       const fromApi = seatingQuery.data.items.map((item, index) => ({
@@ -2225,23 +2228,23 @@ export default function StudentList() {
     if (clicked) setSelectedStudentAction(clicked);
   };
 
-  const handleAddNewStudent = async (values: any) => {
+  const handleAddNewStudent = async (values:UnsafeRecord) => {
     const rows = Array.isArray(values?.students) && values.students.length
       ? values.students
       : [values];
 
-    const payloads = rows.map((row: any) => ({
-      student_name: row.student_name,
-      email: row.email || "",
-      user_name: row.user_name,
+    const payloads: NewStudentPayload[] = rows.map((row: UnsafeRecord) => ({
+      student_name: String(row.student_name ?? "").trim(),
+      email: String(row.email || "").trim(),
+      user_name: String(row.user_name ?? "").trim() || undefined,
       class_id: Number(effectiveClassId),
-      password: row.password,
-      status: row.status || "active",
-      gender: row.gender,
-      student_gender: row.gender,
-      nationality: row.nationality || undefined,
-      is_sen: !!row.is_sen,
-      sen_details: row.is_sen ? row.sen_details || "" : "",
+      password: row.password ? String(row.password).trim() : undefined,
+      status: String(row.status || "active"),
+      gender: row.gender ? String(row.gender).trim().toLowerCase() : undefined,
+      student_gender: row.gender ? String(row.gender).trim().toLowerCase() : undefined,
+      nationality: row.nationality ? String(row.nationality).trim() : undefined,
+      is_sen: Boolean(row.is_sen),
+      sen_details: row.is_sen ? String(row.sen_details ?? "").trim() : "",
       ...(effectiveSubjectClassId
         ? { subject_class_id: Number(effectiveSubjectClassId) }
         : {}),
@@ -2258,7 +2261,7 @@ export default function StudentList() {
 
     for (const payload of payloads) {
       try {
-        // eslint-disable-next-line no-await-in-loop
+         
         const result = await createStudentInCurrentClass(payload);
         rememberRecentAddedStudent(result.added, payload);
         successCount += 1;
@@ -2296,7 +2299,7 @@ export default function StudentList() {
     await assignExistingStudentMutation.mutateAsync(studentIds);
   };
 
-  const handleSaveEdit = (values: any) => {
+  const handleSaveEdit = (values:UnsafeRecord) => {
     if (!hasAccess) {
       messageApi.warning("Only School Admin can edit student information.");
       return;
@@ -2322,16 +2325,16 @@ export default function StudentList() {
     const nextGender = values.gender
       ? String(values.gender).trim().toLowerCase()
       : String(
-          (editStudent as any)?.gender ??
-            (editStudent as any)?.student_gender ??
-            (editStudent as any)?.sex ??
-            (editStudent as any)?.student_sex ??
+          (editStudent as UnsafeRecord)?.gender ??
+            (editStudent as UnsafeRecord)?.student_gender ??
+            (editStudent as UnsafeRecord)?.sex ??
+            (editStudent as UnsafeRecord)?.student_sex ??
             ""
         )
           .trim()
           .toLowerCase();
 
-    const payload: Record<string, any> = {
+    const payload: UnsafeRecord = {
       student_name: values.student_name,
       email: values.email,
       user_name: values.user_name,
@@ -2378,7 +2381,7 @@ export default function StudentList() {
     console.log('[Student Update] Payload:', payload);
     updateStudentMutation.mutate({
       id: editStudent.id,
-      values: payload,
+      values: payload as UpdateStudentPayload,
       assignment: {
         subjectIds: selectedSubjectIds,
         subjectClassIds: selectedSubjectClassIds,
@@ -2420,13 +2423,13 @@ export default function StudentList() {
     const fallbackIds = (students || [])
       .filter((s) => {
         const byUserName =
-          !!refUserName && String((s as any)?.user_name ?? "").trim().toLowerCase() === refUserName;
+          !!refUserName && String((s as UnsafeRecord)?.user_name ?? "").trim().toLowerCase() === refUserName;
         const byStudentName =
           !!refStudentName &&
-          String((s as any)?.student_name ?? "").trim().toLowerCase() === refStudentName;
+          String((s as UnsafeRecord)?.student_name ?? "").trim().toLowerCase() === refStudentName;
         return byUserName || byStudentName;
       })
-      .map((s) => String((s as any)?.id ?? "").trim())
+      .map((s) => String((s as UnsafeRecord)?.id ?? "").trim())
       .filter(Boolean);
     const candidateIds = Array.from(new Set([cacheStudentId, ...fallbackIds]));
 
@@ -2584,7 +2587,7 @@ export default function StudentList() {
     return canvas.toDataURL("image/png");
   };
 
-  const openAvatarPicker = (student: any) => {
+  const openAvatarPicker = (student: Student) => {
     if (!student?.id) {
       messageApi.error("Student not found for avatar change.");
       return;
@@ -2625,7 +2628,7 @@ export default function StudentList() {
   };
 
   const openBehaviorModalFor = (
-    student: any,
+    student: Student,
     intent: "positive" | "negative"
   ) => {
     setIsWholeClassBehaviorMode(false);
@@ -2709,7 +2712,7 @@ export default function StudentList() {
         let failedCount = 0;
         for (const student of selectedStudentsInView) {
           try {
-            // eslint-disable-next-line no-await-in-loop
+             
             await addBehaviour({
               student_id: student.id,
               behaviour_id: selectedType.id,
@@ -2751,7 +2754,7 @@ export default function StudentList() {
         let failedCount = 0;
         for (const student of presentStudents) {
           try {
-            // eslint-disable-next-line no-await-in-loop
+             
             await addBehaviour({
               student_id: student.id,
               behaviour_id: selectedType.id,
@@ -2843,12 +2846,12 @@ export default function StudentList() {
         name: "Attendance Absent",
         points: 0,
         color: "volcano",
-      } as any, scopedSubjectId ?? undefined);
+      } as UnsafeRecord, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     } catch {
       const created = await addBehaviourType({
         name: "Attendance Absent",
-      } as any, scopedSubjectId ?? undefined);
+      } as UnsafeRecord, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     }
     if (createdId) {
@@ -2892,12 +2895,12 @@ export default function StudentList() {
         name: "Attendance Present",
         points: 0,
         color: "green",
-      } as any, scopedSubjectId ?? undefined);
+      } as UnsafeRecord, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     } catch {
       const created = await addBehaviourType({
         name: "Attendance Present",
-      } as any, scopedSubjectId ?? undefined);
+      } as UnsafeRecord, scopedSubjectId ?? undefined);
       createdId = created?.data?.id || created?.id;
     }
     if (createdId) {
@@ -2936,12 +2939,12 @@ export default function StudentList() {
             scopedSubjectId ?? undefined
           );
           const attendanceRecordsToday = (records || [])
-            .filter((record: any) => (record?.date || "").slice(0, 10) === attendanceDate)
-            .filter((record: any) => {
+            .filter((record:UnsafeRecord) => String(record?.date ?? "").slice(0, 10) === attendanceDate)
+            .filter((record:UnsafeRecord) => {
               const type = behaviorTypeById.get(String(record?.behaviour_id));
               return isAttendanceRecord(record, type?.name || "");
             })
-            .sort((a: any, b: any) => getAttendanceEventTime(b) - getAttendanceEventTime(a));
+            .sort((a:UnsafeRecord, b:UnsafeRecord) => getAttendanceEventTime(b) - getAttendanceEventTime(a));
           const latestAttendanceRecord = attendanceRecordsToday[0];
           const latestTypeName = latestAttendanceRecord
             ? behaviorTypeById.get(String(latestAttendanceRecord?.behaviour_id))?.name || ""
@@ -3000,8 +3003,8 @@ export default function StudentList() {
     return snapshot;
   };
 
-  const setStudentAttendanceLocal = (student: any, markPresent: boolean) => {
-    const studentId = toStudentId(student.id);
+  const setStudentAttendanceLocal = (student:UnsafeRecord, markPresent: boolean) => {
+    const studentId = toStudentId(String(student.id ?? ""));
     setAttendanceByStudent((prev) => ({
       ...prev,
       [studentId]: {
@@ -3012,7 +3015,7 @@ export default function StudentList() {
   };
 
   const setStudentAttendance = async (
-    student: any,
+    student:UnsafeRecord,
     markPresent: boolean,
     options?: {
       silent?: boolean;
@@ -3020,7 +3023,7 @@ export default function StudentList() {
       rollbackState?: AttendanceState;
     }
   ) => {
-    const studentId = toStudentId(student.id);
+    const studentId = toStudentId(String(student.id ?? ""));
     const previous = attendanceByStudent[studentId];
     const previousState: AttendanceState = {
       isPresent: options?.rollbackState?.isPresent ?? previous?.isPresent !== false,
@@ -3041,7 +3044,7 @@ export default function StudentList() {
       const behaviorTypeId = markPresent
         ? await ensurePresentBehaviorTypeId()
         : await ensureAbsentBehaviorTypeId();
-      const teacherId = Number((currentUser as any)?.id || 0);
+      const teacherId = Number(asRecord(currentUser)?.id || 0);
       const localTimeLabel = getLocalTimestampLabel(schoolTimeZone);
       const localDate = getLocalDateInTimeZone(schoolTimeZone);
       const payload = {
@@ -3052,7 +3055,7 @@ export default function StudentList() {
         ...(teacherId ? { teacher_id: teacherId } : {}),
       };
 
-      const response = await addBehaviour(payload as any, scopedSubjectId ?? undefined);
+      const response = await addBehaviour(payload as UnsafeRecord, scopedSubjectId ?? undefined);
       const newRecordId = response?.data?.id || response?.id;
       if (newRecordId) {
         setAttendanceByStudent((prev) => ({
@@ -3075,16 +3078,19 @@ export default function StudentList() {
         });
       }
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       setAttendanceByStudent((prev) => ({
         ...prev,
         [studentId]: previousState,
       }));
       if (!options?.silent) {
+        const errRecord = asRecord(error);
+        const responseRecord = asRecord(errRecord?.response);
+        const dataRecord = asRecord(responseRecord?.data);
         const backendMessage =
-          error?.response?.data?.message ||
-          error?.response?.data?.msg ||
-          error?.response?.data?.data?.message ||
+          dataRecord?.message ||
+          dataRecord?.msg ||
+          asRecord(dataRecord?.data)?.message ||
           "Failed to update attendance.";
         messageApi.error(String(backendMessage));
       }
@@ -3166,7 +3172,7 @@ export default function StudentList() {
     setAttendanceSyncing(true);
     try {
       for (const student of orderedStudents) {
-        // eslint-disable-next-line no-await-in-loop
+         
         await setStudentAttendance(student, markPresent, {
           silent: true,
           skipSyncFlag: true,

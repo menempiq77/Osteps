@@ -21,14 +21,15 @@ import { listNotebookMaterials } from "@/services/classNotebookApi";
 import { IMG_BASE_URL } from "@/lib/config";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { useSearchParams } from "next/navigation";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 export default function SharedMaterialsPage() {
-  const [sharedMaterials, setSharedMaterials] = useState<any[]>([]);
+  const [sharedMaterials, setSharedMaterials] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Record<string, unknown> | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const { activeSubjectId } = useSubjectContext();
   const searchParams = useSearchParams();
@@ -43,28 +44,28 @@ export default function SharedMaterialsPage() {
         subjectId ? listNotebookMaterials(subjectId).catch(() => ({ materials: [] })) : Promise.resolve({ materials: [] }),
       ]);
 
-      const formatted = data?.map((m: any) => ({
+      const formatted = data?.map((m: Record<string, unknown>) => ({
         id: m?.id,
         kind: "laravel",
         title: m?.title,
-        teacher: m?.teacher?.teacher_name || "Unknown",
-        class: m?.classes?.class_name || "N/A",
-        date: dayjs(m?.created_at).format("MMM D, YYYY"),
-        file_path: `${IMG_BASE_URL || ""}/storage/${m?.file_path}`,
+        teacher: asRecord(m?.teacher)?.teacher_name || "Unknown",
+        class: asRecord(m?.classes)?.class_name || "N/A",
+        date: dayjs(String(m?.created_at ?? "")).format("MMM D, YYYY"),
+        file_path: `${IMG_BASE_URL || ""}/storage/${String(m?.file_path ?? "")}`,
       }));
 
       const notebookRows = (notebookResult.materials || []).map((material) => ({
-        id: `notebook-${material.id}`,
+        id: `notebook-${(material as Record<string, unknown>)?.id ?? ""}`,
         kind: "notebook",
-        title: material.name,
+        title: String((material as Record<string, unknown>)?.name ?? ""),
         teacher: "Notebook material",
-        class: `${material.pageCount} page${material.pageCount === 1 ? "" : "s"}`,
-        date: dayjs(material.createdAt).format("MMM D, YYYY"),
-    materialUrl: `/dashboard/s/${subjectId}/class_notebook`,
+        class: `${(material as Record<string, unknown>)?.pageCount} page${(material as Record<string, unknown>)?.pageCount === 1 ? "" : "s"}`,
+        date: dayjs(String((material as Record<string, unknown>)?.createdAt ?? "")).format("MMM D, YYYY"),
+        materialUrl: `/dashboard/s/${subjectId}/class_notebook`,
       }));
       setSharedMaterials([...(formatted || []), ...notebookRows]);
-    } catch (err: any) {
-      message.error(err.message || "Failed to load shared materials");
+    } catch (err: unknown) {
+      message.error(errorMessage(err, "Failed to load shared materials"));
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export default function SharedMaterialsPage() {
     loadSharedMaterials();
   }, [subjectId]);
 
-  const openUploadModal = (record: any) => {
+  const openUploadModal = (record: Record<string, unknown>) => {
     setSelectedMaterial(record);
     form.resetFields();
     setUploadModalOpen(true);
@@ -86,9 +87,9 @@ export default function SharedMaterialsPage() {
     const fileObj = values.file?.[0]?.originFileObj;
 
     const formData = new FormData();
-    formData.append("material_id", selectedMaterial.id);
-    formData.append("text", values.notes || "");
-    if (fileObj) formData.append("file_path", fileObj);
+    formData.append("material_id", String(selectedMaterial?.id ?? ""));
+    formData.append("text", String(values.notes ?? ""));
+    if (fileObj) formData.append("file_path", fileObj as File | Blob);
 
     await uploadMaterial(formData);
 
@@ -121,15 +122,15 @@ export default function SharedMaterialsPage() {
     {
       title: "View Material",
       key: "file_path",
-      render: (_: any, record: any) =>
+      render: (_: Record<string, unknown>, record: Record<string, unknown>) =>
         record.kind === "notebook" ? (
-          <Link href={record.materialUrl} className="text-[#38C16C] hover:text-green-700 font-medium flex items-center gap-1">
+          <Link href={String(record.materialUrl)} className="text-[#38C16C] hover:text-green-700 font-medium flex items-center gap-1">
             <Eye size={16} />
             Open notebook
           </Link>
         ) : record.file_path ? (
           <a
-            href={record.file_path}
+            href={String(record.file_path)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#38C16C] hover:text-green-700 font-medium flex items-center gap-1"
@@ -150,17 +151,17 @@ export default function SharedMaterialsPage() {
     {
       title: "Actions",
       key: "actions",
-      render: (_: any, record: any) => (
+      render: (_: Record<string, unknown>, record: Record<string, unknown>) => (
         <Space>
           {record.kind === "notebook" ? (
-            <Button type="text" onClick={() => window.location.assign(record.materialUrl)}>
+            <Button type="text" onClick={() => window.location.assign(String(record.materialUrl))}>
               <Eye size={18} className="text-green-600" />
             </Button>
           ) : record.file_path ? (
             <Button
               type="text"
               icon={<Download size={18} className="text-green-600" />}
-              onClick={() => window.open(record.file_path, "_blank")}
+              onClick={() => window.open(String(record.file_path), "_blank")}
             />
           ) : (
             <Button type="text" disabled>

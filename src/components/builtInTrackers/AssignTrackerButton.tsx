@@ -12,6 +12,7 @@ import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 type CurrentUser = {
   school?: string | number | { id?: string | number };
@@ -97,7 +98,7 @@ export function AssignTrackerButton({
         if (cancelled) return;
         const subjectYearIds = new Set(
           (Array.isArray(subjectClassRows) ? subjectClassRows : [])
-            .map((row: any) => Number(row?.year_id ?? row?.year?.id))
+            .map((row) => Number(asRecord(row)?.year_id ?? asRecord(asRecord(row)?.year)?.id))
             .filter((id) => id > 0)
         );
         const options = new Map<number, string>();
@@ -159,11 +160,9 @@ export function AssignTrackerButton({
           : `Assigned ${trackerName} to ${selectedYearNames}.`
       );
       setOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus("error");
-      setMessage(
-        err?.response?.data?.message || err?.message || "Assignment failed."
-      );
+      setMessage(errorMessage(err, "Assignment failed."));
     }
   };
 

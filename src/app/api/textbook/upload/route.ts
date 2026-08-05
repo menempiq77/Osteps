@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, files: uploaded });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Textbook upload error:", err);
     return NextResponse.json(
       { error: "Upload failed" },

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Alert, Button, Card } from "antd";
+import { asRecord } from "@/lib/safeRecord";
 
 type DashboardErrorProps = {
   error: Error & { digest?: string };
@@ -17,13 +18,13 @@ const clearSavedDashboardSession = () => {
   try {
     window.localStorage.removeItem("currentUser");
     window.localStorage.removeItem("persist:root");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Could not clear saved dashboard session:", error);
   }
 };
 
 export default function DashboardError({ error, reset }: DashboardErrorProps) {
-  const message = String(error?.message || "Unexpected client error.");
+  const message = String(asRecord(error)?.message ?? error?.message ?? "Unexpected client error.");
   const staleClientError = isLikelyStaleClientError(message);
 
   useEffect(() => {

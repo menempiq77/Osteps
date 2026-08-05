@@ -262,6 +262,7 @@ export default function TimetableImportModal({
         issues: [{ sourceLabel: "Import", message: errorMessage, severity: "error" }],
         expandedSlots: [],
         resolvedCount: 0,
+        replaceSlotCount: 0,
       });
     } finally {
       setPreviewing(false);
@@ -300,7 +301,7 @@ export default function TimetableImportModal({
 
       for (const slot of preview.expandedSlots) {
         try {
-          await addTimetableSlot(slot.payload as any, "all");
+          await addTimetableSlot(slot.payload as Parameters<typeof addTimetableSlot>[0], "all");
           created += 1;
         } catch {
           failed += 1;

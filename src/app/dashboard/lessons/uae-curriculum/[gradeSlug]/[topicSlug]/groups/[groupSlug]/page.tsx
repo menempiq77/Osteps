@@ -41,12 +41,12 @@ export function generateStaticParams() {
   return toleranceGroups;
 }
 
-export default function LessonGroupWorkspacePage({
+export default async function LessonGroupWorkspacePage({
   params,
 }: {
-  params: { gradeSlug: string; topicSlug: string; groupSlug: string };
+  params: Promise<{ gradeSlug: string; topicSlug: string; groupSlug: string }>;
 }) {
-  const { gradeSlug, topicSlug, groupSlug } = params;
+  const { gradeSlug, topicSlug, groupSlug } = await params;
   const grade = uaeCurriculumBySlug[gradeSlug];
 
   if (!grade) notFound();

@@ -8,6 +8,7 @@ import {
   type PublicClassInfo,
 } from "@/services/classEnrollmentApi";
 
+
 type AxiosishError = {
   response?: { data?: { msg?: string; message?: string; errors?: Record<string, string[]> } };
 };
@@ -17,13 +18,13 @@ const getErrMsg = (e: unknown, fallback: string): string => {
   const data = err?.response?.data;
   if (data?.errors) {
     const first = Object.values(data.errors)[0];
-    if (first && first[0]) return first[0];
+    if (first?.[0]) return first[0];
   }
   return data?.msg || data?.message || fallback;
 };
 
 export default function JoinClassPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string | undefined>;
   const code = useMemo(() => {
     const c = params?.code;
     return Array.isArray(c) ? c[0] : (c ?? "");
@@ -89,7 +90,7 @@ export default function JoinClassPage() {
         support_details: needsSupport ? supportDetails.trim() : undefined,
       });
       setDone(res);
-    } catch (err) {
+    } catch (err: unknown) {
       setFormError(getErrMsg(err, "Something went wrong. Please try again."));
     } finally {
       setSubmitting(false);

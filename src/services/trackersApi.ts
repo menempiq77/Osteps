@@ -334,12 +334,16 @@ export const submitTrackerPointsClaim = async (payload: {
     try {
       const response = await api.post(attempt.path, attempt.body);
       return response.data;
-    } catch (error: any) {
-      const status = error?.response?.status;
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { status?: number; data?: { message?: string; msg?: string } };
+        message?: string;
+      };
+      const status = err?.response?.status;
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.msg ||
-        error?.message ||
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        err?.message ||
         "request_failed";
       errors.push(`${attempt.path} -> ${status ?? "ERR"} ${message}`);
     }
@@ -357,12 +361,16 @@ export const fetchMyTrackerPointClaims = async () => {
     try {
       const response = await api.get(path);
       return response.data?.data ?? response.data ?? [];
-    } catch (error: any) {
-      const status = error?.response?.status;
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { status?: number; data?: { message?: string; msg?: string } };
+        message?: string;
+      };
+      const status = err?.response?.status;
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.msg ||
-        error?.message ||
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        err?.message ||
         "request_failed";
       errors.push(`${path} -> ${status ?? "ERR"} ${message}`);
     }

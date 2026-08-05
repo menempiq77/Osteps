@@ -1,23 +1,26 @@
 "use client";
 import React from "react";
 import { Tabs, Form, Input, Button, Upload, message, Breadcrumb, Switch } from "antd";
+import type { UploadFile } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store/store";
 import { setCurrentUser } from "@/features/auth/authSlice";
+import type { User, UserRole } from "@/features/auth/types";
 import {
   changePassword,
   updateSchoolAdminProfile,
 } from "@/services/settingApi";
 import { fetchChatSettings, updateChatSettings } from "@/services/chatApi";
 import Link from "next/link";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 const SchoolAdminSettings = () => {
   const [profileForm] = Form.useForm();
   const [securityForm] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
-  const [profileImage, setProfileImage] = React.useState([]);
-  const [schoolLogo, setSchoolLogo] = React.useState([]);
+  const [profileImage, setProfileImage] = React.useState<UploadFile<unknown>[]>([]);
+  const [schoolLogo, setSchoolLogo] = React.useState<UploadFile<unknown>[]>([]);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [chatSettingsLoading, setChatSettingsLoading] = React.useState(false);
   const [chatSettings, setChatSettings] = React.useState({
@@ -64,7 +67,7 @@ const SchoolAdminSettings = () => {
       setChatSettingsLoading(true);
       await updateChatSettings(chatSettings);
       messageApi.success("Chat settings saved");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Chat settings save failed:", error);
       messageApi.error("Failed to save chat settings");
     } finally {
@@ -72,72 +75,75 @@ const SchoolAdminSettings = () => {
     }
   };
 
-  const onProfileFinish = async (values) => {
+  const onProfileFinish = async (values: Record<string, unknown>) => {
     try {
       setProfileLoading(true);
       const formData = new FormData();
-      formData.append("user_id", currentUser.id.toString());
-      formData.append("first_name", values.firstName);
-      formData.append("last_name", values.lastName);
-      formData.append("email", values.email);
-      formData.append("contact", values.contact);
+      formData.append("user_id", currentUser?.id?.toString() ?? "");
+      formData.append("first_name", String(values.firstName ?? ""));
+      formData.append("last_name", String(values.lastName ?? ""));
+      formData.append("email", String(values.email ?? ""));
+      formData.append("contact", String(values.contact ?? ""));
 
       if (profileImage.length > 0) {
-        formData.append("profile_path", profileImage[0].originFileObj);
+        formData.append(
+          "profile_path",
+          profileImage[0].originFileObj as File | Blob
+        );
       }
 
       if (schoolLogo.length > 0) {
-        formData.append("logo", schoolLogo[0].originFileObj);
+        formData.append("logo", schoolLogo[0].originFileObj as File | Blob);
       }
 
       const response = await updateSchoolAdminProfile(formData);
+      const responseRecord = asRecord(response);
 
-      const updatedUser = {
-        ...currentUser,
-        name: response?.name,
-        profile_path: response?.profile_photo,
-        contact: response.phone_number,
-        logo: response?.logo,
+      const updatedUser: User = {
+        ...(currentUser ?? {}),
+        id: String(responseRecord?.id ?? currentUser?.id ?? ""),
+        email: String(responseRecord?.email ?? currentUser?.email ?? ""),
+        role: (currentUser?.role ?? "SCHOOL_ADMIN") as UserRole,
+        name: String(responseRecord?.name ?? currentUser?.name ?? ""),
+        profile_path: String(responseRecord?.profile_photo ?? currentUser?.profile_path ?? ""),
+        contact: String(responseRecord?.phone_number ?? currentUser?.contact ?? ""),
+        logo: String(responseRecord?.logo ?? currentUser?.logo ?? ""),
       };
 
       dispatch(setCurrentUser(updatedUser));
 
       messageApi.success("Profile updated successfully!");
       profileForm.setFieldsValue({
-        firstName: response.first_name,
-        lastName: response.last_name,
-        email: response.email,
-        contact: response.phone_number,
+        firstName: responseRecord?.first_name ?? "",
+        lastName: responseRecord?.last_name ?? "",
+        email: responseRecord?.email ?? "",
+        contact: responseRecord?.phone_number ?? "",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Profile update failed:", error);
-      messageApi.error(
-        error.response?.data?.message || "Failed to update profile"
-      );
+      messageApi.error(errorMessage(error, "Failed to update profile"));
     } finally {
       setProfileLoading(false);
     }
   };
-  const onFinishFailed = (errorInfo) => {
+  const onFinishFailed = (errorInfo: unknown) => {
     console.log("Failed:", errorInfo);
     messageApi.error("Please fill all required fields!");
   };
 
-  const onSecurityFinish = async (values) => {
+  const onSecurityFinish = async (values: Record<string, unknown>) => {
     try {
       setLoading(true);
       await changePassword({
-        current_password: values.currentPassword,
-        new_password: values.newPassword,
-        new_password_confirmation: values.confirmPassword,
+        current_password: String(values.currentPassword ?? ""),
+        new_password: String(values.newPassword ?? ""),
+        new_password_confirmation: String(values.confirmPassword ?? ""),
       });
       messageApi.success("Password changed successfully!");
       securityForm.resetFields();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Password change failed:", error);
-      messageApi.error(
-        error.response?.data?.message || "Failed to change password"
-      );
+      messageApi.error(errorMessage(error, "Failed to change password"));
     } finally {
       setLoading(false);
     }
@@ -163,7 +169,7 @@ const SchoolAdminSettings = () => {
                 <div className="flex-shrink-0">
                   {profileImage.length > 0 ? (
                     <img
-                      src={URL.createObjectURL(profileImage[0].originFileObj)}
+                      src={URL.createObjectURL(profileImage[0].originFileObj as File | Blob)}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                     />
@@ -214,7 +220,7 @@ const SchoolAdminSettings = () => {
                 <div className="flex-shrink-0">
                   {schoolLogo.length > 0 ? (
                     <img
-                      src={URL.createObjectURL(schoolLogo[0].originFileObj)}
+                      src={URL.createObjectURL(schoolLogo[0].originFileObj as File | Blob)}
                       alt="School Logo"
                       className="w-20 h-20 rounded-full object-cover"
                     />

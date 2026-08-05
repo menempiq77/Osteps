@@ -7,27 +7,33 @@ import { fetchSubjects } from "@/services/subjectsApi";
 import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { findSimilarSubjects, getSubjectFamilyLabel } from "@/lib/subjectSimilarity";
 import type { SubjectBrief } from "@/types/subjectContext";
+import { asRecord } from "@/lib/safeRecord";
 
 export type SimilarSubject = SubjectBrief & { archived: boolean };
 
-const normalizeSubjects = (raw: any): SubjectBrief[] => {
+const normalizeSubjects = (raw: unknown): SubjectBrief[] => {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item) => ({
-      id: Number(item?.id),
-      name: String(item?.name ?? ""),
-      code: item?.code ?? null,
-      class_label: null,
-      dashboard_image_url: null,
-    }))
+    .map((item) => {
+      const record = asRecord(item);
+      return {
+        id: Number(record?.id),
+        name: String(record?.name ?? ""),
+        code: (record?.code as string | null | undefined) ?? null,
+        class_label: null,
+        dashboard_image_url: null,
+      };
+    })
     .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name.trim().length > 0);
 };
 
 // Stable fallback: a fresh literal would change identity on every render.
 const EMPTY_SUBJECTS: SubjectBrief[] = [];
 
-const isActiveClass = (row: any) =>
-  row?.is_active === undefined ? true : Number(row?.is_active) === 1;
+const isActiveClass = (row: unknown) => {
+  const record = asRecord(row);
+  return record?.is_active === undefined ? true : Number(record.is_active) === 1;
+};
 
 /**
  * Subjects of the same family as the active subject (e.g. "Islamic" ↔ "Islamiyat"

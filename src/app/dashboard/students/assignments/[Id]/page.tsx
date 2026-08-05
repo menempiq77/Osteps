@@ -99,7 +99,7 @@ const buildStudentSubmissionByTaskId = (submissions: any[], studentId: unknown) 
 
 function StudentProgressSummary({ tasks }: { tasks: Task[] }) {
   const stats = useMemo(() => {
-    let totalTasks = tasks.length;
+    const totalTasks = tasks.length;
     let finishedTasks = 0;
     let totalMarks = 0;
     let earnedMarks = 0;

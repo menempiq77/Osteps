@@ -4,7 +4,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { EventContentArg } from "@fullcalendar/core";
+import { EventContentArg, DateSelectArg, type EventApi } from "@fullcalendar/core";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,7 +20,7 @@ import {
   message,
   Spin,
 } from "antd";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -41,6 +41,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import TimetableModal from "@/components/dashboard/TimetableModal";
 import TimetableModeTabs from "@/components/timetable/TimetableModeTabs";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { asRecord, toRecord, errorMessage } from "@/lib/safeRecord";
 
 const TimetableImportModal = dynamic(
   () => import("@/components/dashboard/TimetableImportModal"),
@@ -68,13 +69,13 @@ function Timetable() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [eventToDelete, setEventToDelete] = useState<any>(null);
+  const [eventToDelete, setEventToDelete] = useState<EventApi | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEventId, setCurrentEventId] = useState<string | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const isStudent = currentUser?.role === "STUDENT";
   const isTeacher = currentUser?.role === "TEACHER";
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<Record<string, unknown>[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
@@ -104,13 +105,13 @@ function Timetable() {
     queryFn: () =>
       fetchTimetableData(selectedSubjectFilter === "all" ? "all" : Number(selectedSubjectFilter)),
     select: (res) =>
-      res?.map((item: any) => ({
-        title: item.subject,
-        start: `${item.date}T${dayjs(item.start_time, "HH:mm:ss").format("HH:mm:ss")}`,
-        end:   `${item.date}T${dayjs(item.end_time,   "HH:mm:ss").format("HH:mm:ss")}`,
+      res?.map((item: Record<string, unknown>) => ({
+        title: String(item.subject || ""),
+        start: `${String(item.date || "")}T${dayjs(String(item.start_time), "HH:mm:ss").format("HH:mm:ss")}`,
+        end:   `${String(item.date || "")}T${dayjs(String(item.end_time),   "HH:mm:ss").format("HH:mm:ss")}`,
         extendedProps: {
           id:         item.id,
-          teacher:    item?.teacher?.teacher_name || "N/A",
+          teacher:    asRecord(item?.teacher)?.teacher_name || "N/A",
           teacher_id: item?.teacher_id || null,
           room:       item.room || "N/A",
           zoomLink:   item?.zoom_link,
@@ -126,42 +127,43 @@ function Timetable() {
   const { data: allClassesForImport = [] } = useQuery({
     queryKey: ["all-classes-timetable-import", schoolId, currentUser?.id],
     enabled: !isStudent,
-    queryFn: async (): Promise<any[]> => {
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
       if (!schoolId) return [];
       if (isTeacher) {
-        const res = await fetchAssignYears();
-        const raw = res.map((item: any) => item.classes).filter(Boolean);
-        return Array.from(new Map(raw.map((c: any) => [c.id, c])).values()).map((c: any) => ({
-          id: Number(c.id),
-          year_id: Number(c.year_id ?? 0) || undefined,
-          class_name: c.class_name ?? `Class ${c.id}`,
-          year_name: c.year?.name,
-        }));
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
+        const raw = res.map((item) => asRecord(item?.classes)).filter(Boolean) as Record<string, unknown>[];
+        return Array.from(new Map(raw.map((c) => [String(c.id), c])).values())
+          .map((c) => ({
+            id: Number(c.id),
+            year_id: Number(c.year_id ?? 0) || undefined,
+            class_name: String(c.class_name || (c.id ?? "")),
+            year_name: asRecord(c.year)?.name,
+          }));
       }
-      const years: any[] = (await fetchYearsBySchool(schoolId as number)) ?? [];
+      const years: Record<string, unknown>[] = (await fetchYearsBySchool(schoolId as number)) ?? [];
       const arrays = await Promise.all(
-        years.map((y: any) => fetchClasses(String(y.id)).catch(() => []))
+        years.map((y) => fetchClasses(String(y.id)).catch(() => []))
       );
-      return arrays.flat().map((c: any) => ({
+      return (arrays.flat() as Record<string, unknown>[]).map((c) => ({
         id: Number(c.id),
         year_id: Number(c.year_id ?? 0) || undefined,
-        class_name: c.class_name ?? `Class ${c.id}`,
-        year_name: years.find((y: any) => String(y.id) === String(c.year_id))?.name,
+        class_name: String(c.class_name || (c.id ?? "")),
+        year_name: years.find((y) => String(y.id) === String(c.year_id))?.name,
       }));
     },
   });
 
   // Client-side filter (class / teacher view)
   const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
+    return events.filter((event: Record<string, unknown>) => {
       const p = event.extendedProps;
       if (viewBy === "class") {
-        const yearMatch  = !selectedYear  || p.year_id  === Number(selectedYear);
-        const classMatch = !selectedClass || p.class_id === Number(selectedClass);
+        const yearMatch  = !selectedYear  ||toRecord(p).year_id  === Number(selectedYear);
+        const classMatch = !selectedClass ||toRecord(p).class_id === Number(selectedClass);
         return yearMatch && classMatch;
       }
       if (viewBy === "teacher") {
-        return !selectedTeacher || p.teacher_id === Number(selectedTeacher);
+        return !selectedTeacher ||toRecord(p).teacher_id === Number(selectedTeacher);
       }
       // "subject" — server already filtered; no extra client filter
       return true;
@@ -171,24 +173,26 @@ function Timetable() {
   // Fetch years
   const { data: yearsData = [] } = useQuery({
     queryKey: ["years", currentUser?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
       if (isTeacher) {
-        const res   = await fetchAssignYears();
-        const years = res.map((item: any) => item?.classes?.year).filter(Boolean);
-        return Array.from(new Map(years.map((y: any) => [y.id, y])).values()) as any[];
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
+        const years = res
+          .map((item) => asRecord(item?.classes)?.year)
+          .filter((y): y is Record<string, unknown> => !!y && typeof y === "object");
+        return Array.from(new Map(years.map((y) => [String(y.id), y])).values());
       }
-      return fetchYearsBySchool(schoolId);
+      return (await fetchYearsBySchool(Number(schoolId))) as Record<string, unknown>[];
     },
   });
 
   // Only show years that have at least one real class configured
   const yearIdsWithClasses = useMemo(
-    () => new Set((allClassesForImport as any[]).map((c) => String(c.year_id)).filter(Boolean)),
+    () => new Set((allClassesForImport as Record<string, unknown>[]).map((c) => String(c.year_id)).filter(Boolean)),
     [allClassesForImport]
   );
   const filteredYearsData = useMemo(
     () => yearIdsWithClasses.size > 0
-      ? (yearsData as any[]).filter((y) => yearIdsWithClasses.has(String(y.id)))
+      ? (yearsData as Record<string, unknown>[]).filter((y) => yearIdsWithClasses.has(String(y.id)))
       : yearsData,
     [yearsData, yearIdsWithClasses]
   );
@@ -197,14 +201,14 @@ function Timetable() {
   const { data: classesData = [] } = useQuery({
     queryKey: ["classes", selectedYear, currentUser?.id],
     enabled: !!selectedYear,
-    queryFn: async () => {
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
       if (isTeacher) {
-        const res    = await fetchAssignYears();
-        const all    = res.map((item: any) => item.classes).filter(Boolean);
-        const unique = Array.from(new Map(all.map((c: any) => [c.id, c])).values()) as any[];
-        return unique.filter((c: any) => c.year_id === Number(selectedYear));
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
+        const all = res.map((item) => asRecord(item?.classes)).filter(Boolean) as Record<string, unknown>[];
+        const unique = Array.from(new Map(all.map((c) => [String(c.id), c])).values()) as Record<string, unknown>[];
+        return unique.filter((c) => Number(c.year_id) === Number(selectedYear));
       }
-      return fetchClasses(Number(selectedYear));
+      return (await fetchClasses(String(selectedYear))) as Record<string, unknown>[];
     },
   });
 
@@ -217,7 +221,7 @@ function Timetable() {
         setLoading(true);
         const res = await fetchTeachers();
         setTeachers(res);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error(err);
       } finally {
         setLoading(false);
@@ -226,30 +230,33 @@ function Timetable() {
   }, []);
 
   const addMutation = useMutation({
-    mutationFn: addTimetableSlot,
+    mutationFn: (payload: Parameters<typeof addTimetableSlot>[0]) =>
+      addTimetableSlot(
+        payload,
+        selectedSubjectFilter === "all" ? undefined : Number(selectedSubjectFilter)
+      ),
     onSuccess: () => {
       messageApi.success("Event added successfully");
-      queryClient.invalidateQueries(["timetable"]);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setIsModalVisible(false);
       form.resetFields();
     },
-    onError: (error: any) => {
-      messageApi.error(error.response?.data?.message || "Failed to add event");
+    onError: (error: unknown) => {       messageApi.error(errorMessage(error, "Failed to add event"));
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateTimetableSlot(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateTimetableSlot>[1] }) =>
+      updateTimetableSlot(id, data),
     onSuccess: () => {
       messageApi.success("Event updated successfully");
-      queryClient.invalidateQueries(["timetable"]);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setIsModalVisible(false);
       form.resetFields();
       setIsEditMode(false);
       setCurrentEventId(null);
     },
-    onError: (error: any) => {
-      messageApi.error(error.response?.data?.message || "Failed to update event");
+    onError: (error: unknown) => {       messageApi.error(errorMessage(error, "Failed to update event"));
     },
   });
 
@@ -257,7 +264,7 @@ function Timetable() {
     mutationFn: deleteTimetableSlot,
     onSuccess: () => {
       messageApi.success("Event deleted successfully");
-      queryClient.invalidateQueries(["timetable"]);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setIsDeleteModalVisible(false);
     },
     onError: () => {
@@ -265,11 +272,13 @@ function Timetable() {
     },
   });
 
-  const handleDateSelect = (selectInfo: any) => {
+  const handleDateSelect = (selectInfo: DateSelectArg) => {
+    const startStr = String(selectInfo.startStr || "");
+    const endStr = String(selectInfo.endStr || "");
     form.setFieldsValue({
-      date:       dayjs(selectInfo.startStr.split("T")[0]),
-      start_time: dayjs(selectInfo.startStr.split("T")[1], "HH:mm:ss"),
-      end_time:   dayjs(selectInfo.endStr.split("T")[1],   "HH:mm:ss"),
+      date:       dayjs(startStr.split("T")[0]),
+      start_time: dayjs(startStr.split("T")[1], "HH:mm:ss"),
+      end_time:   dayjs(endStr.split("T")[1],   "HH:mm:ss"),
     });
     setIsModalVisible(true);
   };
@@ -277,21 +286,24 @@ function Timetable() {
   const handleAddEvent = async () => {
     try {
       const values  = await form.validateFields();
-      const date    = values.date.format("YYYY-MM-DD");
+      const dateObj = values.date as Dayjs;
+      const date    = dateObj.format("YYYY-MM-DD");
       const days    = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-      const dayName = days[values.date.day()];
-      const payload = {
-        subject:    values.subject,
-        year_id:    values.year,
-        teacher_id: values.teacher || currentUser?.id,
-        class_id:   values.class,
-        room:       values.room,
+      const dayName = days[dateObj.day()];
+      const payload: Parameters<typeof addTimetableSlot>[0] = {
+        subject:    String(values.subject ?? ""),
+        year_id:    String(values.year ?? ""),
+        teacher_id: values.teacher
+          ? String(values.teacher)
+          : String(currentUser?.id ?? ""),
+        class_id:   String(values.class ?? ""),
+        room:       String(values.room ?? ""),
         date,
         day:        dayName,
-        start_time: values.start_time.format("HH:mm"),
-        end_time:   values.end_time.format("HH:mm"),
-        zoom_link:  values.zoom_link,
-        school_id:  schoolId,
+        start_time: (values.start_time as Dayjs).format("HH:mm"),
+        end_time:   (values.end_time as Dayjs).format("HH:mm"),
+        zoom_link:  String(values.zoom_link ?? ""),
+        school_id:  schoolId ?? undefined,
       };
       if (isEditMode && currentEventId) {
         updateMutation.mutate({ id: currentEventId, data: payload });
@@ -303,45 +315,46 @@ function Timetable() {
     }
   };
 
-  const handleEditEvent = (event: any) => {
+  const handleEditEvent = (event: EventApi) => {
     const p = event.extendedProps;
+    const startStr = String(event.startStr || "");
+    const endStr = String(event.endStr || "");
     form.setFieldsValue({
       subject:    event.title,
-      year:       p.year_id,
-      teacher:    p.teacher_id,
-      class:      p.class_id,
-      room:       p.room,
-      date:       dayjs(event.startStr.split("T")[0]),
-      start_time: dayjs(event.startStr.split("T")[1], "HH:mm:ss"),
-      end_time:   dayjs(event.endStr.split("T")[1],   "HH:mm:ss"),
-      zoom_link:  p.zoomLink || "",
+      year:       toRecord(p).year_id,
+      teacher:    toRecord(p).teacher_id,
+      class:      toRecord(p).class_id,
+      room:       toRecord(p).room,
+      date:       dayjs(startStr.split("T")[0]),
+      start_time: dayjs(startStr.split("T")[1], "HH:mm:ss"),
+      end_time:   dayjs(endStr.split("T")[1],   "HH:mm:ss"),
+      zoom_link:  toRecord(p).zoomLink || "",
     });
     setIsEditMode(true);
-    setCurrentEventId(p.id);
+    setCurrentEventId(String(toRecord(p).id || ""));
     setIsModalVisible(true);
   };
 
-  const handleDeleteEvent = (event: any) => {
+  const handleDeleteEvent = (event: EventApi) => {
     setEventToDelete(event);
     setIsDeleteModalVisible(true);
   };
 
   const confirmDelete = () => {
     if (!eventToDelete) return;
-    deleteMutation.mutate(eventToDelete.extendedProps.id || eventToDelete.id);
+    const eventProps = asRecord(eventToDelete.extendedProps);
+    deleteMutation.mutate(String(eventProps?.id || eventToDelete.id));
   };
 
   const handleExport = async () => {
-    const exportedEvents = filteredEvents.map((ev: any) => ({
+    const exportedEvents = filteredEvents.map((ev: Record<string, unknown>) => ({
       subject: ev.title || "",
       date: (ev.start as string).split("T")[0],
       startTime: (ev.start as string).split("T")[1]?.substring(0, 5) || "",
       endTime: (ev.end as string)?.split("T")[1]?.substring(0, 5) || "",
-      teacher: ev.extendedProps?.teacher || "",
-      room: ev.extendedProps?.room || "",
+      teacher: asRecord(ev.extendedProps)?.teacher || "",       room: asRecord(ev.extendedProps)?.room || "",
       className:
-        (allClassesForImport as any[]).find(
-          (c) => Number(c.id) === ev.extendedProps?.class_id
+        (allClassesForImport as Record<string, unknown>[]).find(           (c) => Number(c.id) === asRecord(ev.extendedProps)?.class_id
         )?.class_name || "",
     }));
     const label =
@@ -548,8 +561,8 @@ function Timetable() {
                   allowClear
                   size="large"
                 >
-                  {filteredYearsData.map((year: any) => (
-                    <Option key={year.id} value={year.id.toString()}>{year.name}</Option>
+                  {filteredYearsData.map((year: Record<string, unknown>) => (
+                    <Option key={String(year.id)} value={String(year.id)}>{String(year.name)}</Option>
                   ))}
                 </Select>
               </div>
@@ -563,8 +576,8 @@ function Timetable() {
                   allowClear
                   size="large"
                 >
-                  {filteredClassesData.map((cls: any) => (
-                    <Option key={cls.id} value={cls.id.toString()}>{cls.class_name}</Option>
+                  {filteredClassesData.map((cls: Record<string, unknown>) => (
+                    <Option key={String(cls.id)} value={String(cls.id)}>{String(cls.class_name)}</Option>
                   ))}
                 </Select>
               </div>
@@ -585,7 +598,7 @@ function Timetable() {
                 optionFilterProp="children"
               >
                 {teachers.map((t) => (
-                  <Option key={t.id} value={String(t.id)}>{t.teacher_name}</Option>
+                  <Option key={String(t.id)} value={String(t.id)}>{String(t.teacher_name)}</Option>
                 ))}
               </Select>
             </div>
@@ -608,15 +621,15 @@ function Timetable() {
             ) : null;
           })()}
           {viewBy === "class" && selectedClass && (() => {
-            const cls = classesData.find((c: any) => String(c.id) === selectedClass);
-            const yr  = yearsData.find((y: any) => String(y.id) === selectedYear);
+            const cls = classesData.find((c: Record<string, unknown>) => String(c.id) === selectedClass);
+            const yr  = yearsData.find((y: Record<string, unknown>) => String(y.id) === selectedYear);
             return cls ? (
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white"
                 style={{ background: "var(--primary)" }}
               >
                 <TeamOutlined style={{ fontSize: 10 }} />
-                {yr ? `${yr.name} — ` : ""}{cls.class_name}
+                {yr ? `${String(yr.name)} — ` : ""}{String(cls.class_name)}
                 <button onClick={() => { setSelectedClass(null); }} className="opacity-70 hover:opacity-100 ml-1">✕</button>
               </span>
             ) : null;
@@ -629,7 +642,7 @@ function Timetable() {
                 style={{ background: "var(--primary)" }}
               >
                 <UserOutlined style={{ fontSize: 10 }} />
-                {t.teacher_name}
+                {String(t.teacher_name)}
                 <button onClick={() => setSelectedTeacher("")} className="opacity-70 hover:opacity-100 ml-1">✕</button>
               </span>
             ) : null;
@@ -702,10 +715,10 @@ function Timetable() {
           open={importModalOpen}
           onClose={() => setImportModalOpen(false)}
           teachers={teachers}
-          allClasses={allClassesForImport as any[]}
+          allClasses={allClassesForImport as Record<string, unknown>[]}
           schoolId={schoolId}
           onImported={() => {
-            queryClient.invalidateQueries(["timetable"] as any);
+            queryClient.invalidateQueries({ queryKey: ["timetable"] });
           }}
         />
       )}

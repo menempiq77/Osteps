@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import AddSchoolForm from "@/components/dashboard/AddSchoolForm";
-import SchoolList from "@/components/dashboard/SchoolList";
+import SchoolList, { type School } from "@/components/dashboard/SchoolList";
 import { Spin, Modal, Button, message, Breadcrumb } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -16,16 +16,17 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { IMPERSONATION_STORAGE_KEY, setCurrentUser } from "@/features/auth/authSlice";
 import { RootState } from "@/store/store";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const [schools, setSchools] = useState<any[]>([]);
+  const [schools, setSchools] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [editingSchool, setEditingSchool] = useState<any | null>(null);
+  const [editingSchool, setEditingSchool] = useState<Record<string, unknown> | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewingSchoolId, setViewingSchoolId] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
@@ -34,7 +35,7 @@ export default function SuperAdminDashboard() {
     try {
       const data = await fetchSchools();
       setSchools(data);
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to fetch schools");
       console.error(err);
     } finally {
@@ -45,7 +46,7 @@ export default function SuperAdminDashboard() {
     loadSchools();
   }, []);
 
-  const handleEdit = (school: any) => {
+  const handleEdit = (school: Record<string, unknown>) => {
     setEditingSchool({
       id: school.id,
       name: school.name,
@@ -57,7 +58,7 @@ export default function SuperAdminDashboard() {
     setOpen(true);
   };
 
-  const handleViewSchool = async (school: any) => {
+  const handleViewSchool = async (school: Record<string, unknown>) => {
     if (!currentUser) return;
 
     const schoolId = Number(school.id);
@@ -105,24 +106,19 @@ export default function SuperAdminDashboard() {
       }));
 
       router.push("/dashboard/subject-cards");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      messageApi?.error(
-        err?.response?.data?.message ||
-          err?.response?.data?.msg ||
-          err?.message ||
-          "Could not open this school as school admin."
-      );
+      messageApi?.error(errorMessage(err, "Could not open this school as school admin."));
     } finally {
       setViewingSchoolId(null);
     }
   };
 
-  const handleAddOrEditSchool = async (schoolData: any) => {
+  const handleAddOrEditSchool = async (schoolData: Record<string, unknown>) => {
     try {
       if (editingSchool) {
         // Update existing school
-        const updatedSchool = await updateSchool(editingSchool.id, {
+        const updatedSchool = await updateSchool(String(editingSchool.id), {
           name: schoolData.name,
           contact: schoolData.contactPerson,
           school_admin: schoolData.contactPerson,
@@ -171,7 +167,7 @@ export default function SuperAdminDashboard() {
       );
       setOpen(false);
       setEditingSchool(null);
-    } catch (err) {
+    } catch (err: unknown) {
       setError(
         editingSchool ? "Failed to update school" : "Failed to add school"
       );
@@ -194,10 +190,10 @@ export default function SuperAdminDashboard() {
       setSchools((prev) => prev.filter((school) => school.id !== deletingId));
       setDeletingId(null);
       messageApi?.success("Deleted school Successfully!");
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to delete school");
       const errorMessage = axios.isAxiosError(err)
-        ? (err.response?.data?.msg as string) || "Failed to delete school"
+        ? (asRecord(asRecord(err.response)?.data)?.msg as string) || "Failed to delete school"
         : "Failed to delete school";
       messageApi?.error(errorMessage);
       console.error(err);
@@ -285,22 +281,18 @@ export default function SuperAdminDashboard() {
       >
         <AddSchoolForm
           onSubmit={handleAddOrEditSchool}
-          defaultValues={editingSchool}
+          defaultValues={editingSchool ?? undefined}
           formId="school-form"
         />
       </Modal>
 
       <SchoolList
         schools={schools.map((school) => ({
-          id: school.id,
-          name: school.name,
-          adminEmail: school.email,
-          contactPerson: school.schoolAdmin,
-          academicYear: school.year_structure,
-          adminUserId: school.admin_user_id || school.user_id || school.admin?.id,
-          contact: school.contact,
-          schoolAdmin: school.schoolAdmin,
-        }))}
+          id: String(school.id ?? ""),
+          name: String(school.name ?? ""),
+          adminEmail: school.email ? String(school.email) : undefined,
+          contactPerson: school.schoolAdmin ? String(school.schoolAdmin) : undefined,
+        })) as unknown as School[]}
         onView={handleViewSchool}
         viewingSchoolId={viewingSchoolId}
         onEdit={handleEdit}

@@ -25,13 +25,13 @@ export const addAnnouncement = async (announcementData: { name: string }) => {
       'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(withSubjectPayload(announcementData as any)),
+    body: JSON.stringify(withSubjectPayload(announcementData)),
   });
   if (!response.ok) throw new Error('Failed to add announcement');
   return response.json();
 };
 
-export const updateAnnouncement = async (id: string, announcementData: any) => {
+export const updateAnnouncement = async (id: string, announcementData: Record<string, unknown>) => {
   const response = await fetch(`${API_BASE_URL}/update-announcement/${id}`, {
     method: 'POST',
     headers: {

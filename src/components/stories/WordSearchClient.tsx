@@ -41,12 +41,15 @@ export default function WordSearchClient({ words, letters, theme, difficulty = "
   }, [ended]);
 
   useEffect(() => {
-    setTimeLeft(GAME_DURATION);
-    setFound(new Set());
-    setEnded(false);
-    setSelectedCells([]);
-    setIsSelecting(false);
-    setHighlightedCells(new Set());
+    const id = setTimeout(() => {
+      setTimeLeft(GAME_DURATION);
+      setFound(new Set());
+      setEnded(false);
+      setSelectedCells([]);
+      setIsSelecting(false);
+      setHighlightedCells(new Set());
+    }, 0);
+    return () => clearTimeout(id);
   }, [difficulty, letters, words, GAME_DURATION]);
 
   const grid = useMemo(() => letters, [letters]);

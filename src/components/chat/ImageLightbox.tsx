@@ -14,10 +14,12 @@ export default function ImageLightbox({ url, onClose }: ImageLightboxProps) {
   const [start, setStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (url) {
+    if (!url) return;
+    const id = setTimeout(() => {
       setScale(1);
       setPosition({ x: 0, y: 0 });
-    }
+    }, 0);
+    return () => clearTimeout(id);
   }, [url]);
 
   useEffect(() => {

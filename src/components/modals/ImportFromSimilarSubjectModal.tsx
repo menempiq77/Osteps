@@ -44,15 +44,18 @@ export function ImportFromSimilarSubjectModal({
 
   // Archived twins hold the content worth importing, so preselect one.
   useEffect(() => {
-    if (!open) {
-      setSourceSubjectId(null);
-      // Keep the identity when already empty, so this never re-renders in a loop.
-      setSelectedIds((prev) => (prev.length === 0 ? prev : []));
-      return;
-    }
-    if (sourceSubjectId || similarSubjects.length === 0) return;
-    const preferred = similarSubjects.find((subject) => subject.archived) ?? similarSubjects[0];
-    setSourceSubjectId(Number(preferred.id));
+    const id = setTimeout(() => {
+      if (!open) {
+        setSourceSubjectId(null);
+        // Keep the identity when already empty, so this never re-renders in a loop.
+        setSelectedIds((prev) => (prev.length === 0 ? prev : []));
+        return;
+      }
+      if (sourceSubjectId || similarSubjects.length === 0) return;
+      const preferred = similarSubjects.find((subject) => subject.archived) ?? similarSubjects[0];
+      setSourceSubjectId(Number(preferred.id));
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, similarSubjects, sourceSubjectId]);
 
   const {
@@ -66,7 +69,8 @@ export function ImportFromSimilarSubjectModal({
   });
 
   useEffect(() => {
-    setSelectedIds([]);
+    const id = setTimeout(() => setSelectedIds([]), 0);
+    return () => clearTimeout(id);
   }, [sourceSubjectId]);
 
   const allIds = useMemo(() => items.map((item) => String(item.id)), [items]);

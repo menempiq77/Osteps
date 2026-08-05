@@ -2754,7 +2754,7 @@ export default function AllStudentsPage() {
     setAddSubmitting(true);
     for (const row of payloadRows) {
       try {
-        // eslint-disable-next-line no-await-in-loop
+         
         const added = await addStudent(row.payload, subjectId);
         successCount += 1;
 
@@ -2774,7 +2774,7 @@ export default function AllStudentsPage() {
           }
 
           try {
-            // eslint-disable-next-line no-await-in-loop
+             
             await assignStudentsToSubjects({
               subjectIds: row.subjectIds,
               studentIds: [createdStudentId],
