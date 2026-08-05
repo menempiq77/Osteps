@@ -25,7 +25,11 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           host="$(printf '%s' "$DEPLOY_SSH_HOST" | tr -d '[:space:]')"
           user="$(printf '%s' "$DEPLOY_SSH_USER" | tr -d '[:space:]')"
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$user@$host" \
+          ssh -i ~/.ssh/deploy_key \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=20 \
+            -o StrictHostKeyChecking=accept-new "$user@$host" \
             'set -e; cd /var/www/osteps/Osteps; git pull origin main; npm install --no-audit --no-fund; NODE_OPTIONS=--max-old-space-size=5120 npm run build; pm2 restart osteps'
 
       - name: Production health check
