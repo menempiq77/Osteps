@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
@@ -22,6 +23,9 @@ const withSerwist = withSerwistInit({
     { url: "/icons/apple-touch-icon.png", revision: null },
   ],
   exclude: [/.*/],
+});
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
 });
 
 const nextConfig: NextConfig = {
@@ -82,7 +86,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist({
+export default withSerwist(withAnalyzer({
   ...nextConfig,
   async headers() {
     const existingHeaders = await nextConfig.headers?.();
@@ -109,4 +113,4 @@ export default withSerwist({
       },
     ];
   },
-});
+}));
