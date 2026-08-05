@@ -4,6 +4,7 @@ import path from "path";
 import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { asRecord, errorMessage } from "@/lib/safeRecord";
+import { checkRateLimit, rateLimitKey } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1917,6 +1918,8 @@ const requestOpenRouterDraftMark = async ({
 };
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(rateLimitKey(request, "ai"));
+  if (!rate.allowed) return NextResponse.json({ error: "AI request rate limit exceeded." }, { status: 429, headers: { "Retry-After": String(rate.retryAfter) } });
   const routeStartedAt = Date.now();
   const hasRouteBudget = (minimumMs = 6000) => Date.now() - routeStartedAt < 52000 - minimumMs;
 
