@@ -1,3 +1,5 @@
+[![CI](https://github.com/menempiq77/Osteps/actions/workflows/ci.yml/badge.svg)](https://github.com/menempiq77/Osteps/actions/workflows/ci.yml)
+
 # Osteps
 Educational
 
