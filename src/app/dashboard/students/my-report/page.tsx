@@ -207,11 +207,10 @@ export default function StudentMyReportPage() {
 
   useEffect(() => {
     if (selectedClassId != null) return;
-    if (currentClassId > 0) {
-      setSelectedClassId(currentClassId);
-    } else if (classOptions.length > 0) {
-      setSelectedClassId(classOptions[0].id);
-    }
+    const nextClassId = currentClassId > 0 ? currentClassId : classOptions[0]?.id;
+    if (nextClassId == null) return;
+    const timer = window.setTimeout(() => setSelectedClassId(nextClassId), 0);
+    return () => window.clearTimeout(timer);
   }, [selectedClassId, currentClassId, classOptions]);
 
   const effectiveClassId = selectedClassId ?? currentClassId;

@@ -489,7 +489,7 @@ export default function NotebookPageCanvas({
     remember();
     onChange([...annotations, pasted]);
     setSelectedTextId(pasted.id);
-  }, [annotations, bold, color, onChange, readOnly, remember, textAlign, textSize, underline, zoom]);
+  }, [annotations, bold, color, onChange, pasteAt, readOnly, remember, textAlign, textSize, underline, zoom]);
 
   useEffect(() => {
     const handleDocumentPaste = (event: ClipboardEvent) => {

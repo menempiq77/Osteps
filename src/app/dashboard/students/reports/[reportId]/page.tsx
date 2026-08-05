@@ -59,7 +59,7 @@ export default function Page() {
         console.error(err);
       }
     };
-    loadGrades(schoolId);
+    loadGrades(String(schoolId ?? ""));
   }, [schoolId]);
 
   useEffect(() => {
@@ -86,19 +86,29 @@ export default function Page() {
     studentId: number,
     taskId: number
   ) => {
-    const newData = [...apiData];
     const numValue = value === "" ? null : parseInt(value, 10);
+    const previousMarks =
+      apiData[studentIndex]?.tasks[taskIndex]?.teacher_assessment_marks ?? null;
 
-    newData[studentIndex].tasks[taskIndex].teacher_assessment_marks = isNaN(
-      numValue
-    )
-      ? null
-      : numValue;
+    const updatedMarks =
+      numValue !== null && Number.isFinite(numValue) ? numValue : null;
+    const newData = apiData.map((student, index) =>
+      index !== studentIndex
+        ? student
+        : {
+            ...student,
+            tasks: student.tasks.map((task, taskIndexValue) =>
+              taskIndexValue === taskIndex
+                ? { ...task, teacher_assessment_marks: updatedMarks }
+                : task
+            ),
+          }
+    );
     setApiData(newData);
 
-    if (!isNaN(numValue) && numValue !== null) {
+    if (numValue !== null && Number.isFinite(numValue)) {
       try {
-        await addStudentTaskMarks(studentId, {
+        await addStudentTaskMarks(Number(studentId), {
           assessment_id: Number(reportId),
           task_id: taskId,
           teacher_assessment_marks: numValue,
@@ -108,9 +118,20 @@ export default function Page() {
       } catch (error) {
         console.error("Error updating marks:", error);
         messageApi.error("Failed to update marks");
-        newData[studentIndex].tasks[taskIndex].teacher_assessment_marks =
-          apiData[studentIndex].tasks[taskIndex].teacher_assessment_marks;
-        setApiData([...newData]);
+        setApiData(
+          newData.map((student, index) =>
+            index !== studentIndex
+              ? student
+              : {
+                  ...student,
+                  tasks: student.tasks.map((task, taskIndexValue) =>
+                    taskIndexValue === taskIndex
+                      ? { ...task, teacher_assessment_marks: previousMarks }
+                      : task
+                  ),
+                }
+          )
+        );
       }
     }
   };

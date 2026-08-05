@@ -158,7 +158,7 @@ export default function ProphetStoryPage({ params }: PageProps) {
               }}
             >
               <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
-                Qur'an references (surahs)
+                Qur&apos;an references (surahs)
               </div>
               <div
                 style={{
@@ -171,7 +171,7 @@ export default function ProphetStoryPage({ params }: PageProps) {
                 {story.quranSurahs.length ? story.quranSurahs.join(" | ") : "-"}
               </div>
               <div style={{ marginTop: 10, color: "#333", fontWeight: 650, lineHeight: 1.75 }}>
-                Note: This is student-friendly, original wording based on Qur'an-guided learning.
+                Note: This is student-friendly, original wording based on Qur&apos;an-guided learning.
               </div>
             </div>
           </div>

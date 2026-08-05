@@ -10,15 +10,19 @@ import {
 import { useRouter } from "next/navigation";
 import { ChevronLeftIcon } from "lucide-react";
 import { addCategory, fetchCategories, updateCategory, deleteCategory as deleteCategoryApi, } from "@/services/libraryApi";
+import { errorMessage } from "@/lib/safeRecord";
+
+type Category = { id: number; name: string };
+type CategoryForm = { name: string };
 
 export default function LibraryCategories() {
-  const [form] = Form.useForm();
-  const [data, setData] = useState([]);
+  const [form] = Form.useForm<CategoryForm>();
+  const [data, setData] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -30,7 +34,7 @@ export default function LibraryCategories() {
     try {
       setLoading(true);
       const response = await fetchCategories();
-      setData(response);
+      setData(response as Category[]);
     } catch (error) {
       messageApi.error("Failed to load categories");
     } finally {
@@ -48,10 +52,10 @@ export default function LibraryCategories() {
     setEditingId(null);
   };
 
-  const onFinish = async (values) => {
+  const onFinish = async (values: CategoryForm) => {
     try {
       if (editingId) {
-        await updateCategory(editingId, values);
+        await updateCategory(String(editingId), values);
         messageApi.success("Category updated successfully");
       } else {
         await addCategory(values);
@@ -59,31 +63,30 @@ export default function LibraryCategories() {
       }
       loadCategories();
       handleCancel();
-    } catch (error) {
-      messageApi.error(error.response?.data?.message || "Operation failed");
+    } catch (error: unknown) {
+      messageApi.error(errorMessage(error, "Operation failed"));
     }
   };
 
-  const editCategory = (record) => {
+  const editCategory = (record: Category) => {
     form.setFieldsValue(record);
     setEditingId(record.id);
     setIsModalOpen(true);
   };
 
-  const showDeleteConfirm = (id) => {
+  const showDeleteConfirm = (id: number) => {
     setCategoryToDelete(id);
     setDeleteConfirmVisible(true);
   };
 
   const handleDelete = async () => {
+    if (categoryToDelete === null) return;
     try {
       await deleteCategoryApi(categoryToDelete);
       messageApi.success("Category deleted successfully");
       loadCategories();
     } catch (error) {
-      messageApi.error(
-        error.response?.data?.message || "Failed to delete category"
-      );
+      messageApi.error(errorMessage(error, "Failed to delete category"));
     } finally {
       setDeleteConfirmVisible(false);
     }

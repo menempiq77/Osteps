@@ -10,14 +10,22 @@ import { fetchTerm } from "@/services/termsApi";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
 
+type Term = { id: number; name: string };
+type Assessment = {
+  id: string | number;
+  name?: string;
+  type?: string;
+  quiz?: { id?: string | number; name?: string };
+};
+
 export default function TermPage() {
-  const { classId, studentId } = useParams();
+  const { classId, studentId } = useParams<{ classId: string; studentId: string }>();
   const router = useRouter();
   const { activeSubjectId, canUseSubjectContext } = useSubjectContext();
-  const [terms, setTerms] = useState<any[]>([]);
+  const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [assessments, setAssessments] = useState<any[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
 
@@ -30,7 +38,7 @@ export default function TermPage() {
       );
       console.log(data, "data");
 
-      setAssessments(data);
+      setAssessments(data as unknown as Assessment[]);
       setError(null);
     } catch (err) {
       setError("Failed to load Assessment");
@@ -49,7 +57,7 @@ export default function TermPage() {
   const loadTerms = async () => {
     try {
       setLoading(true);
-      const response = await fetchTerm(classId);
+      const response = await fetchTerm(Number(classId));
       setTerms(response);
       if (response.length > 0) {
         setSelectedTerm(response[0].name);
@@ -68,19 +76,20 @@ export default function TermPage() {
     loadTerms();
   }, [classId]);
 
-  const handleOpenDrawer = (assessment: any) => {
+  const handleOpenDrawer = (assessment: Assessment) => {
     if (assessment.type === "quiz") {
-      router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/quiz/${assessment.quiz.id}`);
+      router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/quiz/${String(assessment.quiz?.id ?? "")}`);
     } else {
       router.push(`/dashboard/students/${classId}/view-student-assesment/${studentId}/assesment-tasks/${assessment.id}`);
     }
   };
  
-  const handleTermChange = (termId: number) => {
-    const term = terms.find((t) => t.id === termId);
+  const handleTermChange = (termId: number | string) => {
+    const numericTermId = Number(termId);
+    const term = terms.find((t) => t.id === numericTermId);
     if (term) {
       setSelectedTerm(term.name);
-      setSelectedTermId(termId);
+      setSelectedTermId(numericTermId);
     }
   };
 

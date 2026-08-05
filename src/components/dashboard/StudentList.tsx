@@ -620,8 +620,7 @@ export default function StudentList() {
   const canAccessClassNotebook =
     role === "SCHOOL_ADMIN" ||
     role === "HOD" ||
-    role === "TEACHER" ||
-    role === "ADMIN";
+    role === "TEACHER";
   const scopedSubjectId =
     Number.isFinite(Number(routeSubjectId)) && Number(routeSubjectId) > 0
       ? Number(routeSubjectId)

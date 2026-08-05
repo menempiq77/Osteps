@@ -54,7 +54,7 @@ export interface Quiz {
   name: string;
 }
 
-interface Assessment {
+export interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
@@ -68,7 +68,7 @@ interface AssessmentListProps {
   onEditAssessment?: (assessment: Assessment) => void;
   onDuplicateAssessment?: (assessment: Assessment) => void;
   quizzes: Quiz[];
-  termId: number;
+  termId: number | string;
 }
 
 export interface Term {

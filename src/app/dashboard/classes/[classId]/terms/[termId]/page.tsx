@@ -1,7 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import AddAssessmentForm from "@/components/dashboard/AddAssessmentForm";
-import AssessmentList from "@/components/dashboard/assessmentList";
+import AssessmentList, {
+  type Assessment as AssessmentListItem,
+  type Quiz,
+} from "@/components/dashboard/assessmentList";
 import {
   addAssessment,
   deleteAssessment,
@@ -9,7 +12,7 @@ import {
   fetchAssessment,
   updateAssessment,
 } from "@/services/api";
-import { Breadcrumb, Button, Modal, Spin } from "antd";
+import { Breadcrumb, Button, Modal, Spin, message } from "antd";
 import { useParams } from "next/navigation";
 import EditAssessmentForm from "@/components/dashboard/EditAssessmentForm";
 import { assignAssesmentQuiz, fetchQuizes } from "@/services/quizApi";
@@ -18,14 +21,13 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 
-interface Assessment {
-  id: string;
-  name: string;
-  type: "assessment" | "quiz";
-  term_id: string;
-}
+type Assessment = AssessmentListItem;
 
 const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
+type QuizLike = Quiz & {
+  subject_id?: string | number;
+  subject?: { id?: string | number };
+};
 
 function readQuizSubjectMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -36,7 +38,7 @@ function readQuizSubjectMap(): Record<string, number> {
   }
 }
 
-function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
+function filterQuizzesBySubject(quizzes: QuizLike[], subjectId: number): QuizLike[] {
   const map = readQuizSubjectMap();
   return quizzes.filter((q) => {
     const backendSubjectId = q.subject_id ?? q.subject?.id ?? null;
@@ -54,15 +56,15 @@ function filterQuizzesBySubject(quizzes: any[], subjectId: number): any[] {
 }
 
 export default function Page() {
-  const { termId, classId } = useParams();
-  const [currentTermId, setCurrentTermId] = useState(termId);
+  const { termId, classId } = useParams<{ termId: string; classId: string }>();
+  const [currentTermId, setCurrentTermId] = useState<string>(termId);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingQuiz, setIsAddingQuiz] = useState(false);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [quizzes, setQuizzes] = useState([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
     null
   );
@@ -94,10 +96,10 @@ export default function Page() {
   const loadAssessment = async () => {
     try {
       const data = await fetchAssessment(
-        currentTermId,
+        Number(currentTermId),
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined
       );
-      setAssessments(data);
+      setAssessments(data as unknown as Assessment[]);
       setLoading(false);
     } catch (err) {
       setError("Failed to load Assessment");
@@ -109,7 +111,7 @@ export default function Page() {
   useEffect(() => {
     if (currentTermId) {
       loadAssessment();
-      loadQuizzes(schoolId);
+      loadQuizzes(String(schoolId ?? ""));
     }
   }, [currentTermId, activeSubjectId, canUseSubjectContext]);
 
@@ -120,7 +122,7 @@ export default function Page() {
         schoolId,
         canUseSubjectContext ? activeSubjectId ?? undefined : undefined
       );
-      setQuizzes(response);
+      setQuizzes(response as Quiz[]);
     } catch (error) {
       message.error("Failed to load quizzes");
     } finally {
@@ -132,7 +134,6 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
-    class_id: string;
   }) => {
     try {
       let newAssessment;
@@ -164,7 +165,6 @@ export default function Page() {
     name: string;
     type: "assessment" | "quiz";
     term_id: string;
-    class_id: string;
   }) => {
     if (!editingAssessment) return;
 
@@ -210,9 +210,9 @@ export default function Page() {
       const assessment = assessments.find((a) => a.id === assessmentToDelete);
 
       if (assessment?.type === "quiz") {
-        await deleteAssignTermQuiz(assessmentToDelete);
+        await deleteAssignTermQuiz(Number(assessmentToDelete));
       } else {
-        await deleteAssessment(assessmentToDelete);
+        await deleteAssessment(Number(assessmentToDelete));
       }
       setAssessments(
         assessments.filter((assessment) => assessment.id !== assessmentToDelete)
@@ -326,7 +326,7 @@ export default function Page() {
           <AddAssessmentForm
             onSubmit={handleAddAssessment}
             isQuiz={isAddingQuiz}
-            termId={termId}
+            termId={String(termId)}
             quizzes={visibleQuizzes}
           />
         )}
@@ -337,7 +337,7 @@ export default function Page() {
         onDeleteAssessment={confirmDelete}
         onEditAssessment={handleEditClick}
         quizzes={visibleQuizzes}
-        termId={termId}
+        termId={String(termId)}
       />
       {/* Delete Confirmation Dialog */}
       <Modal

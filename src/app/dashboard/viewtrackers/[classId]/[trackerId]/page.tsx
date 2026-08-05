@@ -13,6 +13,7 @@ import {
   message,
 } from "antd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { DropResult } from "@hello-pangea/dnd";
 import { fetchTrackerTopics, addTopicMark } from "@/services/api";
 import { fetchStudents } from "@/services/studentsApi";
 import { useQuery } from "@tanstack/react-query";
@@ -198,7 +199,7 @@ export default function ViewTrackerTopicPage() {
     (async () => {
       try {
         const list = await fetchTrackers(Number(classId));
-        const match = list?.find((t: any) => {
+        const match = list?.find((t: { tracker_id?: number; id?: number }) => {
           const id = Number(t?.tracker_id ?? t?.id);
           return id === Number(trackerId);
         });
@@ -219,7 +220,7 @@ export default function ViewTrackerTopicPage() {
     })();
   }, [classId, trackerId]);
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
     const items = Array.from(topics);

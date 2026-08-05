@@ -168,7 +168,14 @@ export const fetchAssessmentByStudent = async (termId: number, subjectId?: numbe
   return filterAssessmentsForTerm(response.data.data ?? [], termId);
 };
 // add Assessment
-export const addAssessment = async (assessmentData: { name: string; school_id?: number; type?: string; subject_id?: number }) => {
+export const addAssessment = async (assessmentData: {
+  name: string;
+  school_id?: number;
+  type?: string;
+  subject_id?: number;
+  class_id?: string;
+  term_id?: string;
+}) => {
   const response = await api.post('/add-assessment', assessmentData);
   return response.data;
 };

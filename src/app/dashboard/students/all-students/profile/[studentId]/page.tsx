@@ -8,7 +8,14 @@ import { fetchStudentProfileData, fetchStudents } from "@/services/studentsApi";
 import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
 import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
 
-type AnyObj = Record<string, any>;
+type AnyObj = {
+  id?: string | number; student_id?: string | number; user_id?: string | number; profile_id?: string | number;
+  name?: string; subject_name?: string; student_name?: string; email?: string; status?: string; gender?: string; student_gender?: string; nationality?: string;
+  date?: string; created_at?: string; description?: string; points?: number | string; is_sen?: unknown; isSen?: unknown; sen_details?: unknown; senDetails?: unknown;
+  class_id?: string | number; class?: AnyObj; student?: AnyObj; subject?: AnyObj; behaviour?: AnyObj; user?: AnyObj;
+  subjects?: unknown; assigned_subjects?: unknown; active_subjects?: unknown;
+  [key: string]: unknown;
+};
 
 const asArray = <T = AnyObj,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 

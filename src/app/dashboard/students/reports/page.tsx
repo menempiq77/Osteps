@@ -9,7 +9,7 @@ import {
   fetchReportAssessments,
   fetchWholeAssessmentsReport,
 } from "@/services/reportApi";
-import { addStudentTaskMarks } from "@/services/api";
+import { addStudentTaskMarks, updateTask } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchGrades } from "@/services/gradesApi";
 import { fetchYearsBySchool } from "@/services/yearsApi";
@@ -87,11 +87,37 @@ interface Grade {
   description: string;
 }
 
-function asArray<T = any>(value: unknown): T[] {
+type SubmissionMark = {
+  student_id: number;
+  student_name: string;
+  teacher_assessment_marks?: number | null;
+  teacher_assessment_mark?: number | null;
+  teacher_assessment_score?: number | null;
+  submission_id?: number;
+  id?: number;
+};
+
+type SubjectClassApiRow = {
+  id?: number | string;
+  class_id?: number | string;
+  base_class_id?: number | string;
+  teacher_id?: number;
+  school_id?: number;
+  number_of_terms?: string | number;
+  term?: Array<{ id: number; class_id: number; name: string }>;
+  year_id?: number | string;
+  class?: { id?: number | string; year_id?: number | string; class_name?: string; number_of_terms?: string | number };
+  classes?: { id?: number | string; year_id?: number | string; class_name?: string; number_of_terms?: string | number; school_id?: number };
+  base_class?: { id?: number | string; year_id?: number | string; class_name?: string };
+  name?: string;
+  base_class_label?: string;
+};
+
+function asArray<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-function getSubmissionTeacherMark(submission: any): number {
+function getSubmissionTeacherMark(submission: SubmissionMark): number {
   const candidates = [
     submission?.teacher_assessment_marks,
     submission?.teacher_assessment_mark,
@@ -292,7 +318,7 @@ export default function ReportsPage() {
         console.error(err);
       }
     };
-    loadGrades(schoolId);
+    loadGrades(String(schoolId ?? ""));
   }, [schoolId]);
 
   useEffect(() => {
@@ -321,14 +347,14 @@ export default function ReportsPage() {
           ]);
 
           const yearMap = new Map(
-            (Array.isArray(schoolYears) ? schoolYears : []).map((year: any) => [
+            (Array.isArray(schoolYears) ? schoolYears : []).map((year: { id?: number | string; school_id?: number; name?: string }) => [
               Number(year?.id),
               year,
             ])
           );
 
           const normalizedRows = await Promise.all(
-            (Array.isArray(subjectClassRows) ? subjectClassRows : []).map(async (row: any) => {
+            (Array.isArray(subjectClassRows) ? subjectClassRows : []).map(async (row: SubjectClassApiRow) => {
               const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
                 row,
                 Number(scopedSubjectId)
@@ -377,8 +403,8 @@ export default function ReportsPage() {
           );
         } else if (isSchoolAdmin && !scopedSubjectId) {
           const adminData = await fetchAllYearClasses();
-          response = adminData.school_classs.map((cls: any) => {
-            const year = adminData.years.find((y: any) => y.id === cls.year_id);
+          response = adminData.school_classs.map((cls: { id: number; year_id: number; class_name: string; school_id?: number; number_of_terms?: string | number; term?: Array<{ id: number; class_id: number; name: string }> }) => {
+            const year = adminData.years.find((y: { id: number }) => y.id === cls.year_id);
             return {
               id: cls.id,
               subject: "",
@@ -403,8 +429,8 @@ export default function ReportsPage() {
         }
 
         const [assessmentResponse, reportData] = await Promise.all([
-          fetchWholeAssessmentsReport(schoolId, scopedSubjectId),
-          fetchReportAssessments(schoolId, scopedSubjectId),
+          fetchWholeAssessmentsReport(String(schoolId), scopedSubjectId),
+          fetchReportAssessments(String(schoolId), scopedSubjectId),
         ]);
 
         // A newer fetch started while this one was in flight — discard these
@@ -557,7 +583,7 @@ export default function ReportsPage() {
       if (selectedTerm !== "all" && term !== selectedTerm) return;
 
       assessment.tasks.forEach((task) => {
-        asArray<any>(task.submitted).forEach((submission: any) => {
+        asArray<SubmissionMark>(task.submitted).forEach((submission) => {
           if (!studentsMap.has(submission.student_id)) {
             studentsMap.set(submission.student_id, { student_name: submission.student_name, taskMarks: new Map() });
           }
@@ -574,7 +600,7 @@ export default function ReportsPage() {
           });
         });
 
-        asArray<any>(task.not_submitted).forEach((student: any) => {
+        asArray<{ student_id: number; student_name: string }>(task.not_submitted).forEach((student) => {
           if (!studentsMap.has(student.student_id)) {
             studentsMap.set(student.student_id, { student_name: student.student_name, taskMarks: new Map() });
           }
@@ -794,7 +820,10 @@ export default function ReportsPage() {
       fd.append("allocated_marks", String(col.allocatedMarks));
       fd.append("task_type", "null");
       await updateTask(String(col.taskId), fd);
-      const updated = await fetchWholeAssessmentsReport(schoolId, scopedSubjectId);
+      const updated = await fetchWholeAssessmentsReport(
+        String(schoolId),
+        scopedSubjectId
+      );
       setWholeAssesmentData(updated);
     } finally {
       setSavingRename(false);
