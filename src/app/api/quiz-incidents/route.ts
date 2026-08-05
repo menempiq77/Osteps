@@ -3,6 +3,7 @@ import { promises as fs, Dirent } from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { asRecord } from "@/lib/safeRecord";
+import { API_BASE_URL } from "@/lib/config";
 import {
   normalizeIncidentContext,
   type QuizIncidentContext,
@@ -131,6 +132,11 @@ const readIncidentStates = async ({
 };
 
 export async function GET(request: NextRequest) {
+  if ((process.env.QUIZ_INCIDENTS_STORAGE || "file").toLowerCase() === "laravel") {
+    const target = `${API_BASE_URL.replace(/\/$/, "")}/quiz-incidents?${request.nextUrl.searchParams.toString()}`;
+    const response = await fetch(target, { headers: { Authorization: request.headers.get("authorization") || "" }, cache: "no-store" });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
   const searchParams = request.nextUrl.searchParams;
   const assessmentId = searchParams.get("assessmentId");
   const quizId = searchParams.get("quizId");
@@ -156,6 +162,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const payload = await request.json().catch(() => null);
+  if ((process.env.QUIZ_INCIDENTS_STORAGE || "file").toLowerCase() === "laravel") {
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/quiz-incidents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: request.headers.get("authorization") || "" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
   const rawAssessmentId = String(payload?.assessmentId || "").trim();
   const rawQuizId = String(payload?.quizId || "").trim();
   const rawStudentId = String(payload?.studentId || "").trim();

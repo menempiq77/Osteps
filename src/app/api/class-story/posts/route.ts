@@ -4,6 +4,7 @@ import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { StoryPostInput, StoryPostRecord } from "@/types/classStory";
 import { asRecord } from "@/lib/safeRecord";
+import { API_BASE_URL } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +78,11 @@ const sortPosts = (posts: StoryPostRecord[]) =>
   );
 
 export async function GET(request: NextRequest) {
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const target = `${API_BASE_URL.replace(/\/$/, "")}/class-story/posts?${request.nextUrl.searchParams.toString()}`;
+    const response = await fetch(target, { cache: "no-store" });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
   const classId = String(request.nextUrl.searchParams.get("classId") || "").trim();
   const subjectId = normalizeSubjectId(request.nextUrl.searchParams.get("subjectId"));
 
@@ -94,6 +100,15 @@ export async function POST(request: NextRequest) {
     payload = (await request.json()) as CreatePostPayload;
   } catch {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
+  }
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/class-story/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: request.headers.get("authorization") || "" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
   }
 
   const classId = String(payload.classId || "").trim();
@@ -150,6 +165,15 @@ export async function PUT(request: NextRequest) {
   } catch {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/class-story/posts`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: request.headers.get("authorization") || "" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
 
   const classId = String(payload.classId || "").trim();
   const postId = String(payload.postId || "").trim();
@@ -188,6 +212,11 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const target = `${API_BASE_URL.replace(/\/$/, "")}/class-story/posts?${request.nextUrl.searchParams.toString()}`;
+    const response = await fetch(target, { method: "DELETE", headers: { Authorization: request.headers.get("authorization") || "" }, cache: "no-store" });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
   const classId = String(request.nextUrl.searchParams.get("classId") || "").trim();
   const postId = String(request.nextUrl.searchParams.get("postId") || "").trim();
   const subjectId = normalizeSubjectId(request.nextUrl.searchParams.get("subjectId"));

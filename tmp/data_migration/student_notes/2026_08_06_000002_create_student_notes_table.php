@@ -1,0 +1,2 @@
+<?php
+return new class extends Migration { public function up(): void { Schema::create('student_notes', function (Blueprint $table) { $table->id(); $table->foreignId('school_id')->constrained()->cascadeOnDelete(); $table->foreignId('student_id')->constrained('users')->cascadeOnDelete(); $table->text('note')->nullable(); $table->timestamps(); $table->unique(['school_id','student_id']); }); } public function down(): void { Schema::dropIfExists('student_notes'); } };

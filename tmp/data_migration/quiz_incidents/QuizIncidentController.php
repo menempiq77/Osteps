@@ -1,0 +1,2 @@
+<?php
+namespace App\Http\Controllers\Api; class QuizIncidentController extends Controller { public function index(Request $request) { return QuizIncident::where('school_id',$request->user()->school_id)->latest('occurred_at')->get(); } public function store(Request $request) { return QuizIncident::create($request->validate(['assessment_id'=>'required','quiz_id'=>'required','student_id'=>'required','reason'=>'required','context'=>'nullable|array','occurred_at'=>'required|date'])); } }

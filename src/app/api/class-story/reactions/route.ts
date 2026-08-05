@@ -4,6 +4,7 @@ import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { StoryReaction, StoryReactionType } from "@/types/classStory";
 import { asRecord } from "@/lib/safeRecord";
+import { API_BASE_URL } from "@/lib/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,11 @@ const normalizeSubjectId = (value: string | null) => {
 };
 
 export async function GET(request: NextRequest) {
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const target = `${API_BASE_URL.replace(/\/$/, "")}/class-story/reactions?${request.nextUrl.searchParams.toString()}`;
+    const response = await fetch(target, { cache: "no-store" });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
+  }
   const classId = String(request.nextUrl.searchParams.get("classId") || "").trim();
   const subjectId = normalizeSubjectId(request.nextUrl.searchParams.get("subjectId"));
   const itemId = String(request.nextUrl.searchParams.get("itemId") || "").trim();
@@ -85,6 +91,15 @@ export async function POST(request: NextRequest) {
     payload = (await request.json()) as ReactionPayload;
   } catch {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
+  }
+  if ((process.env.CLASS_STORY_STORAGE || "file").toLowerCase() === "laravel") {
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/class-story/reactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: request.headers.get("authorization") || "" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    return NextResponse.json(await response.json().catch(() => ({})), { status: response.status });
   }
 
   const classId = String(payload.classId || "").trim();
