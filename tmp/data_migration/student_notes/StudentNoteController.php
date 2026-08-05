@@ -1,0 +1,2 @@
+<?php
+namespace App\Http\Controllers\Api; class StudentNoteController extends Controller { public function show(Request $r,$student) { return StudentNote::firstOrCreate(['school_id'=>$r->user()->school_id,'student_id'=>$student]); } public function update(Request $r,$student) { return StudentNote::updateOrCreate(['school_id'=>$r->user()->school_id,'student_id'=>$student],['note'=>$r->validate(['note'=>'nullable|string'])['note'] ?? '']); } }

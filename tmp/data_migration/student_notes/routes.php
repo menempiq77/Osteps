@@ -1,0 +1,1 @@
+Route::middleware('auth:sanctum')->get('students/{student}/notes',[StudentNoteController::class,'show']); Route::middleware('auth:sanctum')->put('students/{student}/notes',[StudentNoteController::class,'update']);
