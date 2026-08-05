@@ -15,17 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to production
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_SSH_HOST }}
-          username: ${{ secrets.DEPLOY_SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /var/www/osteps/Osteps
-            git pull origin main
-            npm install --no-audit --no-fund
-            NODE_OPTIONS=--max-old-space-size=5120 npm run build
-            pm2 restart osteps
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          host="$(printf '%s' "$DEPLOY_SSH_HOST" | tr -d '[:space:]')"
+          user="$(printf '%s' "$DEPLOY_SSH_USER" | tr -d '[:space:]')"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$user@$host" \
+            'set -e; cd /var/www/osteps/Osteps; git pull origin main; npm install --no-audit --no-fund; NODE_OPTIONS=--max-old-space-size=5120 npm run build; pm2 restart osteps'
 
       - name: Production health check
         run: |
