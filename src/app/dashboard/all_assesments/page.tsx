@@ -50,8 +50,11 @@ const QUIZ_SUBJECT_MAP_KEY = "osteps_quiz_subject_map";
 
 function readQuizSubjectMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(QUIZ_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 
 function filterQuizzesBySubject(quizzes: QuizRecord[], subjectId: number): QuizRecord[] {
@@ -73,11 +76,17 @@ function filterQuizzesBySubject(quizzes: QuizRecord[], subjectId: number): QuizR
 
 function readAssessmentSubjectMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(ASSESSMENT_SUBJECT_MAP_KEY) || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(ASSESSMENT_SUBJECT_MAP_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
 
-function tagAssessmentWithSubject(assessmentId: number | string, subjectId: number) {
+function tagAssessmentWithSubject(
+  assessmentId: number | string,
+  subjectId: number,
+) {
   const map = readAssessmentSubjectMap();
   map[String(assessmentId)] = subjectId;
   if (typeof window !== "undefined") {
@@ -93,7 +102,10 @@ function untagAssessment(assessmentId: number | string) {
   }
 }
 
-function filterAssessmentsBySubject(assessments: Assessment[], subjectId: number): Assessment[] {
+function filterAssessmentsBySubject(
+  assessments: Assessment[],
+  subjectId: number,
+): Assessment[] {
   const map = readAssessmentSubjectMap();
   return assessments.filter((a) => map[String(a.id)] === subjectId);
 }
@@ -108,16 +120,17 @@ export default function Page() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [rawQuizzes, setRawQuizzes] = useState<QuizRecord[]>([]);
   const [assessmentToDelete, setAssessmentToDelete] = useState<string | null>(
-    null
+    null,
   );
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(
-    null
+    null,
   );
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, activeSubject } = useSubjectContext();
+  const { activeSubjectId, canUseSubjectContext, activeSubject } =
+    useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   // Assessments have no subject_id in the DB; show all school assessments
   // (localStorage-based subject tagging is unreliable across browsers/devices)
@@ -128,12 +141,17 @@ export default function Page() {
   const isTeacher = currentUser?.role === "TEACHER";
   const normalizedTermId = typeof termId === "string" ? termId : "";
   const schoolIdNum = Number(currentUser?.school ?? 0);
-  const isContextReady = schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
+  const isContextReady =
+    schoolIdNum > 0 && (!canUseSubjectContext || !!activeSubjectId);
 
   const refreshAssessments = async () => {
-    const data = await fetchSchoolAssessment(schoolIdNum, activeSubjectId ?? undefined);
+    const data = await fetchSchoolAssessment(
+      schoolIdNum,
+      activeSubjectId ?? undefined,
+    );
     const sortedAssessments = (data ?? []).sort(
-      (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+      (a: { position?: number }, b: { position?: number }) =>
+        (a?.position ?? 0) - (b?.position ?? 0),
     );
     setRawAssessments(sortedAssessments);
   };
@@ -163,7 +181,8 @@ export default function Page() {
 
         if (assessmentResult.status === "fulfilled") {
           const sortedAssessments = (assessmentResult.value ?? []).sort(
-            (a: { position?: number }, b: { position?: number }) => (a?.position ?? 0) - (b?.position ?? 0)
+            (a: { position?: number }, b: { position?: number }) =>
+              (a?.position ?? 0) - (b?.position ?? 0),
           );
           setRawAssessments(sortedAssessments);
         } else {
@@ -193,7 +212,10 @@ export default function Page() {
 
   const loadQuizzes = async (schoolId: string) => {
     try {
-      const response = await fetchQuizes(schoolId, activeSubjectId ?? undefined);
+      const response = await fetchQuizes(
+        schoolId,
+        activeSubjectId ?? undefined,
+      );
       setRawQuizzes(response);
     } catch (error) {
       setRawQuizzes([]);
@@ -212,7 +234,7 @@ export default function Page() {
         newAssessment = await assignAssesmentQuiz(
           parseInt(normalizedTermId),
           parseInt(assessmentData.name),
-          activeSubjectId ?? undefined
+          activeSubjectId ?? undefined,
         );
       } else {
         newAssessment = await addAssessment({
@@ -357,7 +379,9 @@ export default function Page() {
     if (!assessmentToDelete) return;
 
     try {
-      const assessment = rawAssessments.find((a) => a.id === assessmentToDelete);
+      const assessment = rawAssessments.find(
+        (a) => a.id === assessmentToDelete,
+      );
 
       if (assessment?.type === "quiz") {
         await deleteAssignTermQuiz(Number(assessmentToDelete));
@@ -366,7 +390,7 @@ export default function Page() {
       }
       untagAssessment(assessmentToDelete);
       setRawAssessments(
-        rawAssessments.filter((a) => a.id !== assessmentToDelete)
+        rawAssessments.filter((a) => a.id !== assessmentToDelete),
       );
       setDeleteOpen(false);
       setAssessmentToDelete(null);
@@ -401,7 +425,8 @@ export default function Page() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 truncate">
-              {activeSubject?.name ? `${activeSubject.name} — ` : ""}All Assessments
+              {activeSubject?.name ? `${activeSubject.name} — ` : ""}All
+              Assessments
             </h1>
             <span className="inline-flex items-center rounded-full bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-900/5">
               {assessments.length} {assessments.length === 1 ? "item" : "items"}
@@ -412,30 +437,30 @@ export default function Page() {
           </p>
         </div>
         {!isTeacher && (
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          {inSubjectContext && (
+          <div className="grid w-full grid-cols-1 gap-2 self-start sm:flex sm:w-auto sm:flex-wrap sm:self-auto">
+            {inSubjectContext && (
+              <Button
+                size="large"
+                className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
+                icon={<ImportOutlined />}
+                onClick={() => setImportOpen(true)}
+              >
+                Import Assessments
+              </Button>
+            )}
             <Button
+              type="primary"
               size="large"
-              className="premium-pill-btn"
-              icon={<ImportOutlined />}
-              onClick={() => setImportOpen(true)}
+              className="premium-pill-btn !h-11 w-full justify-center !border-0 !bg-primary !text-white hover:!opacity-90 sm:w-auto"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setIsAddingQuiz(false);
+                setEditingAssessment(null);
+                setOpen(true);
+              }}
             >
-              Import Assessments
+              Add Assessment
             </Button>
-          )}
-          <Button
-            type="primary"
-            size="large"
-            className="premium-pill-btn !bg-primary !text-white !border-0 hover:!opacity-90 self-start sm:self-auto shrink-0"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setIsAddingQuiz(false);
-              setEditingAssessment(null);
-              setOpen(true);
-            }}
-          >
-            Add Assessment
-          </Button>
           </div>
         )}
       </div>
@@ -456,8 +481,8 @@ export default function Page() {
           editingAssessment
             ? "Edit Assessment"
             : isAddingQuiz
-            ? "Add New Quiz"
-            : "Add New Assessment"
+              ? "Add New Quiz"
+              : "Add New Assessment"
         }
         open={open}
         onCancel={() => {

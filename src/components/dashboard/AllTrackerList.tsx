@@ -10,11 +10,11 @@ import { Spin, Modal, Button, Breadcrumb, message, Tooltip } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
+  ImportOutlined,
   PlusOutlined,
   TeamOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
-  ImportOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import {
@@ -103,8 +103,9 @@ type Tracker = {
   type: string;
   status: string;
   progress: string[];
+  subject_id?: number | string | null;
+  is_topic?: number | boolean | null;
   deadline?: string | null;
-  subject_id?: string | number;
 };
 
 type TrackerData = Tracker & Record<string, unknown>;
@@ -125,7 +126,12 @@ export default function AllTrackerList() {
   const router = useRouter();
   
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, activeSubject, loading: subjectContextLoading } = useSubjectContext();
+  const {
+    activeSubjectId,
+    canUseSubjectContext,
+    activeSubject,
+    loading: subjectContextLoading,
+  } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const showBuiltInFolder =
     inSubjectContext && supportsBuiltInTrackers(activeSubject?.name);
@@ -413,15 +419,16 @@ export default function AllTrackerList() {
         ]}
         className="!mb-2"
       />
-      <div className="premium-hero flex items-center justify-between mb-6 px-4 py-3 rounded-xl">
+      <div className="premium-hero mb-6 flex flex-col gap-3 rounded-xl px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">
           {activeSubject?.name ? `${activeSubject.name} - ` : ""}All Trackers
         </h1>
         {currentUser?.role !== "STUDENT" && (
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             {inSubjectContext && (
               <Button
-                className="premium-pill-btn cursor-pointer"
+                size="large"
+                className="premium-pill-btn !h-11 w-full cursor-pointer justify-center sm:w-auto"
                 icon={<ImportOutlined />}
                 onClick={() => setIsImportTrackerModalOpen(true)}
               >
@@ -430,7 +437,8 @@ export default function AllTrackerList() {
             )}
             <Button
               type="primary"
-              className="premium-pill-btn cursor-pointer !bg-primary !text-white hover:!bg-primary/90 !border-0"
+              size="large"
+              className="premium-pill-btn !h-11 w-full cursor-pointer justify-center !border-0 !bg-primary !text-white hover:!bg-primary/90 sm:w-auto"
               icon={<PlusOutlined />}
               onClick={() => setIsAddTrackerModalOpen(true)}
             >

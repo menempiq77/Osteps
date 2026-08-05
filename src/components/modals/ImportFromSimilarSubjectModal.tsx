@@ -42,19 +42,21 @@ export function ImportFromSimilarSubjectModal({
   const [importing, setImporting] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
+  useEffect(() => {
+    if (open) return;
+    const id = setTimeout(() => {
+      setSourceSubjectId(null);
+      setSelectedIds((current) => (current.length === 0 ? current : []));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [open]);
+
   // Archived twins hold the content worth importing, so preselect one.
   useEffect(() => {
-    const id = setTimeout(() => {
-      if (!open) {
-        setSourceSubjectId(null);
-        // Keep the identity when already empty, so this never re-renders in a loop.
-        setSelectedIds((prev) => (prev.length === 0 ? prev : []));
-        return;
-      }
-      if (sourceSubjectId || similarSubjects.length === 0) return;
-      const preferred = similarSubjects.find((subject) => subject.archived) ?? similarSubjects[0];
-      setSourceSubjectId(Number(preferred.id));
-    }, 0);
+    if (!open) return;
+    if (sourceSubjectId || similarSubjects.length === 0) return;
+    const preferred = similarSubjects.find((subject) => subject.archived) ?? similarSubjects[0];
+    const id = setTimeout(() => setSourceSubjectId(Number(preferred.id)), 0);
     return () => clearTimeout(id);
   }, [open, similarSubjects, sourceSubjectId]);
 

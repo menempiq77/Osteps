@@ -97,7 +97,11 @@ export default function QuizPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const { activeSubjectId, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
+  const {
+    activeSubjectId,
+    canUseSubjectContext,
+    loading: subjectContextLoading,
+  } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
   const isTeacher = currentUser?.role === "TEACHER";
 
@@ -107,7 +111,14 @@ export default function QuizPage() {
     queryKey: ["quizzes", schoolId, activeSubjectId],
     queryFn: async () => {
       if (!schoolId) return [];
-      return await fetchQuizes(String(schoolId), activeSubjectId ?? undefined);
+      const rows = await fetchQuizes(
+        String(schoolId),
+        activeSubjectId ?? undefined
+      );
+      return (Array.isArray(rows) ? rows : []).map((quiz: Quiz) => ({
+        ...quiz,
+        id: String(quiz.id),
+      }));
     },
     enabled: !!schoolId && (!canUseSubjectContext || !!activeSubjectId),
   });
@@ -290,23 +301,25 @@ export default function QuizPage() {
         className="!mb-2"
       />
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold">Quizzes</h2>
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             {inSubjectContext && (
               <Button
+                size="large"
                 icon={<ImportOutlined />}
                 onClick={() => setImportOpen(true)}
-                className="flex items-center"
+                className="premium-pill-btn !h-11 w-full justify-center sm:w-auto"
               >
                 Import Quizzes
               </Button>
             )}
             <Button
               type="primary"
+              size="large"
               icon={<PlusOutlined />}
               onClick={showModal}
-              className="flex items-center !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+              className="premium-pill-btn !h-11 w-full justify-center !border-primary !bg-primary hover:!border-primary hover:!bg-primary sm:w-auto"
             >
               Add Quiz
             </Button>
