@@ -48,6 +48,7 @@ type Question = {
   year?: string;
   class?: string;
   answers?: Answer[];
+  student?: { class_id?: string | number };
 };
 
 type Answer = {
@@ -56,6 +57,15 @@ type Answer = {
   teacherName: string;
   createdAt: string;
 };
+
+type TeacherOption = { id: string | number; teacher_name?: string; name?: string };
+type YearOption = { id: string | number; name?: string };
+type ClassOption = { id: string | number; class_name?: string; year_id?: string | number };
+type ApiQuestion = Question & {
+  student?: { student_name?: string; class_id?: string | number };
+  teacher?: { teacher_name?: string };
+};
+type AssignedClass = { classes?: { year?: YearOption }; };
 
 const AskQuestionPage = () => {
   const router = useRouter();
@@ -78,18 +88,18 @@ const AskQuestionPage = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState("");
 
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [years, setYears] = useState([]);
-  const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [years, setYears] = useState<YearOption[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
 
-  const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const schoolId = currentUser?.school;
   const classId = currentUser?.studentClass;
 
-  const handleDeleteClick = (question) => {
+  const handleDeleteClick = (question: Question) => {
     setQuestionToDelete(question);
     setIsDeleteModalOpen(true);
   };
@@ -117,7 +127,7 @@ const AskQuestionPage = () => {
     try {
       setIsLoading(true);
       const response = await getAllAskQuestions();
-      const transformedQuestions = response.map((q: any) => ({
+      const transformedQuestions = response.map((q: ApiQuestion) => ({
         ...q,
         id: q.id,
         content: q.question,
@@ -149,12 +159,12 @@ const AskQuestionPage = () => {
   const loadTeachers = async () => {
     try {
       setIsLoading(true);
-      const response = await getAssignTeacher(classId);
+      const response = await getAssignTeacher(Number(classId));
 
       // Flatten teachers_by_subject into a single array
-      const teachersArray = Object.values(response.teachers_by_subject)
+      const teachersArray = (Object.values(response.teachers_by_subject) as TeacherOption[][])
         .flat() // merge all subjects into one array
-        .map((teacher) => ({
+        .map((teacher: TeacherOption) => ({
           id: teacher.id,
           name: teacher.teacher_name,
         }));
@@ -174,15 +184,15 @@ const AskQuestionPage = () => {
 
       if (isTeacher) {
         const res = await fetchAssignYears();
-        const years = res
-          .map((item: any) => item.classes?.year)
-          .filter((year: any) => year);
+        const years: YearOption[] = res
+          .map((item: AssignedClass) => item.classes?.year)
+          .filter((year: YearOption | undefined): year is YearOption => Boolean(year));
 
         yearsData = Array.from(
-          new Map(years.map((year: any) => [year.id, year])).values()
+          new Map(years.map((year) => [year.id, year] as const)).values()
         );
       } else {
-        const res = await fetchYearsBySchool(schoolId);
+        const res = await fetchYearsBySchool(Number(schoolId));
         yearsData = res;
       }
 
@@ -200,26 +210,26 @@ const AskQuestionPage = () => {
 
     try {
       setIsLoading(true);
-      let classesData: any[] = [];
+      let classesData: ClassOption[] = [];
 
       if (isTeacher) {
         const res = await fetchAssignYears();
 
         classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+          .map((item: { classes?: ClassOption }) => item.classes)
+          .filter((cls: ClassOption | undefined): cls is ClassOption => Boolean(cls));
 
         // Remove duplicates
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+          new Map(classesData.map((cls) => [cls.id, cls] as const)).values()
         );
 
         // Filter by yearId
         classesData = classesData.filter(
-          (cls: any) => cls.year_id === Number(yearId)
+          (cls) => Number(cls.year_id) === Number(yearId)
         );
       } else {
-        classesData = await fetchClasses(Number(yearId));
+        classesData = await fetchClasses(String(yearId));
       }
 
       setClasses(classesData);

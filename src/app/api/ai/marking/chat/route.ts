@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { errorMessage } from "@/lib/safeRecord";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
@@ -149,9 +150,9 @@ export async function POST(req: NextRequest) {
         Connection: "keep-alive",
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Chat request failed." },
+      { error: error instanceof Error ? errorMessage(error) : "Chat request failed." },
       { status: 500 }
     );
   } finally {

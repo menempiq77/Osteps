@@ -24,6 +24,23 @@ import { fetchAssignYears, fetchYearsBySchool } from "@/services/yearsApi";
 import { fetchClasses } from "@/services/classesApi";
 import TimetableModal from "@/components/dashboard/TimetableModal";
 import type { User } from "@/features/auth/types";
+import { asRecord } from "@/lib/safeRecord";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface TimetableEvent {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  teacher: string;
+  teacher_id: number | null;
+  teacher_user_id: number | null;
+  room: string;
+  zoomLink: string;
+  year_id: number | null;
+  class_id: number | null;
+}
 
 // ── Event colour palette ──────────────────────────────────────────────────────
 const EVENT_COLORS = [
@@ -101,21 +118,26 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
     queryFn: () => fetchTimetableData("all", queryRange),
     placeholderData: (previousData) => previousData,
     staleTime: 5 * 60 * 1000,
-    select: (res: any) =>
-      (res || []).map((item: any) => ({
-        id: item.id,
-        title: item.subject || "Untitled",
-        date: item.date,
-        startTime: dayjs(item.start_time, "HH:mm:ss").format("HH:mm"),
-        endTime: dayjs(item.end_time, "HH:mm:ss").format("HH:mm"),
-        teacher: item?.teacher?.teacher_name || "N/A",
-        teacher_id: item?.teacher_id ? Number(item.teacher_id) : null,
-        teacher_user_id: item?.teacher?.user_id ? Number(item.teacher.user_id) : null,
-        room: item.room || "",
-        zoomLink: item.zoom_link || "",
-        year_id: item.year_id ? Number(item.year_id) : null,
-        class_id: item.class_id ? Number(item.class_id) : null,
-      })),
+    select: (res: unknown) =>
+      (Array.isArray(res) ? (res as Record<string, unknown>[]) : []).map((item) => {
+        const record = asRecord(item) ?? ({} as Record<string, unknown>);
+        return {
+          id: String(record.id ?? ""),
+          title: String(record.subject ?? "Untitled"),
+          date: String(record.date ?? ""),
+          startTime: dayjs(String(record.start_time ?? "00:00:00"), "HH:mm:ss").format("HH:mm"),
+          endTime: dayjs(String(record.end_time ?? "00:00:00"), "HH:mm:ss").format("HH:mm"),
+          teacher: String(asRecord(record.teacher)?.teacher_name ?? "N/A"),
+          teacher_id: record.teacher_id ? Number(record.teacher_id) : null,
+          teacher_user_id: asRecord(record.teacher)?.user_id
+            ? Number(asRecord(record.teacher)?.user_id)
+            : null,
+          room: String(record.room ?? ""),
+          zoomLink: String(record.zoom_link ?? ""),
+          year_id: record.year_id ? Number(record.year_id) : null,
+          class_id: record.class_id ? Number(record.class_id) : null,
+        } as TimetableEvent;
+      }),
   });
 
   // ── Fetch teachers list (to resolve current teacher's record ID) ──────────
@@ -129,61 +151,61 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
   // Resolve "my teacher record ID" so we can filter my personal slots
   const myTeacherId = useMemo(() => {
     if (!isTeacher || !currentUser?.id) return null;
-    const me = (teachers as any[]).find(
+    const me = (teachers as Record<string, unknown>[]).find(
       (t) => Number(t.user_id) === Number(currentUser.id)
     );
     return me ? Number(me.id) : null;
-  }, [teachers, currentUser?.id, isTeacher]);
+  }, [teachers, currentUser, isTeacher]);
 
   // ── Years & classes (for TimetableModal dropdowns) ────────────────────────
   const { data: yearsData = [] } = useQuery({
     queryKey: ["years-schedule-widget", currentUser?.id],
     enabled: slotModalOpen && !isStudent,
-    queryFn: async (): Promise<any[]> => {
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
       if (isTeacherOrHOD) {
-        const res = await fetchAssignYears();
-        const years = res.map((item: any) => item?.classes?.year).filter(Boolean);
-        return Array.from(new Map(years.map((y: any) => [y.id, y])).values()) as any[];
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
+        const years = res.map((item) => asRecord(item.classes)?.year).filter(Boolean);
+        return Array.from(new Map((years as Record<string, unknown>[]).map((y) => [y.id, y])).values()) as Record<string, unknown>[];
       }
-      return fetchYearsBySchool(schoolId as number) as Promise<any[]>;
+      return (await fetchYearsBySchool(schoolId as number)) as Record<string, unknown>[];
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  // Derive sensible default year/class when the modal is open and data loads.
+  const activeYear = selectedYear ?? (yearsData[0] ? String(yearsData[0].id) : null);
 
   const { data: classesData = [] } = useQuery({
-    queryKey: ["classes-schedule-widget", selectedYear, currentUser?.id],
-    enabled: slotModalOpen && !!selectedYear && !isStudent,
-    queryFn: async (): Promise<any[]> => {
+    queryKey: ["classes-schedule-widget", activeYear, currentUser?.id],
+    enabled: slotModalOpen && !!activeYear && !isStudent,
+    queryFn: async (): Promise<Record<string, unknown>[]> => {
       if (isTeacherOrHOD) {
-        const res = await fetchAssignYears();
-        const all = res.map((item: any) => item.classes).filter(Boolean);
-        const unique = Array.from(new Map(all.map((c: any) => [c.id, c])).values()) as any[];
-        return unique.filter((c) => c.year_id === Number(selectedYear));
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
+        const all = res.map((item) => asRecord(item)?.classes).filter(Boolean);
+        const unique = Array.from(new Map((all as Record<string, unknown>[]).map((c) => [c.id, c])).values()) as Record<string, unknown>[];
+        return unique.filter((c) => c.year_id === Number(activeYear));
       }
-      return fetchClasses(selectedYear!) as Promise<any[]>;
+      return (await fetchClasses(activeYear!)) as Record<string, unknown>[];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  // Auto-pick first year/class for modal
-  useEffect(() => {
-    if (!slotModalOpen) return;
-    if ((yearsData as any[]).length > 0 && !selectedYear) {
-      setSelectedYear(String((yearsData as any[])[0].id));
-    }
-  }, [slotModalOpen, yearsData, selectedYear]);
+  const activeClass = selectedClass ?? (classesData[0] ? String(classesData[0].id) : null);
 
+  // Keep modal form fields in sync with the derived defaults without
+  // calling React setState from inside an effect.
   useEffect(() => {
     if (!slotModalOpen) return;
-    if ((classesData as any[]).length > 0 && !selectedClass) {
-      setSelectedClass(String((classesData as any[])[0].id));
-    }
-  }, [slotModalOpen, classesData, selectedClass]);
+    form.setFieldsValue({
+      year: activeYear,
+      class: activeClass,
+    });
+  }, [slotModalOpen, activeYear, activeClass, form]);
 
   // ── Filter events for selected date + user role ───────────────────────────
   const todayEvents = useMemo(() => {
     const dateStr = selectedDate.format("YYYY-MM-DD");
-    return (allEvents as any[])
+    return (allEvents as TimetableEvent[])
       .filter((event) => {
         if (event.date !== dateStr) return false;
         // Teachers see only their own slots
@@ -198,40 +220,44 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
         return true;
       })
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [allEvents, selectedDate, isTeacher, myTeacherId, isStudent, currentUser?.studentClass]);
+  }, [allEvents, selectedDate, isTeacher, myTeacherId, isStudent, currentUser]);
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const addMutation = useMutation({
     mutationFn: (data: Parameters<typeof addTimetableSlot>[0]) => addTimetableSlot(data),
     onSuccess: () => {
       messageApi.success("Slot added successfully");
-      queryClient.invalidateQueries(["timetable"] as any);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setSlotModalOpen(false);
       form.resetFields();
     },
-    onError: (err: any) =>
-      messageApi.error(err?.response?.data?.message || "Failed to add slot"),
+    onError: (err: unknown) =>
+      messageApi.error(
+        String(asRecord(asRecord(asRecord(err)?.response)?.data)?.message ?? "Failed to add slot")
+      ),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateTimetableSlot(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateTimetableSlot>[1] }) => updateTimetableSlot(id, data),
     onSuccess: () => {
       messageApi.success("Slot updated successfully");
-      queryClient.invalidateQueries(["timetable"] as any);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setSlotModalOpen(false);
       form.resetFields();
       setIsEditMode(false);
       setCurrentEventId(null);
     },
-    onError: (err: any) =>
-      messageApi.error(err?.response?.data?.message || "Failed to update slot"),
+    onError: (err: unknown) =>
+      messageApi.error(
+        String(asRecord(asRecord(asRecord(err)?.response)?.data)?.message ?? "Failed to update slot")
+      ),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTimetableSlot,
     onSuccess: () => {
       messageApi.success("Slot deleted");
-      queryClient.invalidateQueries(["timetable"] as any);
+      queryClient.invalidateQueries({ queryKey: ["timetable"] });
       setDeleteModal({ open: false });
     },
     onError: () => messageApi.error("Failed to delete slot"),
@@ -247,7 +273,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
     setSlotModalOpen(true);
   };
 
-  const handleEditEvent = (event: any) => {
+  const handleEditEvent = (event: TimetableEvent) => {
     setSelectedYear(event.year_id ? String(event.year_id) : null);
     setSelectedClass(event.class_id ? String(event.class_id) : null);
     form.setFieldsValue({
@@ -270,7 +296,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
     try {
       const values = await form.validateFields();
       const date = values.date.format("YYYY-MM-DD");
-      const payload = {
+      const payload: Parameters<typeof addTimetableSlot>[0] = {
         subject: values.subject,
         year_id: values.year,
         teacher_id: values.teacher || currentUser?.id,
@@ -406,7 +432,7 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {todayEvents.map((event: any, idx: number) => {
+            {todayEvents.map((event: TimetableEvent, idx: number) => {
               const c = getEventColor(event.title, idx);
               return (
                 <div
@@ -520,9 +546,9 @@ export default function MyScheduleWidget({ currentUser, isStudent }: MyScheduleW
           }}
           onSubmit={handleSubmitSlot}
           form={form}
-          yearsData={yearsData as any[]}
-          classesData={classesData as any[]}
-          teachers={teachers as any[]}
+          yearsData={yearsData as Record<string, unknown>[]}
+          classesData={classesData as Record<string, unknown>[]}
+          teachers={teachers as Record<string, unknown>[]}
           isTeacher={isTeacherOrHOD}
           handleYearChange={(v) => setSelectedYear(v)}
         />

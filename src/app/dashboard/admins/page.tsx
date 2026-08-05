@@ -26,7 +26,7 @@ type SuperAdmin = {
 };
 
 type SuperAdminBasic = {
-  id: string;
+  id?: string | number;
   name: string;
   phone?: string;
   email: string;
@@ -70,10 +70,11 @@ export default function SuperAdminsList() {
   }, []);
 
   const handleSaveEdit = async (admin: SuperAdminBasic) => {
+    if (admin.id === undefined) return;
     try {
       const { id, ...adminData } = admin;
-      await updateAdmin(id, adminData);
-      setSuperAdmins(superAdmins.map((t) => (t.id === admin.id ? admin : t)));
+      await updateAdmin(String(id), adminData);
+      setSuperAdmins(superAdmins.map((t) => (String(t.id) === String(id) ? { ...t, ...admin, id: String(id) } : t)));
       setEditSuperAdmin(null);
       messageApi?.success("Admin Update Successfully!");
     } catch (error) {
@@ -82,10 +83,10 @@ export default function SuperAdminsList() {
     }
   };
 
-  const handleDeleteSuperAdmin = async (adminId: string) => {
+  const handleDeleteSuperAdmin = async (adminId: string | number) => {
     try {
-      await deleteAdmin(adminId);
-      setSuperAdmins(superAdmins.filter((admin) => admin.id !== adminId));
+      await deleteAdmin(String(adminId));
+      setSuperAdmins(superAdmins.filter((admin) => String(admin.id) !== String(adminId)));
       setDeleteSuperAdmin(null);
       setIsDeleteModalOpen(false);
       messageApi?.success("Admin Deleted Successfully!");

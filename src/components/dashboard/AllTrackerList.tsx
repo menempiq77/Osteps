@@ -14,10 +14,12 @@ import {
   TeamOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import {
   addTracker as addTrackerAPI,
+  copyTrackerToSubject,
   updateTracker as updateTrackerAPI,
   deleteTracker as deleteTrackerAPI,
   fetchAllTrackers,
@@ -25,6 +27,15 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DeadlineCountdown } from "@/components/common/DeadlineCountdown";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
+import {
+  BUILT_IN_TRACKERS,
+  supportsBuiltInTrackers,
+} from "@/lib/builtinTrackers";
+import { errorMessage } from "@/lib/safeRecord";
 
 // ─── Subject isolation helpers ───────────────────────────────────────────────
 const TRACKER_SUBJECT_MAP_KEY = "osteps_tracker_subject_map";
@@ -63,8 +74,8 @@ function untagTracker(trackerId: number | string) {
 }
 
 // Priority: 1) backend subject_id  2) localStorage map  3) null (untagged/legacy)
-function resolveTrackerSubjectId(tracker: any): number | null {
-  const backendId = Number((tracker as any).subject_id || 0);
+function resolveTrackerSubjectId(tracker: Record<string, unknown>): number | null {
+  const backendId = Number(tracker.subject_id || 0);
   if (backendId > 0) return backendId;
   const map = readTrackerSubjectMap();
   const localId = map[String(tracker.id)];
@@ -73,14 +84,14 @@ function resolveTrackerSubjectId(tracker: any): number | null {
 
 // Show ONLY trackers that match the subject. Untagged (legacy) are hidden from
 // subject workspaces — they appear in the claim banner instead.
-function filterTrackersBySubject(trackers: Tracker[], subjectId: number): Tracker[] {
+function filterTrackersBySubject(trackers: TrackerData[], subjectId: number): TrackerData[] {
   return trackers.filter((t) => {
     const tid = resolveTrackerSubjectId(t);
     return tid === subjectId;
   });
 }
 
-function isTrackerUntagged(tracker: any): boolean {
+function isTrackerUntagged(tracker: Record<string, unknown>): boolean {
   return resolveTrackerSubjectId(tracker) === null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,9 +104,12 @@ type Tracker = {
   status: string;
   progress: string[];
   deadline?: string | null;
+  subject_id?: string | number;
 };
 
-function normalizeDeadline(t: any): string | null {
+type TrackerData = Tracker & Record<string, unknown>;
+
+function normalizeDeadline(t: Record<string, unknown>): string | null {
   const raw =
     t?.deadline ??
     t?.deadline_at ??
@@ -113,6 +127,12 @@ export default function AllTrackerList() {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const { activeSubjectId, canUseSubjectContext, activeSubject, loading: subjectContextLoading } = useSubjectContext();
   const inSubjectContext = canUseSubjectContext && !!activeSubjectId;
+  const showBuiltInFolder =
+    inSubjectContext && supportsBuiltInTrackers(activeSubject?.name);
+  const builtInLessonCount = BUILT_IN_TRACKERS.reduce(
+    (total, tracker) => total + tracker.lessons.length,
+    0
+  );
   const schoolId = currentUser?.school;
   const isTeacher = currentUser?.role === "TEACHER";
   const canDeleteTrackers =
@@ -122,6 +142,7 @@ export default function AllTrackerList() {
   const [deleteTracker, setDeleteTracker] = useState<Tracker | null>(null);
   const [assignTracker, setAssignTracker] = useState<Tracker | null>(null);
   const [isAddTrackerModalOpen, setIsAddTrackerModalOpen] = useState(false);
+  const [isImportTrackerModalOpen, setIsImportTrackerModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -129,25 +150,27 @@ export default function AllTrackerList() {
   const queryClient = useQueryClient();
 
   const {
-    data: rawTrackers = [],
+    data: rawTrackers = [] as TrackerData[],
     isLoading,
     isError,
-  } = useQuery({
+  } = useQuery<TrackerData[]>({
     queryKey: ["trackers", schoolId],
     queryFn: async () => {
       const data = await fetchAllTrackers(Number(schoolId));
-      return data.map((tracker: any) => ({
+      return (Array.isArray(data) ? data : []).map((tracker: Record<string, unknown>) => ({
         ...tracker,
-        id: tracker.id.toString(),
+        id: String(tracker.id),
         deadline: normalizeDeadline(tracker),
-      }));
+      })) as TrackerData[];
     },
     enabled: !!schoolId,
-    onError: (err) => {
-      console.error(err);
-      messageApi.error("Failed to fetch trackers");
-    },
   });
+
+  useEffect(() => {
+    if (isError) {
+      messageApi.error("Failed to fetch trackers");
+    }
+  }, [isError, messageApi]);
 
   // Filter: only show trackers tagged to this subject.
   const trackers = (subjectContextLoading || isLoading)
@@ -157,10 +180,10 @@ export default function AllTrackerList() {
       : rawTrackers;
 
   const untaggedTrackers = inSubjectContext
-    ? rawTrackers.filter((t: any) => isTrackerUntagged(t))
+    ? rawTrackers.filter((t) => isTrackerUntagged(t))
     : [];
 
-  const handleClaimOneForSubject = async (t: any) => {
+  const handleClaimOneForSubject = async (t: TrackerData) => {
     if (!activeSubjectId) return;
     setIsClaiming(true);
     try {
@@ -172,13 +195,13 @@ export default function AllTrackerList() {
           progress: Array.isArray(t.progress) ? t.progress : [],
           deadline: normalizeDeadline(t),
         }, Number(activeSubjectId));
-      } catch (apiErr: any) {
-        console.warn(`[Claim] Backend update failed for tracker ${t.id}:`, apiErr?.response?.data ?? apiErr?.message);
+      } catch (apiErr) {
+        console.warn(`[Claim] Backend update failed for tracker ${t.id}:`, errorMessage(apiErr));
       }
       tagTrackerWithSubject(t.id, Number(activeSubjectId));
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
-    } catch (err: any) {
-      messageApi.error("Failed to assign tracker.");
+    } catch (err) {
+      messageApi.error(errorMessage(err, "Failed to assign tracker."));
     } finally {
       setIsClaiming(false);
     }
@@ -189,7 +212,7 @@ export default function AllTrackerList() {
     setIsClaiming(true);
     try {
       const results = await Promise.allSettled(
-        untaggedTrackers.map(async (t: any) => {
+        untaggedTrackers.map(async (t) => {
           try {
             // Minimal payload — update endpoint only needs name + subject_id
             await updateTrackerAPI(t.id, {
@@ -199,12 +222,12 @@ export default function AllTrackerList() {
               progress: Array.isArray(t.progress) ? t.progress : [],
               deadline: normalizeDeadline(t),
             }, Number(activeSubjectId));
-          } catch (apiErr: any) {
+          } catch (apiErr) {
             // If update fails, log and fall back to localStorage-only tagging.
             // This keeps trackers correctly separated on this device.
             console.warn(
               `[Claim] Backend update failed for tracker ${t.id} (${t.name}), using localStorage fallback:`,
-              apiErr?.response?.data ?? apiErr?.message ?? apiErr
+              errorMessage(apiErr)
             );
           }
           // Always tag in localStorage regardless of API outcome
@@ -212,7 +235,7 @@ export default function AllTrackerList() {
         })
       );
       await queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] });
-    } catch (err: any) {
+    } catch (err) {
       console.error("[Claim] Unexpected error:", err);
       messageApi.error("Failed to assign trackers. Check browser console.");
     } finally {
@@ -222,17 +245,19 @@ export default function AllTrackerList() {
 
   // 🔹 Add tracker mutation
   const addTrackerMutation = useMutation({
-    mutationFn: (tracker: any) =>
+    mutationFn: (tracker: Record<string, unknown>) =>
       addTrackerAPI({
         school_id: Number(schoolId),
-        name: tracker.name,
+        name: String(tracker.name || ""),
         type: "topic",
-        progress: tracker.progress,
-        claim_certificate: tracker.claim_certificate,
-        deadline: tracker.deadline ?? null,
+        progress: Array.isArray(tracker.progress) ? tracker.progress : [],
+        claim_certificate: Boolean(tracker.claim_certificate),
+        deadline: tracker.deadline ? String(tracker.deadline) : null,
       }, activeSubjectId ?? undefined),
-    onSuccess: async (result: any) => {
-      const newId = result?.data?.id ?? result?.id;
+    onSuccess: async (result: unknown) => {
+      const resultRecord = result as Record<string, unknown>;
+      const newId =
+        String((resultRecord?.data as Record<string, unknown> | undefined)?.id ?? resultRecord?.id ?? "");
       if (inSubjectContext && newId) {
         tagTrackerWithSubject(newId, Number(activeSubjectId));
       }
@@ -247,15 +272,15 @@ export default function AllTrackerList() {
 
   // 🔹 Update tracker mutation
   const updateTrackerMutation = useMutation({
-    mutationFn: (tracker: any) =>
+    mutationFn: (tracker: TrackerData) =>
       updateTrackerAPI(tracker.id, {
         school_id: Number(schoolId),
-        name: tracker.name,
+        name: String(tracker.name || ""),
         type: "topic",
-        progress: tracker.progress,
+        progress: Array.isArray(tracker.progress) ? tracker.progress : [],
         deadline: tracker.deadline ?? null,
       }, activeSubjectId ?? undefined),
-    onSuccess: async (_, tracker: any) => {
+    onSuccess: async (_, tracker: TrackerData) => {
       if (inSubjectContext) {
         tagTrackerWithSubject(tracker.id, Number(activeSubjectId));
       }
@@ -284,12 +309,19 @@ export default function AllTrackerList() {
   });
 
   // 🔹 Handlers (now call mutations)
-  const handleAddNewTracker = (tracker: any) => {
+  const handleAddNewTracker = (tracker: Record<string, unknown>) => {
     addTrackerMutation.mutate(tracker);
   };
 
-  const handleSaveEdit = (tracker: any) => {
-    updateTrackerMutation.mutate(tracker);
+  const handleSaveEdit = (tracker: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    progress: string[];
+    deadline?: string | null;
+  }) => {
+    updateTrackerMutation.mutate(tracker as TrackerData);
   };
 
   const handleDeleteTracker = () => {
@@ -299,6 +331,37 @@ export default function AllTrackerList() {
     }
     if (!deleteTracker) return;
     deleteTrackerMutation.mutate(Number(deleteTracker.id));
+  };
+
+  const loadTrackersForSubject = async (sourceSubjectId: number): Promise<ImportableItem[]> => {
+    const rows = await fetchAllTrackers(Number(schoolId), sourceSubjectId);
+    return (Array.isArray(rows) ? rows : [])
+      .filter((tracker) => resolveTrackerSubjectId(tracker) === sourceSubjectId)
+      .map((tracker) => ({
+        id: String(tracker.id || ""),
+        name: String(tracker.name || ""),
+        description: normalizeDeadline(tracker) ? `Due ${normalizeDeadline(tracker)}` : undefined,
+      }));
+  };
+
+  const importTracker = async (item: ImportableItem, sourceSubjectId: number) => {
+    const rows = await fetchAllTrackers(Number(schoolId), sourceSubjectId);
+    const source = (Array.isArray(rows) ? rows : []).find(
+      (tracker) => String(tracker.id) === String(item.id)
+    );
+    const newId = await copyTrackerToSubject(
+      Number(item.id),
+      {
+        school_id: Number(schoolId),
+        name: String(source?.name || item.name),
+        claim_certificate: Boolean(source?.claim_certificate),
+        deadline: normalizeDeadline(source ?? {}),
+      },
+      activeSubjectId ?? undefined
+    );
+    if (inSubjectContext && newId) {
+      tagTrackerWithSubject(newId, Number(activeSubjectId));
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -355,7 +418,16 @@ export default function AllTrackerList() {
           {activeSubject?.name ? `${activeSubject.name} - ` : ""}All Trackers
         </h1>
         {currentUser?.role !== "STUDENT" && (
-          <>
+          <div className="flex items-center gap-2">
+            {inSubjectContext && (
+              <Button
+                className="premium-pill-btn cursor-pointer"
+                icon={<ImportOutlined />}
+                onClick={() => setIsImportTrackerModalOpen(true)}
+              >
+                Import Trackers
+              </Button>
+            )}
             <Button
               type="primary"
               className="premium-pill-btn cursor-pointer !bg-primary !text-white hover:!bg-primary/90 !border-0"
@@ -369,11 +441,48 @@ export default function AllTrackerList() {
               onOpenChange={setIsAddTrackerModalOpen}
               onAddTracker={handleAddNewTracker}
             />
-          </>
+            <ImportFromSimilarSubjectModal
+              open={isImportTrackerModalOpen}
+              onClose={() => setIsImportTrackerModalOpen(false)}
+              itemLabel="tracker"
+              itemLabelPlural="trackers"
+              loadItems={loadTrackersForSubject}
+              importItem={importTracker}
+              onImported={() =>
+                queryClient.invalidateQueries({ queryKey: ["trackers", schoolId] })
+              }
+            />
+          </div>
         )}
       </div>
 
       <div className="premium-card relative overflow-auto rounded-xl p-1">
+        {showBuiltInFolder && (
+          <Link
+            href={`/dashboard/built_in_trackers${
+              activeSubjectId ? `?subject_id=${activeSubjectId}` : ""
+            }`}
+            className="group mx-3 mt-3 flex items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-4 text-white shadow-md transition hover:shadow-xl"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur">
+                📚
+              </span>
+              <div>
+                <h3 className="text-base font-bold md:text-lg">
+                  Built-in Trackers
+                </h3>
+                <p className="text-xs text-emerald-50 md:text-sm">
+                  {builtInLessonCount} ready-made lessons with stories, quizzes
+                  and coin rewards
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/20 px-4 py-1.5 text-xs font-bold backdrop-blur transition group-hover:bg-white/30">
+              Open folder
+            </span>
+          </Link>
+        )}
 
         {/* Untagged trackers — shown per-tracker so admin can assign each to the right subject */}
         {inSubjectContext && untaggedTrackers.length > 0 && canDeleteTrackers && (
@@ -382,7 +491,7 @@ export default function AllTrackerList() {
               {untaggedTrackers.length} tracker{untaggedTrackers.length > 1 ? "s are" : " is"} not assigned to any subject. Assign each one to its correct subject:
             </p>
             <div className="flex flex-col gap-2">
-              {untaggedTrackers.map((t: any) => (
+              {untaggedTrackers.map((t) => (
                 <div key={t.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-amber-200 px-3 py-2">
                   <span className="text-sm font-medium text-gray-800">{t.name}</span>
                   <button
@@ -412,7 +521,7 @@ export default function AllTrackerList() {
                     {/* Left Section: Tracker Info */}
                     <div className="flex-1 min-w-0">
                       <h3
-                        onClick={() => handleTrackerClick(tracker?.id, tracker?.type)}
+                        onClick={() => handleTrackerClick(tracker?.id)}
                         className="mb-2 cursor-pointer text-base font-bold text-[var(--theme-dark)] transition-colors group-hover:underline hover:text-[var(--primary)] md:text-lg"
                       >
                         {tracker?.name}

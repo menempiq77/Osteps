@@ -78,7 +78,6 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
   const roleKey = normalizeUserRole(role);
   const userId = currentUser?.id;
   const canUseSubjectContext = isSubjectContextEnabled() && isRoleEligible(role);
-  const subjectIdParam = searchParams.get("subject_id") ?? "";
   const seedSubjectRoles = normalizeSeedSubjectRoles(currentUser?.subject_roles);
   const rawSeedSubjects = normalizeSeedSubjects(currentUser?.assigned_subjects);
   const seedSubjects =
@@ -150,7 +149,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         });
         if (!mounted) return;
 
-        let available = context.assigned_subjects ?? [];
+        const available = context.assigned_subjects ?? [];
         setSubjects(available);
 
         const fromPath = extractSubjectIdFromPath(pathname);
@@ -163,9 +162,12 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
         })();
         const fallback = context.default_subject_id ?? available[0]?.id ?? null;
 
-        const candidate = [fromPath, fromQuery, fromStorage, fallback]
-          .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
-          .find((value) => available.some((subject) => subject.id === value)) ?? null;
+        const candidate =
+          fromPath ??
+          [fromQuery, fromStorage, fallback]
+            .filter((value): value is number => Number.isFinite(value as number) && Number(value) > 0)
+            .find((value) => available.some((subject) => subject.id === value)) ??
+          null;
 
         setActiveSubjectIdState(candidate);
         if (candidate) {
@@ -188,7 +190,7 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
     return () => {
       mounted = false;
     };
-  // Note: pathname and subjectIdParam are intentionally excluded — the path guard useEffect
+  // Note: pathname and the subject_id query param are intentionally excluded — the path guard useEffect
   // handles URL-based subject detection after navigation. Including pathname here re-runs the
   // full API bootstrap on every page navigation and can override the active subject.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,6 +202,9 @@ export function SubjectContextProvider({ children }: { children: React.ReactNode
 
     const pathSubjectId = extractSubjectIdFromPath(pathname);
     if (pathSubjectId && !subjects.some((subject) => subject.id === pathSubjectId)) {
+      if (activeSubjectId === pathSubjectId) {
+        return;
+      }
       const fallback = subjects[0]?.id;
       if (fallback) {
         setActiveSubjectIdState(fallback);

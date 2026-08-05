@@ -83,7 +83,7 @@ export function exportTimetableToExcel(
 
     // Data rows (one per period time)
     const dataRows = periodTimes.map((time) => {
-      const row: any[] = [time];
+      const row: unknown[] = [time];
       for (const day of WEEK_DAYS) {
         const key = `${dayDates[day]}|${time}`;
         const slots = slotMap.get(key) || [];

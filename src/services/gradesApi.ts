@@ -9,12 +9,12 @@ export const fetchGrades = async (schoolId: string) => {
   return response.data.data;
 };
 // add Grade
-export const addGrade = async (gradeData: { name: string }) => {
+export const addGrade = async (gradeData: Record<string, unknown>) => {
   const response = await api.post('/add-grades', gradeData);
   return response.data;
 };
 // edit Grade
-export const updateGrade = async (id: string, gradeData: any) => {
+export const updateGrade = async (id: string, gradeData: Record<string, unknown>) => {
   const response = await api.post(`/update-grades/${id}`, gradeData);
   return response.data;
 };

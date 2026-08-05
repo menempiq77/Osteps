@@ -43,6 +43,7 @@ import { fetchSubjectClasses } from "@/services/subjectWorkspaceApi";
 import { resolveSubjectClassLinkedIdWithFallback } from "@/lib/subjectClassResolution";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClasses } from "@/services/classesApi";
+import { asRecord } from "@/lib/safeRecord";
 
 const { Option } = Select;
 
@@ -59,6 +60,8 @@ type Behavior = {
   description: string;
   date: string;
   points: number;
+  created_at?: string;
+  updated_at?: string;
   teacher?: {
     teacher_name?: string;
   };
@@ -79,7 +82,12 @@ interface CurrentUser {
   name?: string;
   class?: string;
   role?: string;
-  school?: string;
+  school?: number | string | Record<string, unknown>;
+  school_id?: number | string;
+  school_timezone?: string;
+  schoolTimeZone?: string;
+  timezone?: string;
+  id?: string;
 }
 
 const StudentBehaviorPage = () => {
@@ -90,7 +98,7 @@ const StudentBehaviorPage = () => {
   const [form] = Form.useForm();
   const [typeForm] = Form.useForm();
   const [filter, setFilter] = useState("all");
-  const [editingType, setEditingType] = useState(null);
+  const [editingType, setEditingType] = useState<BehaviorType | null>(null);
   const { currentUser } = useSelector((state: RootState) => state.auth) as {
     currentUser: CurrentUser;
   };
@@ -98,21 +106,22 @@ const StudentBehaviorPage = () => {
   const [behaviors, setBehaviors] = useState<Behavior[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingBehavior, setEditingBehavior] = useState(null);
+  const [editingBehavior, setEditingBehavior] = useState<Behavior | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [years, setYears] = useState<any[]>([]);
+  const [years, setYears] = useState<Record<string, unknown>[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const schoolId = currentUser?.school;
+  const schoolId =
+    Number(asRecord(currentUser?.school)?.id ?? currentUser?.school ?? 0);
   const schoolTimeZone = useMemo(() => {
-    const userAny = currentUser as any;
+    const userAny = currentUser;
     return (
       userAny?.school_timezone ||
       userAny?.schoolTimeZone ||
       userAny?.timezone ||
-      userAny?.school?.timezone ||
+      asRecord(userAny?.school)?.timezone ||
       process.env.NEXT_PUBLIC_SCHOOL_TIMEZONE ||
       Intl.DateTimeFormat().resolvedOptions().timeZone
     );
@@ -153,38 +162,36 @@ const StudentBehaviorPage = () => {
   const loadYears = async (subjectIdArg: string, prevSelectedYear: string | null) => {
     try {
       setLoading(true);
-      let yearsData: any[] = [];
+      let yearsData: Record<string, unknown>[] = [];
 
       if (subjectIdArg !== "all") {
         // Fetch school years + subject-class assignments, then intersect
         const [schoolYears, subjectClasses] = await Promise.all([
-          fetchYearsBySchool(schoolId),
+          fetchYearsBySchool(Number(schoolId)),
           fetchSubjectClasses({ subject_id: Number(subjectIdArg) }),
         ]);
-        const resolveYearId = (row: any): number =>
-          Number(row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0);
+        const resolveYearId = (row: Record<string, unknown>): number =>           Number(row?.year_id ?? asRecord(row?.class)?.year_id ?? asRecord(row?.classes)?.year_id ?? asRecord(row?.base_class)?.year_id ?? 0);
         const subjectYearIds = new Set(
           (Array.isArray(subjectClasses) ? subjectClasses : [])
             .map(resolveYearId)
             .filter((id) => Number.isFinite(id) && id > 0)
         );
         yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter(
-          (year: any) => subjectYearIds.has(Number(year?.id))
+          (year: Record<string, unknown>) => subjectYearIds.has(Number(year?.id))
         );
       } else if (useAssignedYears) {
-        const res = await fetchAssignYears();
+        const res = (await fetchAssignYears()) as Record<string, unknown>[];
         const years = res
-          .map((item: any) => item?.classes?.year)
-          .filter((year: any) => year);
+          .map((item) => asRecord(item?.classes)?.year)
+          .filter((year): year is Record<string, unknown> => !!year && typeof year === "object");
         yearsData = Array.from(
-          new Map(years?.map((year: any) => [year.id, year])).values()
+          new Map(years?.map((year) => [String(year.id), year])).values()
         );
       } else {
         // All Subjects: union of years that have active subject-class assignments
-        const resolveYearId = (row: any): number =>
-          Number(row?.year_id ?? row?.class?.year_id ?? row?.classes?.year_id ?? row?.base_class?.year_id ?? 0);
+        const resolveYearId = (row: Record<string, unknown>): number =>           Number(row?.year_id ?? asRecord(row?.class)?.year_id ?? asRecord(row?.classes)?.year_id ?? asRecord(row?.base_class)?.year_id ?? 0);
         const [schoolYears, allSubjectClassesArr] = await Promise.all([
-          fetchYearsBySchool(schoolId),
+          fetchYearsBySchool(Number(schoolId)),
           Promise.all(subjects.map((s) => fetchSubjectClasses({ subject_id: s.id }).catch(() => []))),
         ]);
         const validYearIds = new Set(
@@ -194,7 +201,7 @@ const StudentBehaviorPage = () => {
             .filter((id) => Number.isFinite(id) && id > 0)
         );
         yearsData = (Array.isArray(schoolYears) ? schoolYears : []).filter(
-          (year: any) => validYearIds.has(Number(year?.id))
+          (year: Record<string, unknown>) => validYearIds.has(Number(year?.id))
         );
       }
 
@@ -204,16 +211,16 @@ const StudentBehaviorPage = () => {
       // otherwise fall back to the first available year.
       if (yearsData.length > 0) {
         const currentStillValid = prevSelectedYear &&
-          yearsData.some((y: any) => y.id.toString() === prevSelectedYear);
+          yearsData.some((y: Record<string, unknown>) => String(y.id) === prevSelectedYear);
         if (!currentStillValid) {
-          setSelectedYear(yearsData[0].id.toString());
+          setSelectedYear(String(yearsData[0].id));
           setSelectedClass(null);
         }
       } else {
         setSelectedYear(null);
         setSelectedClass(null);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       messageApi.error("Failed to load years");
     } finally {
@@ -251,13 +258,13 @@ const StudentBehaviorPage = () => {
       if (useAssignedYears) {
         const res = await fetchAssignYears();
         let classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+          .map((item: Record<string, unknown>) => item.classes)
+          .filter((cls: Record<string, unknown>) => cls);
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+          new Map(classesData.map((cls: Record<string, unknown>) => [cls.id, cls])).values()
         );
         return classesData.filter(
-          (cls: any) => cls.year_id === Number(selectedYear)
+          (cls: Record<string, unknown>) => cls.year_id === Number(selectedYear)
         );
       } else if (effectiveSubjectId) {
         // Subject-specific: fetch subject-classes and resolve linked school class IDs
@@ -269,8 +276,8 @@ const StudentBehaviorPage = () => {
         });
         const resolved = await Promise.all(
           (Array.isArray(subjectClasses) ? subjectClasses : [])
-            .filter((row: any) => Number(row.is_active ?? 1) === 1)
-            .map(async (row: any) => {
+            .filter((row: Record<string, unknown>) => Number(row.is_active ?? 1) === 1)
+            .map(async (row: Record<string, unknown>) => {
               const linkedClassId = await resolveSubjectClassLinkedIdWithFallback(
                 row,
                 effectiveSubjectId
@@ -285,7 +292,7 @@ const StudentBehaviorPage = () => {
         );
         return resolved;
       } else {
-        return await fetchClasses(Number(selectedYear));
+        return await fetchClasses(String(selectedYear));
       }
     },
     enabled: !!selectedYear,
@@ -303,22 +310,22 @@ const StudentBehaviorPage = () => {
 
       // When a specific subject is selected, subject-classes are used.
       // Each class entry has a linked_class_id (base school class ID) and its own id is the subject_class_id.
-      const classEntry = (classes as any[]).find(
-        (c: any) => String(c.id) === String(selectedClass)
+      const classEntry = (classes as Record<string, unknown>[]).find(
+        (c: Record<string, unknown>) => String(c.id) === String(selectedClass)
       );
       const subjectClassId =
-        effectiveSubjectId && classEntry?.linked_class_id
+        effectiveSubjectId && classEntry && classEntry.linked_class_id
           ? String(classEntry.id)
           : null;
       // Use the linked school class ID when available; otherwise use selectedClass directly.
       const fetchClassId =
-        effectiveSubjectId && classEntry?.linked_class_id
-          ? classEntry.linked_class_id
+        effectiveSubjectId && classEntry && classEntry.linked_class_id
+          ? String(classEntry.linked_class_id)
           : selectedClass;
 
       // Pass 1: with subject_class_id filter
       let studentsData = await fetchStudents(
-        fetchClassId,
+        fetchClassId ?? "",
         effectiveSubjectId ?? null,
         subjectClassId,
       );
@@ -327,24 +334,24 @@ const StudentBehaviorPage = () => {
       // (handles students added before enrollment row was created)
       if (!studentsData?.length && subjectClassId) {
         studentsData = await fetchStudents(
-          fetchClassId,
+          fetchClassId ?? "",
           effectiveSubjectId ?? null,
           undefined,
         );
       }
 
-      setStudents(studentsData);
+      setStudents((studentsData as Student[]) ?? []);
 
       const preferredStudent =
         pendingStudentId &&
         studentsData.find(
-          (s: any) => String(s.id).toLowerCase() === String(pendingStudentId).toLowerCase()
+          (s: Record<string, unknown>) => String(s.id).toLowerCase() === String(pendingStudentId).toLowerCase()
         );
       const initialId = preferredStudent?.id || studentsData[0]?.id || "";
       setSelectedStudentId(String(initialId));
 
       return studentsData;
-    } catch (err) {
+    } catch (err: unknown) {
       setError("Failed to load students");
       console.error("Error loading students:", err);
       return [];
@@ -368,7 +375,7 @@ const StudentBehaviorPage = () => {
   useEffect(() => {
     if (!pendingClassId || !classes?.length) return;
     const hasClass = classes.some(
-      (cls: any) => String(cls.id).toLowerCase() === String(pendingClassId).toLowerCase()
+      (cls: Record<string, unknown>) => String(cls.id).toLowerCase() === String(pendingClassId).toLowerCase()
     );
     if (hasClass && String(selectedClass || "") !== String(pendingClassId)) {
       setSelectedClass(String(pendingClassId));
@@ -379,8 +386,8 @@ const StudentBehaviorPage = () => {
     try {
       setIsLoading(true);
       const behaviourType = await fetchBehaviourType(effectiveSubjectId);
-      setBehaviorTypes(behaviourType);
-    } catch (err) {
+      setBehaviorTypes((behaviourType as BehaviorType[]) ?? []);
+    } catch (err: unknown) {
       setError("Failed to load behaviour Type");
       console.error(err);
     } finally {
@@ -394,9 +401,9 @@ const StudentBehaviorPage = () => {
     }
     try {
       setIsLoading(true);
-      const behaviourData = await fetchBehaviour(selectedStudentId, effectiveSubjectId);
-      setBehaviors(behaviourData);
-    } catch (err) {
+      const behaviourData = await fetchBehaviour(Number(selectedStudentId), effectiveSubjectId);
+      setBehaviors((behaviourData as Behavior[]) ?? []);
+    } catch (err: unknown) {
       setError("Failed to load behaviour");
       console.error(err);
     } finally {
@@ -464,7 +471,7 @@ const StudentBehaviorPage = () => {
     return found || null;
   }, [students, selectedStudentId]);
 
-  const showBehaviorModal = (behavior?: Behavior | null) => {
+  const showBehaviorModal = (behavior: Behavior | null = null) => {
     setEditingBehavior(behavior);
     if (behavior) {
       form.setFieldsValue({
@@ -516,7 +523,7 @@ const StudentBehaviorPage = () => {
         behaviour_id: selectedType.id,
         description: values.description,
         date: values.date || new Date().toISOString().split("T")[0],
-        teacher_id: currentUser?.id,
+        teacher_id: (currentUser as Record<string, unknown>)?.id,
       };
 
       if (!isSchoolAdmin && selectedSubjectId === "all") {
@@ -542,7 +549,7 @@ const StudentBehaviorPage = () => {
       setIsBehaviorModalVisible(false);
       form.resetFields();
       setEditingBehavior(null);
-    } catch (error) {
+    } catch (error: unknown) {
       message.error("Failed to save behavior");
       console.error(error);
     }
@@ -560,20 +567,20 @@ const StudentBehaviorPage = () => {
         const updatedType = await updateBehaviourType(editingType.id, values, effectiveSubjectId);
         setBehaviorTypes(
           behaviorTypes.map((type) =>
-            type.id === editingType.id ? updatedType.data : type
+            type.id === editingType.id ? (updatedType.data as BehaviorType) : type
           )
         );
         message.success("Behavior type updated successfully!");
       } else {
         // Add new type
         const newType = await addBehaviourType(values, effectiveSubjectId);
-        setBehaviorTypes([...behaviorTypes, newType.data]);
+        setBehaviorTypes([...behaviorTypes, newType.data as BehaviorType]);
         message.success("Behavior type added successfully!");
       }
       setIsTypeModalVisible(false);
       typeForm.resetFields();
       setEditingType(null);
-    } catch (error) {
+    } catch (error: unknown) {
       message.error("Failed to save behavior type");
       console.error(error);
     }
@@ -585,25 +592,25 @@ const StudentBehaviorPage = () => {
         message.error("Select a subject before deleting behavior.");
         return;
       }
-      await deleteBehaviour(behaviorId, effectiveSubjectId);
+      await deleteBehaviour(Number(behaviorId), effectiveSubjectId);
       await loadBehavior();
       message.success("Behavior deleted successfully!");
-    } catch (error) {
+    } catch (error: unknown) {
       message.error("Failed to delete behavior");
       console.error(error);
     }
   };
 
-  const deleteBehaviorType = async (typeId) => {
+  const deleteBehaviorType = async (typeId: string) => {
     try {
       if (!isSchoolAdmin && selectedSubjectId === "all") {
         message.error("Select a subject before deleting behavior type.");
         return;
       }
-      await deleteBehaviourType(typeId, effectiveSubjectId);
+      await deleteBehaviourType(Number(typeId), effectiveSubjectId);
       setBehaviorTypes(behaviorTypes.filter((type) => type.id !== typeId));
       message.success("Behavior type deleted successfully!");
-    } catch (error) {
+    } catch (error: unknown) {
       message.error("Failed to delete behavior type");
       console.error(error);
     }
@@ -648,7 +655,7 @@ const StudentBehaviorPage = () => {
   });
 
   const sortedAttendanceBehaviors = useMemo(() => {
-    return [...(attendanceBehaviors || [])].sort((a: any, b: any) => {
+    return [...(attendanceBehaviors || [])].sort((a: Behavior, b: Behavior) => {
       const bTime = new Date(
         b?.created_at || b?.updated_at || b?.date || 0
       ).getTime();
@@ -659,7 +666,7 @@ const StudentBehaviorPage = () => {
     });
   }, [attendanceBehaviors]);
 
-  const getAttendanceStatus = (item: any) => {
+  const getAttendanceStatus = (item: Behavior) => {
     const typeName = String(
       behaviorTypes.find((t) => t.id === item.behaviour_id)?.name || ""
     ).toLowerCase();
@@ -673,24 +680,24 @@ const StudentBehaviorPage = () => {
     return "Attendance";
   };
 
-  const getAttendanceLocalTime = (item: any) => {
+  const getAttendanceLocalTime = (item: Behavior) => {
     const description = String(item?.description || "");
     const marker = " @ ";
     if (description.includes(marker)) {
       return description.split(marker).pop();
     }
-    if ((item as any)?.created_at || (item as any)?.updated_at) {
+    if (item?.created_at || item?.updated_at) {
       return new Date(
-        (item as any)?.created_at || (item as any)?.updated_at
-      ).toLocaleString(undefined, schoolTimeZone ? { timeZone: schoolTimeZone } : undefined);
+        item?.created_at || item?.updated_at || 0
+      ).toLocaleString(undefined, schoolTimeZone ? { timeZone: String(schoolTimeZone) } : undefined);
     }
     return "N/A";
   };
 
   const sortedFilteredBehaviors = useMemo(() => {
-    return [...(filteredBehaviors || [])].sort((a, b) => {
-      const bTime = new Date((b as any)?.date || (b as any)?.created_at || 0).getTime();
-      const aTime = new Date((a as any)?.date || (a as any)?.created_at || 0).getTime();
+    return [...(filteredBehaviors || [])].sort((a: Behavior, b: Behavior) => {
+      const bTime = new Date(b?.date || b?.created_at || 0).getTime();
+      const aTime = new Date(a?.date || a?.created_at || 0).getTime();
       return bTime - aTime;
     });
   }, [filteredBehaviors]);
@@ -816,8 +823,8 @@ const StudentBehaviorPage = () => {
                   placeholder="Select Year"
                 >
                   {years?.map((year) => (
-                    <Select.Option key={year.id} value={year.id.toString()}>
-                      {year.name}
+                    <Select.Option key={String(year.id)} value={String(year.id)}>
+                      {String(year.name)}
                     </Select.Option>
                   ))}
                 </Select>
@@ -836,9 +843,9 @@ const StudentBehaviorPage = () => {
                   loading={classesLoading}
                   disabled={!selectedYear}
                 >
-                  {classes?.map((cls) => (
-                    <Select.Option key={cls.id} value={cls.id.toString()}>
-                      {cls.class_name}
+                  {classes?.map((cls: Record<string, unknown>) => (
+                    <Select.Option key={String(cls.id)} value={String(cls.id)}>
+                      {String(cls.class_name)}
                     </Select.Option>
                   ))}
                 </Select>
@@ -983,7 +990,7 @@ const StudentBehaviorPage = () => {
               actions={
                 canMutateBehavior
                   ? [
-                      <div className="">
+                      <div key={item.id} className="">
                         <Button
                           icon={<EditOutlined />}
                           onClick={() => showBehaviorModal(item)}
@@ -1044,7 +1051,7 @@ const StudentBehaviorPage = () => {
               actions={
                 canMutateBehavior
                   ? [
-                      <div className="">
+                      <div key={`attendance-${item.id}`} className="">
                         <Popconfirm
                           title="Delete this attendance record?"
                           onConfirm={() => deleteBehavior(item.id)}
@@ -1093,6 +1100,7 @@ const StudentBehaviorPage = () => {
               <List.Item
                 actions={[
                   <Button
+                    key={`edit-${type.id}`}
                     icon={<EditOutlined />}
                     onClick={() => showTypeModal(type)}
                     disabled={!canMutateBehavior}
@@ -1100,6 +1108,7 @@ const StudentBehaviorPage = () => {
                     Edit
                   </Button>,
                   <Popconfirm
+                    key={`delete-${type.id}`}
                     title="Delete this behavior type?"
                     onConfirm={() => deleteBehaviorType(type.id)}
                     okText="Yes"

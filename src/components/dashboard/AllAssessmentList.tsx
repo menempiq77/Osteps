@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { EditOutlined, DeleteOutlined, TeamOutlined, FileTextOutlined, BookOutlined, CopyOutlined, RightOutlined } from "@ant-design/icons";
-import { AssessmentTasksDrawer } from "../ui/AssessmentTasksDrawer";
+import { AssessmentTasksDrawer, type AssessmentDrawerTask } from "../ui/AssessmentTasksDrawer";
 import AssessmentAssignDrawer from "./AssessmentAssignDrawer";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
@@ -34,7 +34,7 @@ async function mapLimit<T, R>(
 }
 
 
-interface Task {
+interface LocalTask {
   id: number;
   name: string;
   isAudio: boolean;
@@ -44,6 +44,9 @@ interface Task {
   dueDate: string;
   allocatedMarks: number;
   url?: string;
+  percentage_weight?: number;
+  quiz_id?: string;
+  quiz?: { id?: string };
 }
 
 export interface Quiz {
@@ -51,7 +54,7 @@ export interface Quiz {
   name: string;
 }
 
-interface Assessment {
+export interface Assessment {
   id: string;
   name: string;
   type: "assessment" | "quiz";
@@ -64,8 +67,8 @@ interface AssessmentListProps {
   onDeleteAssessment: (id: string) => void;
   onEditAssessment?: (assessment: Assessment) => void;
   onDuplicateAssessment?: (assessment: Assessment) => void;
-  quizzes: any[];
-  termId: number;
+  quizzes: Quiz[];
+  termId: number | string;
 }
 
 export interface Term {
@@ -86,13 +89,13 @@ export default function AllAssessmentList({
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<LocalTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [assessmentList, setAssessmentList] = useState(assessments);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
   const [assigningAssessment, setAssigningAssessment] = useState<Assessment | null>(null);
   const [weightTotals, setWeightTotals] = useState<Record<string, number | null>>({});
-  const tasksCacheRef = useRef<Record<string, Task[]>>({});
+  const tasksCacheRef = useRef<Record<string, LocalTask[]>>({});
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(
     termId ? termId.toString() : null
@@ -103,8 +106,8 @@ export default function AllAssessmentList({
     setAssessmentList(assessments);
   }, [assessments]);
 
-  const sumTaskWeights = (assessmentId: string, rows: any[]): number =>
-    (rows ?? []).reduce((total, row: any) => {
+  const sumTaskWeights = (assessmentId: string, rows: LocalTask[]): number =>
+    (rows ?? []).reduce((total, row) => {
       const weight = resolveWeight(row?.percentage_weight, {
         assessmentId,
         taskId: row?.id,
@@ -127,8 +130,8 @@ export default function AllAssessmentList({
       const entries = await mapLimit(ids, 4, async (id) => {
         try {
           const rows = await fetchTasks(Number(id));
-          tasksCacheRef.current[id] = rows as Task[];
-          return [id, sumTaskWeights(id, rows)] as const;
+          tasksCacheRef.current[id] = rows as LocalTask[];
+          return [id, sumTaskWeights(id, rows as LocalTask[])] as const;
         } catch {
           return [id, null] as const;
         }
@@ -160,7 +163,7 @@ export default function AllAssessmentList({
     }
     try {
       if (!cached) setLoading(true);
-      const fetchedTasks: Task[] = await fetchTasks(selectedAssessment);
+      const fetchedTasks: LocalTask[] = await fetchTasks(Number(selectedAssessment));
       setTasks(fetchedTasks);
       tasksCacheRef.current[selectedAssessment] = fetchedTasks;
     } catch (error) {
@@ -199,16 +202,29 @@ export default function AllAssessmentList({
     setAssignDrawerOpen(true);
   };
 
+  const adaptTasks = (localTasks: LocalTask[]): AssessmentDrawerTask[] =>
+    localTasks.map(({ quiz, quiz_id, ...t }) => ({
+      ...t,
+      task_name: t.name,
+      description: "",
+      task_type: "general",
+      due_date: t.dueDate,
+      allocated_marks: t.allocatedMarks,
+      percentage_weight: t.percentage_weight ?? 0,
+      quiz: quiz ? { id: quiz.id ?? "" } : undefined,
+      quiz_id: quiz_id ? Number(quiz_id) : undefined,
+    }));
+
   const handleTasksChange = async () => {
     try {
       setLoading(true);
       if (selectedAssessment) {
-        const freshTasks = await fetchTasks(selectedAssessment);
-        setTasks(freshTasks);
-        tasksCacheRef.current[selectedAssessment] = freshTasks;
+        const freshTasks = await fetchTasks(Number(selectedAssessment));
+        setTasks(freshTasks as LocalTask[]);
+        tasksCacheRef.current[selectedAssessment] = freshTasks as LocalTask[];
         setWeightTotals((prev) => ({
           ...prev,
-          [selectedAssessment]: sumTaskWeights(selectedAssessment, freshTasks),
+          [selectedAssessment]: sumTaskWeights(selectedAssessment, freshTasks as LocalTask[]),
         }));
       }
     } catch (error) {
@@ -228,7 +244,7 @@ export default function AllAssessmentList({
     setAssessmentList(newOrder);
 
     const payload = newOrder.map((item, index) => ({
-      id: item.id,
+      id: Number(item.id),
       position: index + 1,
     }));
 
@@ -428,7 +444,7 @@ export default function AllAssessmentList({
           "Assignment"
         }
         assessmentId={selectedAssessment ? parseInt(selectedAssessment) : 0}
-        initialTasks={Array.isArray(tasks) ? tasks : []}
+        initialTasks={adaptTasks(Array.isArray(tasks) ? tasks : [])}
         onTasksChange={handleTasksChange}
         quizzes={quizzes}
         loading={loading}

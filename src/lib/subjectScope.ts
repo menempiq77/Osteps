@@ -57,7 +57,7 @@ export const storeSubjectId = (subjectId: number, subjectName?: string | null): 
   }
 };
 
-export const withSubjectQuery = <T extends Record<string, unknown>>(params?: T, subjectId?: number | null): T & { subject_id?: number } => {
+export const withSubjectQuery = <T extends object>(params?: T, subjectId?: number | null): T & { subject_id?: number } => {
   const resolved = resolveScopedSubjectId(subjectId);
   if (!resolved) {
     return { ...(params ?? ({} as T)) };
@@ -68,7 +68,7 @@ export const withSubjectQuery = <T extends Record<string, unknown>>(params?: T, 
   };
 };
 
-export const withSubjectPayload = <T extends Record<string, unknown>>(payload: T, subjectId?: number | null): T & { subject_id?: number } => {
+export const withSubjectPayload = <T extends object>(payload: T, subjectId?: number | null): T & { subject_id?: number } => {
   const resolved = resolveScopedSubjectId(subjectId);
   if (!resolved) return payload;
   return {

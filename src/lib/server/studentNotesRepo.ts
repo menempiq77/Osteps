@@ -10,10 +10,12 @@ function buildLaravelUrl(studentId: string): string {
   return `${laravelBaseUrl.replace(/\/$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-function extractNoteFromResponse(payload: any): string {
+function extractNoteFromResponse(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
-  if (typeof payload.note === "string") return payload.note;
-  if (payload.data && typeof payload.data.note === "string") return payload.data.note;
+  const body = payload as Record<string, unknown>;
+  if (typeof body.note === "string") return body.note;
+  const data = body.data as Record<string, unknown> | undefined;
+  if (data && typeof data.note === "string") return data.note;
   return "";
 }
 

@@ -8,7 +8,9 @@ import { RootState } from "@/store/store";
 import { fetchAssignYears, fetchYearsBySchool } from '@/services/yearsApi';
 import { fetchClasses } from "@/services/classesApi";
 import { fetchStudents } from "@/services/studentsApi";
-import { assignTracker, fetchTrackerAssignments, unassignTracker } from "@/services/trackersApi";import { fetchSubjectClasses } from '@/services/subjectWorkspaceApi';
+import { assignTracker, fetchTrackerAssignments, unassignTracker } from "@/services/trackersApi";
+import { fetchSubjectClasses } from '@/services/subjectWorkspaceApi';
+import { asRecord } from "@/lib/safeRecord";
 type CurrentUser = {
   role?: string;
   school?: string | number | { id?: string | number };
@@ -79,20 +81,20 @@ export default function TrackerAssignDrawer({
       if (schoolId) {
         const years = (await fetchYearsBySchool(Number(schoolId))) ?? [];
         const classBuckets = await Promise.all(
-          years.map(async (year: any) => {
+          (years as Record<string, unknown>[]).map(async (year) => {
             const classes = (await fetchClasses(String(year.id))) ?? [];
-            return classes.map((cls: any) => ({
+            return (classes as Record<string, unknown>[]).map((cls) => ({
               id: Number(cls.id),
               year_id: Number(year.id),
-              class_name: cls.class_name ?? cls.name ?? `Class ${cls.id}`,
-              year_name: year.name,
+              class_name: String(cls.class_name ?? cls.name ?? `Class ${cls.id}`),
+              year_name: String(year.name ?? ""),
             }));
           }),
         );
         allFetched = classBuckets.flat();
       } else {
         const assignedYears = (await fetchAssignYears()) ?? [];
-        const flattened = assignedYears.flatMap((item: any) => {
+        const flattened = assignedYears.flatMap((item: Record<string, unknown>) => {
           const cls = item?.classes;
           if (!cls) return [];
           return Array.isArray(cls) ? cls : [cls];
@@ -104,8 +106,8 @@ export default function TrackerAssignDrawer({
           uniqueById.set(id, {
             id,
             year_id: Number(cls?.year_id ?? cls?.year?.id ?? 0) || undefined,
-            class_name: cls?.class_name ?? cls?.name ?? `Class ${id}`,
-            year_name: cls?.year?.name,
+            class_name: String(cls?.class_name ?? cls?.name ?? `Class ${id}`),
+            year_name: String(cls?.year?.name ?? ""),
           });
         }
         allFetched = Array.from(uniqueById.values());
@@ -123,8 +125,14 @@ export default function TrackerAssignDrawer({
           const labelKeys = new Set<LabelKey>();
           const directClassIds = new Set<number>();
 
-          for (const sc of subjectClasses as any[]) {
-            const directId = Number(sc.class_id ?? sc.base_class_id ?? sc.class?.id ?? sc.classes?.id ?? 0);
+          for (const sc of subjectClasses as Record<string, unknown>[]) {
+            const directId = Number(
+              sc.class_id ??
+              sc.base_class_id ??
+              asRecord(sc.class)?.id ??
+              asRecord(sc.classes)?.id ??
+              0
+            );
             if (directId > 0) { directClassIds.add(directId); continue; }
             const yearId = Number(sc.year_id ?? 0);
             const label = normalize(String(sc.base_class_label ?? sc.name ?? ""));
@@ -175,12 +183,12 @@ export default function TrackerAssignDrawer({
       );
       const merged = rowsByClass.flat();
       const byId = new Map<number, StudentOption>();
-      for (const student of merged as any[]) {
+      for (const student of merged as Record<string, unknown>[]) {
         const id = Number(student?.id ?? student?.student_id);
         if (!id) continue;
         byId.set(id, {
           id,
-          student_name: student?.student_name ?? student?.user_name ?? student?.name ?? `Student ${id}`,
+          student_name: String(student?.student_name ?? student?.user_name ?? student?.name ?? `Student ${id}`),
         });
       }
       return Array.from(byId.values());
@@ -202,25 +210,35 @@ export default function TrackerAssignDrawer({
   };
 
   const assignMutation = useMutation({
-    mutationFn: assignTracker,
+    mutationFn: (payload: Parameters<typeof assignTracker>[0]) => assignTracker(payload, subjectId),
     onSuccess: () => {
       messageApi.success("Tracker assigned successfully.");
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["tracker-manage-assignments", numericTrackerId] });
     },
-    onError: (error: any) => {
-      messageApi.error(error?.response?.data?.msg || error?.response?.data?.message || error?.message || "Failed to assign tracker.");
+    onError: (error: unknown) => {
+      const record = asRecord(error);
+      const response = asRecord(record?.response);
+      const data = asRecord(response?.data);
+      messageApi.error(
+        String(data?.msg ?? data?.message ?? record?.message ?? "Failed to assign tracker.")
+      );
     },
   });
 
   const unassignMutation = useMutation({
-    mutationFn: unassignTracker,
+    mutationFn: (payload: Parameters<typeof unassignTracker>[0]) => unassignTracker(payload, subjectId),
     onSuccess: () => {
       messageApi.success("Tracker unassigned successfully.");
       queryClient.invalidateQueries({ queryKey: ["tracker-manage-assignments", numericTrackerId] });
     },
-    onError: (error: any) => {
-      messageApi.error(error?.response?.data?.msg || error?.response?.data?.message || error?.message || "Failed to unassign tracker.");
+    onError: (error: unknown) => {
+      const record = asRecord(error);
+      const response = asRecord(record?.response);
+      const data = asRecord(response?.data);
+      messageApi.error(
+        String(data?.msg ?? data?.message ?? record?.message ?? "Failed to unassign tracker.")
+      );
     },
   });
 

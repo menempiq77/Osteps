@@ -34,14 +34,16 @@ const isIosDevice = () => {
 
 export function PwaLifecycle() {
   const { serwist } = useSerwist();
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(
+    () => typeof window !== "undefined" && window.navigator.onLine
+  );
   const [installEvent, setInstallEvent] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [showIosInstall, setShowIosInstall] = useState(false);
+  const [showIosInstall, setShowIosInstall] = useState(
+    () => typeof window !== "undefined" && !isStandalone() && isIosDevice()
+  );
 
   useEffect(() => {
-    setIsOnline(window.navigator.onLine);
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
@@ -115,7 +117,6 @@ export function PwaLifecycle() {
     };
 
     window.addEventListener("beforeinstallprompt", handleInstallPrompt);
-    setShowIosInstall(isIosDevice());
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleInstallPrompt);

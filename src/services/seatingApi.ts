@@ -43,7 +43,7 @@ const writeLocalLayout = (classId: string | number, payload: SavePayload | Seati
 };
 
 const shouldUseLocalFallback = (error: unknown) => {
-  const axiosError = error as AxiosError<any>;
+  const axiosError = error as AxiosError<Record<string, unknown>>;
   const status = Number(axiosError?.response?.status || 0);
   return status === 404 || status === 401 || status === 403;
 };
@@ -58,23 +58,26 @@ const extractLegacyClassId = (key: string): string | null => {
   return match ? match[1] : null;
 };
 
-const normalizeLayout = (raw: any): SeatingLayoutResponse => {
-  const payload = raw?.data ?? raw ?? {};
+const normalizeLayout = (raw: unknown): SeatingLayoutResponse => {
+  const rawRecord = raw as Record<string, unknown> | null | undefined;
+  const payload = (rawRecord?.data ?? rawRecord ?? {}) as Record<string, unknown>;
   return {
-    version: payload?.version,
-    updated_at: payload?.updated_at,
-    items: Array.isArray(payload?.items) ? payload.items : [],
-    room_meta: payload?.room_meta || {},
+    version: payload?.version as SeatingLayoutResponse["version"],
+    updated_at: payload?.updated_at as SeatingLayoutResponse["updated_at"],
+    items: Array.isArray(payload?.items) ? (payload.items as SeatingLayoutItem[]) : [],
+    room_meta: (payload?.room_meta as SeatingRoomMeta) || {},
   };
 };
 
 const enrichError = (error: unknown): SeatingApiError => {
-  const axiosError = error as AxiosError<any>;
+  const axiosError = error as AxiosError<Record<string, unknown>>;
   const status = axiosError?.response?.status;
+  const data = axiosError?.response?.data as Record<string, unknown> | undefined;
+  const nestedData = data?.data as Record<string, unknown> | undefined;
   const backendMessage =
-    axiosError?.response?.data?.msg ||
-    axiosError?.response?.data?.message ||
-    axiosError?.response?.data?.data?.message ||
+    data?.msg ||
+    data?.message ||
+    nestedData?.message ||
     axiosError?.message ||
     "Seating API request failed.";
 

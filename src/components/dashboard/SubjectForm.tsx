@@ -14,9 +14,9 @@ export default function SubjectForm({ onSubmit, defaultValues, isOpen }: Subject
   useEffect(() => {
     if (defaultValues) form.setFieldsValue(defaultValues);
     else form.resetFields();
-  }, [defaultValues, isOpen]);
+  }, [defaultValues, isOpen, form]);
 
-  const handleFinish = (values: any) => {
+  const handleFinish = (values: { name: string }) => {
     onSubmit(values);
   };
 

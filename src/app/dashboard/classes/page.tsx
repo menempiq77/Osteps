@@ -24,6 +24,17 @@ import {
   resolveSubjectClassLinkedIdWithFallback,
   writeSubjectClassBaseEntry,
 } from "@/lib/subjectClassResolution";
+import {
+  importSubjectClassIntoSubject,
+  isSubjectClassActive,
+  resolveClassLabel,
+  resolveClassYearId,
+} from "@/lib/subjectClassImport";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
+import { asRecord } from "@/lib/safeRecord";
 interface ApiClass {
   id: string;
   class_name: string;
@@ -50,7 +61,28 @@ type SubjectClassRow = {
   is_active?: number | boolean | null;
 };
 
+type ClassDynamic = {
+  id?: string | number;
+  class_name?: string;
+  teacher_id?: number | string;
+  teacher_name?: string;
+  year_id?: string | number;
+  classes?: ClassDynamic;
+  name?: string;
+  subject_name?: string;
+  subject?: string | ClassDynamic;
+  subjects?: Array<string | ClassDynamic>;
+  [key: string]: unknown;
+};
+
+type AssignmentRecord = { classes?: ClassDynamic; teacher_name?: string; teacher?: { name?: string } };
+
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const getBackendMessage = (error: unknown, fallback: string) => {
+  const response = asRecord(asRecord(error)?.response);
+  const data = asRecord(response?.data);
+  return String(data?.msg ?? data?.message ?? (error instanceof Error ? error.message : "") ?? fallback);
+};
 
 const mapSubjectClassToApiClass = (row: SubjectClassRow): ApiClass => ({
   id: String(row.id ?? ""),
@@ -91,6 +123,8 @@ export default function Page() {
   const [isDeleteClassModalOpen, setIsDeleteClassModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(archivedParam);
+  const [importOpen, setImportOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const [messageApi, contextHolder] = message.useMessage();
   const { activeSubjectId, activeSubject, canUseSubjectContext, loading: subjectContextLoading } = useSubjectContext();
@@ -154,13 +188,13 @@ export default function Page() {
  useEffect(() => {
   if (subjectContextLoading) return;
   const loadClasses = async () => {
-    let classesData: any[] = [];
+    let classesData: ApiClass[] = [];
     try {
       setLoading(true);
 
       if (isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
-        let res: any[];
-        let subjectClasses: any[];
+        let res: AssignmentRecord[];
+        let subjectClasses: SubjectClassRow[];
         try {
           [res, subjectClasses] = await Promise.all([
             fetchAssignYears(),
@@ -176,7 +210,7 @@ export default function Page() {
         }
 
         const assignedBaseRows = (Array.isArray(res) ? res : [])
-          .map((item: any) => {
+          .map((item) => {
             const cls = item?.classes;
             if (!cls) return null;
             return {
@@ -188,10 +222,10 @@ export default function Page() {
                 undefined,
             };
           })
-          .filter((cls: any) => Boolean(cls));
+          .filter((cls): cls is NonNullable<typeof cls> => Boolean(cls));
 
-        const assignedByKey = new Map<string, any[]>();
-        assignedBaseRows.forEach((cls: any) => {
+        const assignedByKey = new Map<string, ClassDynamic[]>();
+        assignedBaseRows.forEach((cls) => {
           const className = String(cls.class_name ?? "").trim().toLowerCase();
           const yId = String(cls.year_id ?? "");
           const key = `${className}::${yId}`;
@@ -201,7 +235,7 @@ export default function Page() {
         });
 
         if (Array.isArray(subjectClasses) && subjectClasses.length > 0) {
-          classesData = subjectClasses
+          classesData = (subjectClasses
             .map((row: SubjectClassRow) => {
               const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
               const yId = String(row.year_id ?? "");
@@ -218,15 +252,14 @@ export default function Page() {
                   String(matchedBase?.id ?? "").trim(),
               };
             })
-            .filter((cls): cls is ApiClass => Boolean(cls))
-            .filter(
+            .filter((cls) => Boolean(cls)) as ApiClass[]).filter(
               (row) => Boolean(row.id) && Boolean(row.is_active) !== showArchived
             );
         } else {
-          classesData = assignedBaseRows;
+          classesData = assignedBaseRows as ApiClass[];
           if (year_id) {
             classesData = classesData.filter(
-              (cls: any) => cls.year_id === Number(year_id)
+              (cls) => cls.year_id === Number(year_id)
             );
           }
         }
@@ -234,8 +267,8 @@ export default function Page() {
       } else
       if (false && isSubjectWorkspaceMode && activeSubjectId && isTeacher) {
         // Teacher + subject workspace: intersect by base_class_label + year_id
-        let res: any[];
-        let subjectClasses: any[];
+        let res: AssignmentRecord[];
+        let subjectClasses: SubjectClassRow[];
         try {
           [res, subjectClasses] = await Promise.all([
             fetchAssignYears(),
@@ -252,16 +285,16 @@ export default function Page() {
         }
 
         const subjectLabelKeys = new Set(
-          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row: any) => {
+          (Array.isArray(subjectClasses) ? subjectClasses : []).map((row) => {
             const label = String(row.base_class_label ?? row.name ?? "").trim().toLowerCase();
             const yId = String(row.year_id ?? "");
             return `${label}::${yId}`;
           })
         );
 
-        let filtered: any[];
+        let filtered: AssignmentRecord[];
         if (subjectLabelKeys.size > 0) {
-          filtered = (Array.isArray(res) ? res : []).filter((item: any) => {
+          filtered = (Array.isArray(res) ? res : []).filter((item) => {
             const cls = item?.classes;
             if (!cls) return false;
             const className = String(cls.class_name ?? "").trim().toLowerCase();
@@ -275,16 +308,16 @@ export default function Page() {
         }
 
         classesData = filtered
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+          .map((item: { classes?: ClassDynamic }) => item.classes)
+          .filter((cls: ClassDynamic | undefined): cls is ClassDynamic => Boolean(cls)) as unknown as ApiClass[];
 
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
+          new Map(classesData.map((cls) => [String(cls.id), cls] as const)).values()
         );
 
         if (year_id) {
           classesData = classesData.filter(
-            (cls: any) => cls.year_id === Number(year_id)
+            (cls) => cls.year_id === Number(year_id)
           );
         }
       } else if (isSubjectWorkspaceMode && activeSubjectId) {
@@ -313,16 +346,16 @@ export default function Page() {
         const res = await fetchAssignYears();
 
         classesData = res
-          .map((item: any) => item.classes)
-          .filter((cls: any) => cls);
+          .map((item: { classes?: ClassDynamic }) => item.classes)
+          .filter((cls: ClassDynamic | undefined): cls is ClassDynamic => Boolean(cls));
 
         classesData = Array.from(
-          new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
+          new Map(classesData.map((cls) => [String(cls.id), cls] as const)).values()
         );
 
         if (year_id) {
           classesData = classesData.filter(
-            (cls: any) => cls.year_id === Number(year_id)
+            (cls) => cls.year_id === Number(year_id)
           );
         }
       } else {
@@ -335,12 +368,12 @@ export default function Page() {
 
           const years = await fetchYearsBySchool(schoolId);
           const byYear = await Promise.all(
-            (years || []).map((year: any) => fetchClasses(String(year.id)))
+            (years || []).map((year: { id?: string | number }) => fetchClasses(String(year.id)))
           );
           classesData = byYear.flat();
 
           classesData = Array.from(
-            new Map(classesData.map((cls: any) => [String(cls.id), cls] as const)).values()
+            new Map(classesData.map((cls) => [String(cls.id), cls] as const)).values()
           );
         } else {
           classesData = await fetchClasses(year_id);
@@ -357,7 +390,7 @@ export default function Page() {
   };
 
   loadClasses();
-}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, showArchived]);
+}, [year_id, isTeacher, currentUser?.school, isSubjectWorkspaceMode, activeSubjectId, subjectContextLoading, showArchived, reloadKey]);
 
 useEffect(() => {
   const loadClassStats = async () => {
@@ -366,10 +399,10 @@ useEffect(() => {
       return;
     }
 
-    const baseClassesByYear = new Map<number, any[]>();
+    const baseClassesByYear = new Map<number, ApiClass[]>();
     const getBaseClassesForYear = async (yearId: number) => {
       if (baseClassesByYear.has(yearId)) {
-        return baseClassesByYear.get(yearId) as any[];
+        return baseClassesByYear.get(yearId) as ApiClass[];
       }
       try {
         const rows = await fetchClasses(String(yearId));
@@ -393,7 +426,7 @@ useEffect(() => {
               const baseRows = await getBaseClassesForYear(Number(cls.year_id));
               const targetLabel = normalizeLabel(cls.base_class_label || cls.class_name);
               const matched = (Array.isArray(baseRows) ? baseRows : []).find(
-                (row: any) => normalizeLabel(row?.class_name ?? row?.name) === targetLabel
+                (row) => normalizeLabel(row?.class_name ?? row?.name) === targetLabel
               );
               linkedClassId = String(matched?.id ?? "").trim();
             }
@@ -412,7 +445,7 @@ useEffect(() => {
               )
             );
 
-            let finalRows: Array<Record<string, any>> = [];
+            let finalRows: Array<Record<string, unknown>> = [];
 
             // The subject-class enrollment is the source of truth. Do not fall
             // back to broad subject/base-class rosters because archive/restore
@@ -432,7 +465,7 @@ useEffect(() => {
 
             const total = new Set(
               finalRows
-                .map((student: any) => String(student?.id ?? "").trim())
+                .map((student) => String(student?.id ?? "").trim())
                 .filter(Boolean)
             ).size;
             return [String(cls.id), { students: total }] as const;
@@ -441,7 +474,7 @@ useEffect(() => {
           const students = await fetchStudents(cls.id);
           const total = Array.isArray(students)
             ? isSubjectWorkspaceMode
-              ? students.filter((student: any) => {
+              ? students.filter((student) => {
                   const rawSubjects = Array.isArray(student.subjects)
                     ? student.subjects
                     : student.subject_name
@@ -449,7 +482,7 @@ useEffect(() => {
                       : student.subject
                         ? [student.subject]
                         : [];
-                  return rawSubjects.some((item: any) => {
+                  return rawSubjects.some((item: string | ClassDynamic) => {
                     const name =
                       typeof item === "string"
                         ? item
@@ -587,10 +620,7 @@ useEffect(() => {
       messageApi.success("Class added successfully");
     } catch (err) {
       let backendMessage =
-        (err as any)?.response?.data?.msg ||
-        (err as any)?.response?.data?.message ||
-        (err as any)?.response?.data?.data?.message ||
-        (err instanceof Error ? err.message : "Failed to add class");
+        getBackendMessage(err, "Failed to add class");
       
       // Detect duplicate key constraint violation and provide friendly message
       const messageStr = String(backendMessage ?? "");
@@ -667,11 +697,10 @@ useEffect(() => {
         setClassToDelete(null);
         return;
       } catch (err) {
-        const backendMessage =
-          (err as any)?.response?.data?.msg ||
-          (err as any)?.response?.data?.message ||
-          (err as Error)?.message ||
-          (showArchived ? "Failed to delete class permanently." : "Failed to archive class.");
+        const backendMessage = getBackendMessage(
+          err,
+          showArchived ? "Failed to delete class permanently." : "Failed to archive class."
+        );
         setError(String(backendMessage));
         messageApi.error(String(backendMessage));
         return;
@@ -699,13 +728,61 @@ useEffect(() => {
       messageApi.success("Class restored.");
     } catch (err) {
       const backendMessage =
-        (err as any)?.response?.data?.msg ||
-        (err as any)?.response?.data?.message ||
-        (err as Error)?.message ||
-        "Failed to restore class.";
+        getBackendMessage(err, "Failed to restore class.");
       setError(String(backendMessage));
       messageApi.error(String(backendMessage));
     }
+  };
+
+  const loadClassesForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    const [rows, schoolYears] = await Promise.all([
+      fetchSubjectClasses({ subject_id: sourceSubjectId, include_inactive: true }),
+      fetchYearsBySchool(Number(currentUser?.school ?? 0)).catch(() => []),
+    ]);
+    const yearNameById = new Map(
+      (Array.isArray(schoolYears) ? schoolYears : []).map((year) => [
+        Number(year?.id),
+        String(year?.name ?? `Year ${year?.id ?? ""}`).trim(),
+      ])
+    );
+    const seen = new Set<string>();
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row) => {
+        const yearId = resolveClassYearId(row);
+        const label = resolveClassLabel(row);
+        if (!label || !yearId) return false;
+        if (year_id && Number(year_id) !== yearId) return false;
+        const key = `${yearId}:${label.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((row) => ({
+        id: String(row.id),
+        name: `${yearNameById.get(resolveClassYearId(row)) ?? `Year ${resolveClassYearId(row)}`} — ${resolveClassLabel(row)}`,
+        description: isSubjectClassActive(row) ? undefined : "Archived in source subject",
+      }));
+  };
+
+  const importClassFromSubject = async (
+    item: ImportableItem,
+    sourceSubjectId: number
+  ) => {
+    const rows = (await fetchSubjectClasses({
+      subject_id: sourceSubjectId,
+      include_inactive: true,
+    })) as SubjectClassRow[];
+    const sourceClass = (Array.isArray(rows) ? rows : []).find(
+      (row) => String(row.id) === String(item.id)
+    );
+    if (!sourceClass) throw new Error("The selected class no longer exists.");
+    await importSubjectClassIntoSubject({
+      sourceSubjectId,
+      targetSubjectId: Number(activeSubjectId),
+      sourceClass,
+    });
   };
 
   if (loading && classes.length === 0)
@@ -768,6 +845,14 @@ useEffect(() => {
                 </button>
               </div>
             ) : null}
+            {hasAccess && isSubjectWorkspaceMode && !showArchived && (
+              <Button
+                className="!cursor-pointer"
+                onClick={() => setImportOpen(true)}
+              >
+                Import Classes
+              </Button>
+            )}
             {hasAccess && !!year_id && !showArchived && (
               <Button
                 type="primary"
@@ -780,6 +865,16 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      <ImportFromSimilarSubjectModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        itemLabel="class"
+        itemLabelPlural="classes"
+        loadItems={loadClassesForSubject}
+        importItem={importClassFromSubject}
+        onImported={() => setReloadKey((key) => key + 1)}
+      />
 
       <Modal
         title={currentClass ? "Edit Class" : "Add New Class"}

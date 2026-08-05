@@ -34,7 +34,7 @@ export default function GradeForm({ onSubmit, defaultValues, isOpen }: GradeForm
     form.resetFields();
   };
 
-  const validateGradeLetter = (_: any, value: string) => {
+  const validateGradeLetter = (_: unknown, value: string) => {
   if (!value) {
     return Promise.reject(new Error("Grade letter is required"));
   }

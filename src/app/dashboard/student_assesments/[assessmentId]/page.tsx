@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { Input, Button, Modal, Select, message, Breadcrumb, Checkbox, Tabs, Spin, DatePicker, InputNumber } from "antd";
 import {
   AudioOutlined,
@@ -7,23 +7,26 @@ import {
   FilePdfOutlined,
   LinkOutlined,
   CheckCircleFilled,
-  UnlockOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { addStudentTaskMarks, fetchStudentTasks, fetchTasks, updateTask } from "@/services/api";
 import { updateQuizSubmissionTeacherMark } from "@/services/quizApi";
 import { fetchStudents } from "@/services/studentsApi";
 import Link from "next/link";
 import { useSubjectContext } from "@/contexts/SubjectContext";
 import { IMG_BASE_URL } from "@/lib/config";
+import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { fetchAssessmentDocument, saveAssessmentDocumentAnnotations } from "@/services/documentAssessmentApi";
-import { downloadAnnotatedPdf, downloadBulkAsZip, downloadFileAsBlob, downloadFileAsBlobAndSave, type BulkPdfDownloadTask } from "@/lib/bulkPdfDownload";
-import { buildTaskTypeValue, resolveExamWindow } from "@/lib/taskTypeMetadata";
+import {
+  buildTaskTypeValue,
+  resolveExamWindow,
+  type StructuredTaskType,
+} from "@/lib/taskTypeMetadata";
 import { parseSubmissionAttachments } from "@/lib/submissionAttachments";
-import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
 import dayjs from "dayjs";
+import { asRecord } from "@/lib/safeRecord";
 
 interface Student {
   id?: number | string;
@@ -45,7 +48,7 @@ interface Task {
   task_name: string;
   allocated_marks: string | number;
   task_type: string;
-  task_type_config?: unknown;
+  task_type_config?: StructuredTaskType | null;
   description: string;
   due_date?: string | null;
   file_path: string | null;
@@ -131,17 +134,20 @@ const isPlaceholderStudentName = (value: string) =>
 
 const toStudentOption = (value: unknown): StudentOption | null => {
   if (!value || typeof value !== "object") return null;
-  const row = value as Record<string, any>;
-  const id = row?.student_id ?? row?.student?.id ?? row?.id;
+  const row = asRecord(value);
+  if (!row) return null;
+  const student = asRecord(row.student);
+  const user = asRecord(row.user);
+  const id = row.student_id ?? student?.id ?? row.id;
   if (id == null || String(id).trim() === "") return null;
 
   const studentName = String(
     row?.student_name ??
       row?.name ??
-      row?.student?.student_name ??
-      row?.student?.name ??
-      row?.student?.user_name ??
-      row?.user?.name ??
+      student?.student_name ??
+      student?.name ??
+      student?.user_name ??
+      user?.name ??
       ""
   ).trim();
   if (!studentName || isPlaceholderStudentName(studentName)) return null;
@@ -240,11 +246,19 @@ export default function AssessmentDrawer() {
   const params = useParams();
   const searchParams = useSearchParams();
   const assessmentId = params.assessmentId;
+  const pathname = usePathname();
   const classId = searchParams.get("classId");
   const subjectClassId = searchParams.get("subjectClassId");
-  const tabFromUrl = searchParams.get("tab");
+  const pathSubjectId = extractSubjectIdFromPath(pathname);
+  const querySubjectId = (() => {
+    const raw = searchParams.get("subject_id");
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  })();
   const { activeSubjectId, canUseSubjectContext, toSubjectHref } =
     useSubjectContext();
+  const scopedSubjectId = pathSubjectId ?? querySubjectId ?? activeSubjectId;
 
   const [assessmentOpenTaskId, setAssessmentOpenTaskId] = useState<
     number | null
@@ -253,8 +267,6 @@ export default function AssessmentDrawer() {
     null
   );
   const { currentUser } = useSelector((state: RootState) => state.auth);
-  const isReadOnly = useReadOnlyWorkspace();
-  const canEdit = currentUser?.role !== "STUDENT" && !isReadOnly;
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -262,7 +274,7 @@ export default function AssessmentDrawer() {
   const [taskDefinitionsLoaded, setTaskDefinitionsLoaded] = useState(false);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [activeTaskGroupKey, setActiveTaskGroupKey] = useState<string | null>(tabFromUrl);
+  const [activeTaskGroupKey, setActiveTaskGroupKey] = useState<string | null>(null);
   const [assementTasks, setAssesmentTasks] = useState<StudentAssessmentTask[]>(
     []
   );
@@ -272,7 +284,6 @@ export default function AssessmentDrawer() {
   const [quizTeacherMark, setQuizTeacherMark] = useState<string>("");
   const [selectedDownloadTaskIds, setSelectedDownloadTaskIds] = useState<number[]>([]);
   const [bulkDownloading, setBulkDownloading] = useState(false);
-  const [bulkOpeningEdits, setBulkOpeningEdits] = useState(false);
   const [documentSelfAssessmentMarks, setDocumentSelfAssessmentMarks] = useState<Record<string, number>>({});
   const [examActionTask, setExamActionTask] = useState<StudentAssessmentTask | null>(null);
   const [examActionValues, setExamActionValues] = useState({
@@ -330,7 +341,7 @@ export default function AssessmentDrawer() {
       setLoading(true);
       const data = await fetchStudentTasks(
         Number(assessmentId),
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined
       );
       setAssesmentTasks(data);
       void loadDocumentSelfAssessmentMarks(data);
@@ -348,12 +359,12 @@ export default function AssessmentDrawer() {
     try {
       const data = await fetchTasks(
         Number(assessmentId),
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined
       );
       setAssessmentTaskDefinitions(
         (data || [])
-          .filter((task: any) => String(task?.type || "task") === "task")
-          .map((task: any) => ({
+          .filter((task: Task & { type?: string; name?: string }) => String(task?.type || "task") === "task")
+          .map((task: Task & { type?: string; name?: string }) => ({
             id: Number(task?.id),
             assessment_id: Number(task?.assessment_id ?? assessmentId),
             task_name: String(task?.task_name || task?.name || "Assessment task"),
@@ -387,12 +398,12 @@ export default function AssessmentDrawer() {
 
   useEffect(() => {
     if (!assessmentId) return;
-    if (canUseSubjectContext && !activeSubjectId) return;
+    if (canUseSubjectContext && !scopedSubjectId) return;
     setStudentTasksLoaded(false);
     setTaskDefinitionsLoaded(false);
     loadStudentTasks(Number(assessmentId));
     loadAssessmentTaskDefinitions(Number(assessmentId));
-  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
+  }, [assessmentId, canUseSubjectContext, scopedSubjectId]);
 
   useEffect(() => {
     if (!assessmentId) return;
@@ -403,7 +414,7 @@ export default function AssessmentDrawer() {
     }
 
     const refreshTasks = () => {
-      if (canUseSubjectContext && !activeSubjectId) return;
+      if (canUseSubjectContext && !scopedSubjectId) return;
       loadStudentTasks(currentAssessmentId);
       loadAssessmentTaskDefinitions(currentAssessmentId);
     };
@@ -456,21 +467,21 @@ export default function AssessmentDrawer() {
       window.removeEventListener("focus", refreshTasks);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [assessmentId, activeSubjectId, canUseSubjectContext]);
+  }, [assessmentId, canUseSubjectContext, scopedSubjectId]);
 
   const loadStudents = async () => {
     try {
       setLoading(true);
       let studentsData = await fetchStudents(
-        classId,
-        canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+        String(classId ?? ""),
+        canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
         subjectClassId ?? undefined
       );
 
       if (!studentsData?.length && subjectClassId) {
         studentsData = await fetchStudents(
-          classId,
-          canUseSubjectContext ? activeSubjectId ?? undefined : undefined,
+          String(classId ?? ""),
+          canUseSubjectContext ? scopedSubjectId ?? undefined : undefined,
           undefined
         );
       }
@@ -493,7 +504,7 @@ export default function AssessmentDrawer() {
       setStudents([]);
       setStudentsLoaded(true);
     }
-  }, [classId, activeSubjectId, canUseSubjectContext, subjectClassId]);
+  }, [classId, canUseSubjectContext, scopedSubjectId, subjectClassId]);
 
   const handleStudentChange = (value: string) => {
     setSelectedStudentId(value);
@@ -623,7 +634,7 @@ export default function AssessmentDrawer() {
       const task = displayTasks.find((t) => t.id === taskId);
       setFormValues({
         marks: String(task ? pickTeacherMarkValue(task) ?? "" : ""),
-        feedback: task?.teacher_assessment_feedback || "",
+        feedback: task?.teacher_feedback || "",
       });
     }
   };
@@ -656,7 +667,7 @@ export default function AssessmentDrawer() {
       if (!task) return;
 
       const markStudentId = selectedStudentId ?? String(task.student_id);
-      await addStudentTaskMarks(markStudentId, {
+      await addStudentTaskMarks(Number(markStudentId), {
         assessment_id: task.assessment_id,
         task_id: task.task_id,
         teacher_assessment_marks: parseInt(formValues.marks || "0"),
@@ -798,8 +809,8 @@ export default function AssessmentDrawer() {
     formData.append("allocated_marks", String(definition.allocated_marks ?? task.task?.allocated_marks ?? 0));
     appendTaskTypeValue(formData, taskTypeValue);
     if (definition.url) formData.append("url", String(definition.url));
-    if (canUseSubjectContext && activeSubjectId) {
-      formData.append("subject_id", String(activeSubjectId));
+    if (canUseSubjectContext && scopedSubjectId) {
+      formData.append("subject_id", String(scopedSubjectId));
     }
     return formData;
   };
@@ -817,8 +828,8 @@ export default function AssessmentDrawer() {
     formData.append("allocated_marks", String(definition.allocated_marks ?? task.task?.allocated_marks ?? 0));
     appendTaskTypeValue(formData, definition.task_type || "null");
     if (definition.url) formData.append("url", String(definition.url));
-    if (canUseSubjectContext && activeSubjectId) {
-      formData.append("subject_id", String(activeSubjectId));
+    if (canUseSubjectContext && scopedSubjectId) {
+      formData.append("subject_id", String(scopedSubjectId));
     }
     return formData;
   };
@@ -981,23 +992,15 @@ export default function AssessmentDrawer() {
     return Array.from(byKey.values());
   }, [displayTasks]);
 
-  const updateUrlTab = useCallback((tabKey: string | null) => {
-    if (typeof window === "undefined" || !tabKey) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", tabKey);
-    window.history.replaceState(window.history.state, "", url.toString());
-  }, []);
-
   useEffect(() => {
-    if (taskGroups.length === 0) return;
-    if (!activeTaskGroupKey || !taskGroups.some((group) => group.key === activeTaskGroupKey)) {
-      const initialKey = tabFromUrl && taskGroups.some((g) => g.key === tabFromUrl)
-        ? tabFromUrl
-        : taskGroups[0].key;
-      setActiveTaskGroupKey(initialKey);
-      updateUrlTab(initialKey);
+    if (taskGroups.length === 0) {
+      setActiveTaskGroupKey(null);
+      return;
     }
-  }, [activeTaskGroupKey, taskGroups, tabFromUrl, updateUrlTab]);
+    if (!activeTaskGroupKey || !taskGroups.some((group) => group.key === activeTaskGroupKey)) {
+      setActiveTaskGroupKey(taskGroups[0].key);
+    }
+  }, [activeTaskGroupKey, taskGroups]);
 
   const activeTaskGroup =
     taskGroups.find((group) => group.key === activeTaskGroupKey) || taskGroups[0];
@@ -1013,16 +1016,14 @@ export default function AssessmentDrawer() {
   const initialDataReady =
     studentTasksLoaded && taskDefinitionsLoaded && (!classId || studentsLoaded);
 
-  const handleViewQuiz = (task: any) => {
+  const handleViewQuiz = (task: StudentAssessmentTask) => {
+    if (!task.quiz?.id) return;
     const params = new URLSearchParams();
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
-    if (typeof window !== "undefined") {
-      params.set("returnTo", `${window.location.pathname}${window.location.search}`);
-    }
     const nextHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
     router.push(
-      canUseSubjectContext && activeSubjectId
+      canUseSubjectContext && scopedSubjectId
         ? toSubjectHref(nextHref)
         : nextHref
     );
@@ -1037,8 +1038,21 @@ export default function AssessmentDrawer() {
       : `${IMG_BASE_URL}/storage/${cleanPath}`;
   };
 
+  const getSubmittedFilePath = (task: StudentAssessmentTask) => {
+    const taskType = String(task.task?.task_type || "").toLowerCase();
+    if (taskType === "url") return task.task?.url || task.file_path || "";
+    const attachments = parseSubmissionAttachments(task.file_paths, task.file_path);
+    if (attachments.length > 0) return attachments[0].path;
+    return task.file_path || "";
+  };
+
   const getTaskSourceFilePath = (task: StudentAssessmentTask) => {
     const definition = getTaskDefinitionForAction(task);
+    const taskType = String(definition.task_type || task.task?.task_type || "").toLowerCase();
+    if (taskType === "pdf") {
+      const submittedPath = getSubmittedFilePath(task);
+      if (submittedPath) return submittedPath;
+    }
     return definition.file_path || task.task?.file_path || task.file_path || "";
   };
 
@@ -1074,7 +1088,6 @@ export default function AssessmentDrawer() {
     if (classId) params.set("classId", String(classId));
     if (subjectClassId) params.set("subjectClassId", String(subjectClassId));
     if (options.autoDownload) params.set("autoDownload", "1");
-    if (activeTaskGroupKey) params.set("activeTab", activeTaskGroupKey);
     if (typeof window !== "undefined") {
       params.set("returnTo", `${window.location.pathname}${window.location.search}`);
     }
@@ -1217,53 +1230,18 @@ export default function AssessmentDrawer() {
     link.remove();
   };
 
-  const handleBulkOpenEdits = async () => {
-    const pdfTasks = selectedDownloadTasks.filter((task) => isPdfTask(task));
-    if (pdfTasks.length === 0) {
-      message.warning("Select at least one PDF exam task first.");
-      return;
-    }
-
-    setBulkOpeningEdits(true);
-    let openedCount = 0;
-    let failedCount = 0;
-
-    for (const task of pdfTasks) {
-      try {
-        await openStudentEditsForTask(task);
-        openedCount++;
-      } catch (err) {
-        console.error(`Failed to open edits for student ${task.student_id}:`, err);
-        failedCount++;
-      }
-    }
-
-    if (openedCount > 0) {
-      message.success(
-        `Opened editing for ${openedCount} student${openedCount === 1 ? "" : "s"}.`
-      );
-    }
-    if (failedCount > 0) {
-      message.warning(
-        `Failed to open editing for ${failedCount} student${failedCount === 1 ? "" : "s"}.`
-      );
-    }
-    setBulkOpeningEdits(false);
-  };
-
-  const handleBulkDownload = async () => {
+  const handleBulkDownload = () => {
     if (selectedDownloadTasks.length === 0) {
       message.warning("Tick at least one visible task first.");
       return;
     }
 
     setBulkDownloading(true);
+    let answeredPdfCount = 0;
+    let directDownloadCount = 0;
     let skippedCount = 0;
 
-    const pdfTasks: BulkPdfDownloadTask[] = [];
-    const fileTasks: { url: string; fileName: string }[] = [];
-
-    for (const task of selectedDownloadTasks) {
+    selectedDownloadTasks.forEach((task) => {
       const taskType = String(task.task?.task_type || "").toLowerCase();
       const studentName = sanitizeDownloadName(getStudentNameForTask(task));
       const taskName = sanitizeDownloadName(
@@ -1279,92 +1257,65 @@ export default function AssessmentDrawer() {
           }
           const quizHref = `/dashboard/student_assesments/quiz/${task.quiz.id}?${params.toString()}`;
           triggerBrowserDownload(
-            canUseSubjectContext && activeSubjectId
+            canUseSubjectContext && scopedSubjectId
               ? toSubjectHref(quizHref)
               : quizHref,
             `${studentName} - ${taskName}`,
             true
           );
+          directDownloadCount += 1;
         } else {
           skippedCount += 1;
         }
-        continue;
+        return;
       }
 
       if (taskType === "pdf") {
-        const pdfUrl = getOriginalPdfUrlForTask(task);
-        if (!pdfUrl) {
-          skippedCount += 1;
-          continue;
+        const submittedFileUrl = getSubmittedFileUrl(task);
+        if (submittedFileUrl && task.status !== "not_submitted") {
+          triggerBrowserDownload(submittedFileUrl, `${studentName} - ${taskName}.pdf`);
+          directDownloadCount += 1;
+        } else {
+          triggerBrowserDownload(
+            buildTeacherDocumentWorkspaceUrl(task, {
+              autoDownload: task.status !== "not_submitted",
+            }),
+            `${studentName} - ${taskName}.pdf`,
+            true
+          );
+          answeredPdfCount += 1;
         }
-        pdfTasks.push({
-          assessmentId: String(task.assessment_id),
-          taskId: String(task.task_id),
-          studentId: String(task.student_id),
-          studentName,
-          taskName,
-          pdfUrl,
-        });
-        continue;
+        return;
       }
 
       const fileUrl = getSubmittedFileUrl(task);
       if (fileUrl) {
-        fileTasks.push({ url: fileUrl, fileName: `${studentName} - ${taskName}` });
+        triggerBrowserDownload(fileUrl, `${studentName} - ${taskName}`);
+        directDownloadCount += 1;
       } else {
         skippedCount += 1;
       }
+    });
+
+    if (answeredPdfCount > 0) {
+      message.info(
+        `Opening ${answeredPdfCount} answered PDF paper${
+          answeredPdfCount === 1 ? "" : "s"
+        } to download. Allow pop-ups if the browser asks.`
+      );
     }
-
-    try {
-      if (pdfTasks.length > 0) {
-        message.loading({
-          content: `Preparing ${pdfTasks.length} PDF${pdfTasks.length === 1 ? "" : "s"}...`,
-          key: "bulk-download-progress",
-          duration: 0,
-        });
-
-        if (pdfTasks.length === 1) {
-          await downloadAnnotatedPdf(pdfTasks[0]);
-        } else {
-          const assessmentName = sanitizeDownloadName(
-            pdfTasks[0]?.taskName || "Assessment"
-          );
-          await downloadBulkAsZip(
-            pdfTasks,
-            `${assessmentName} - ${pdfTasks.length} papers.zip`,
-            (current, zipTotal) => {
-              message.loading({
-                content: `Rendering PDF ${current} of ${zipTotal}...`,
-                key: "bulk-download-progress",
-                duration: 0,
-              });
-            }
-          );
-        }
-      }
-
-      for (const file of fileTasks) {
-        await downloadFileAsBlobAndSave(file.url, file.fileName);
-      }
-    } catch (err) {
-      console.error("Bulk download error:", err);
-      skippedCount += pdfTasks.length + fileTasks.length;
-    }
-
-    message.destroy("bulk-download-progress");
-
-    const downloadedCount = pdfTasks.length + fileTasks.length - skippedCount;
-    if (downloadedCount > 0) {
+    if (directDownloadCount > 0) {
       message.success(
-        pdfTasks.length > 1
-          ? `Downloaded ${pdfTasks.length} papers as ZIP.`
-          : `Downloaded ${downloadedCount} paper${downloadedCount === 1 ? "" : "s"}.`
+        `Started ${directDownloadCount} direct download${
+          directDownloadCount === 1 ? "" : "s"
+        }.`
       );
     }
     if (skippedCount > 0) {
       message.warning(
-        `${skippedCount} selected task${skippedCount === 1 ? "" : "s"} could not be downloaded.`
+        `${skippedCount} selected task${
+          skippedCount === 1 ? "" : "s"
+        } had no downloadable file.`
       );
     }
     setBulkDownloading(false);
@@ -1412,7 +1363,7 @@ export default function AssessmentDrawer() {
               title: <Link href="/dashboard/student_assesments">Assessments</Link>,
             },
             {
-              title: <span>{activeTaskGroup?.title || "Tasks"}</span>,
+              title: <span>Tasks</span>,
             },
           ]}
           className="!mb-6"
@@ -1422,7 +1373,7 @@ export default function AssessmentDrawer() {
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Students by assessment task</h1>
               <p className="text-sm text-slate-500">
-                Choose a task tab to see every student's submission for that specific task.
+                Choose a task tab to see every student&apos;s submission for that specific task.
               </p>
             </div>
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -1434,7 +1385,6 @@ export default function AssessmentDrawer() {
             activeKey={activeTaskGroup?.key}
             onChange={(key) => {
               setActiveTaskGroupKey(key);
-              updateUrlTab(key);
               setSelectedDownloadTaskIds([]);
               setAssessmentOpenTaskId(null);
               setQuizTeacherMarkOpenId(null);
@@ -1503,17 +1453,6 @@ export default function AssessmentDrawer() {
             >
               Download selected ({selectedDownloadTasks.length})
             </Button>
-            {!isReadOnly && activeTaskGroup?.taskType?.toLowerCase() === "pdf" && (
-              <Button
-                icon={<UnlockOutlined />}
-                loading={bulkOpeningEdits}
-                disabled={selectedDownloadTasks.length === 0}
-                onClick={handleBulkOpenEdits}
-                className="!border-blue-300 !text-blue-700 hover:!border-blue-500 hover:!text-blue-800"
-              >
-                Open student edits ({selectedDownloadTasks.filter((t) => isPdfTask(t)).length})
-              </Button>
-            )}
             <Button
               disabled={selectedDownloadTaskIds.length === 0}
               onClick={() => setSelectedDownloadTaskIds([])}
@@ -1618,7 +1557,7 @@ export default function AssessmentDrawer() {
                         ? getWholeMark(getQuizTotalMarks(task))
                         : getWholeMark(task?.task?.allocated_marks)}
                     </span>
-                    {canEdit && task?.submission_type !== "quiz" && (
+                    {currentUser?.role !== "STUDENT" && task?.submission_type !== "quiz" && (
                       <Button
                         size="small"
                         onClick={() => openExamActionModal(task)}
@@ -1686,7 +1625,7 @@ export default function AssessmentDrawer() {
                             : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
                       )}
-                      {canEdit && (
+                      {currentUser?.role !== "STUDENT" && (
                         <Button
                           type="text"
                           size="small"
@@ -1747,7 +1686,7 @@ export default function AssessmentDrawer() {
                           {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                         </span>
                       )}
-                      {canEdit && (
+                      {currentUser?.role !== "STUDENT" && (
                         <Button
                           type="text"
                           size="small"

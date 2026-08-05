@@ -4,6 +4,7 @@ import {
   extractAssessmentText,
   generateQuestionsFromAssessmentText,
 } from "@/lib/server/assessmentQuizImport";
+import { errorMessage } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 
@@ -29,8 +30,8 @@ export async function POST(request: NextRequest) {
       questions: generated.questions,
       extractedText: generated.normalizedText,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to process the assessment file.";
+  } catch (error: unknown) {
+    const message = error instanceof Error ? errorMessage(error) : "Failed to process the assessment file.";
     return NextResponse.json({ message }, { status: 400 });
   }
 }

@@ -1,11 +1,17 @@
 "use client";
 import React, { useState } from "react";
 import { Modal, Form, Input, message, Spin, Button, Breadcrumb } from "antd";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ImportOutlined,
+} from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   addQuize,
+  copyQuizToSubject,
   deleteQuize,
   fetchQuizes,
   updateQuize,
@@ -14,10 +20,16 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubjectContext } from "@/contexts/SubjectContext";
+import { errorMessage } from "@/lib/safeRecord";
+import {
+  ImportFromSimilarSubjectModal,
+  type ImportableItem,
+} from "@/components/modals/ImportFromSimilarSubjectModal";
 
 type Quiz = {
   id: string;
   name: string;
+  description?: string;
   subject_id?: string | number | null;
   subject?: {
     id?: string | number | null;
@@ -80,6 +92,7 @@ export default function QuizPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
@@ -90,16 +103,13 @@ export default function QuizPage() {
 
   const schoolId = currentUser?.school;
 
-  const { data: rawQuizzes = [], isLoading } = useQuery({
+  const { data: rawQuizzes = [], isLoading } = useQuery<Quiz[]>({
     queryKey: ["quizzes", schoolId, activeSubjectId],
     queryFn: async () => {
       if (!schoolId) return [];
-      return await fetchQuizes(schoolId, activeSubjectId ?? undefined);
+      return await fetchQuizes(String(schoolId), activeSubjectId ?? undefined);
     },
     enabled: !!schoolId && (!canUseSubjectContext || !!activeSubjectId),
-    onError: () => {
-      messageApi.error("Failed to load quizzes");
-    },
   });
 
   // Prefer backend subject data. Keep the local map only as a fallback for older records.
@@ -121,7 +131,8 @@ export default function QuizPage() {
   const quizQueryKey = ["quizzes", schoolId, activeSubjectId] as const;
 
   const addQuizMutation = useMutation({
-    mutationFn: (payload: any) => addQuize(payload, activeSubjectId ?? undefined),
+    mutationFn: (payload: Record<string, unknown>) =>
+      addQuize({ name: String(payload.name ?? ""), ...payload }, activeSubjectId ?? undefined),
     onSuccess: async (result) => {
       const createdQuiz = (result?.data ?? result) as Quiz | undefined;
       const newId = result?.data?.id ?? result?.id ?? undefined;
@@ -144,14 +155,14 @@ export default function QuizPage() {
       );
       handleCancel();
     },
-    onError: (error: any) => {
-      messageApi.error(error.response?.data?.message || "Failed to add quiz");
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to add quiz"));
     },
   });
 
   const updateQuizMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: QuizFormValues }) =>
-      updateQuize(id, data, activeSubjectId ?? undefined),
+      updateQuize(id, { ...data }, activeSubjectId ?? undefined),
     onSuccess: async (result) => {
       const updatedQuiz = (result?.data ?? result) as Quiz | undefined;
       if (updatedQuiz?.id) {
@@ -171,10 +182,8 @@ export default function QuizPage() {
       );
       handleCancel();
     },
-    onError: (error: any) => {
-      messageApi.error(
-        error.response?.data?.message || "Failed to update quiz"
-      );
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to update quiz"));
     },
   });
 
@@ -190,10 +199,8 @@ export default function QuizPage() {
       setDeleteConfirmVisible(false);
       setQuizToDelete(null);
     },
-    onError: (error: any) => {
-      messageApi.error(
-        error.response?.data?.message || "Failed to delete quiz"
-      );
+    onError: (error: unknown) => {
+      messageApi.error(errorMessage(error, "Failed to delete quiz"));
     },
   });
 
@@ -204,7 +211,7 @@ export default function QuizPage() {
       if (editingId) {
         await updateQuizMutation.mutateAsync({ id: editingId, data: values });
       } else {
-        await addQuizMutation.mutateAsync(values);
+        await addQuizMutation.mutateAsync({ ...values });
       }
     } finally {
       setSubmitting(false);
@@ -225,6 +232,35 @@ export default function QuizPage() {
   const showDeleteConfirm: ShowDeleteConfirm = (id) => {
     setQuizToDelete(id);
     setDeleteConfirmVisible(true);
+  };
+
+  const loadQuizzesForSubject = async (
+    sourceSubjectId: number
+  ): Promise<ImportableItem[]> => {
+    if (!schoolId) return [];
+    const rows = await fetchQuizes(String(schoolId), sourceSubjectId);
+    return filterQuizzesBySubject(
+      Array.isArray(rows) ? (rows as Quiz[]) : [],
+      sourceSubjectId
+    ).map(
+      (quiz) => ({
+        id: quiz.id,
+        name: quiz.name,
+        description: quiz.description ?? undefined,
+      })
+    );
+  };
+
+  const importQuiz = async (item: ImportableItem) => {
+    if (!schoolId) throw new Error("Missing school");
+    const newQuizId = await copyQuizToSubject(
+      Number(item.id),
+      { name: item.name, description: item.description, school_id: schoolId },
+      activeSubjectId ?? undefined
+    );
+    if (inSubjectContext && newQuizId) {
+      tagQuizWithSubject(Number(newQuizId), Number(activeSubjectId));
+    }
   };
 
   const handleViewQuiz = (quizId: string) => {
@@ -256,15 +292,38 @@ export default function QuizPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Quizzes</h2>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={showModal}
-            className="flex items-center !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
-          >
-            Add Quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            {inSubjectContext && (
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => setImportOpen(true)}
+                className="flex items-center"
+              >
+                Import Quizzes
+              </Button>
+            )}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={showModal}
+              className="flex items-center !bg-primary !border-primary hover:!bg-primary hover:!border-primary"
+            >
+              Add Quiz
+            </Button>
+          </div>
         </div>
+
+        <ImportFromSimilarSubjectModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          itemLabel="quiz"
+          itemLabelPlural="quizzes"
+          loadItems={loadQuizzesForSubject}
+          importItem={importQuiz}
+          onImported={() =>
+            queryClient.invalidateQueries({ queryKey: quizQueryKey, exact: true })
+          }
+        />
 
         <div className="relative overflow-auto">
           <div className="overflow-x-auto rounded-lg">

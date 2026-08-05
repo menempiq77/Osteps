@@ -96,7 +96,13 @@ const LeaderBoard = () => {
       title: "Student",
       dataIndex: "name",
       key: "name",
-      render: (text: string, record: any) => (
+      render: (
+        text: string,
+        record: {
+          badge?: string | null;
+          avatar?: string;
+        }
+      ) => (
         <Space>
           <Avatar
             style={{

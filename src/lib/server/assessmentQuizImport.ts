@@ -215,7 +215,7 @@ const inferWrittenType = (questionText: string) => {
   return "short_answer" as const;
 };
 
-const parseQuestionBlock = (block: QuestionBlock, answerLookup: Map<number, string>) => {
+const parseQuestionBlock = (block: QuestionBlock, answerLookup: Map<number, string>): ImportedQuizQuestion | null => {
   const [headerLine = "", ...restLines] = block.lines;
   const header = extractQuestionHeader(headerLine);
   const answerNotes: string[] = [];

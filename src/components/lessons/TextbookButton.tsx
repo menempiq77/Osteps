@@ -33,7 +33,8 @@ export default function TextbookButton({ gradeSlug }: TextbookButtonProps) {
   }, [gradeSlug]);
 
   useEffect(() => {
-    loadFiles();
+    const id = setTimeout(() => void loadFiles(), 0);
+    return () => clearTimeout(id);
   }, [loadFiles]);
 
   useEffect(() => {

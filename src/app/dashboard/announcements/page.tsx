@@ -17,6 +17,7 @@ import {
   fetchUnseenAnnouncementCount,
   markAnnouncementAsSeen,
   updateAnnouncement,
+  type AnnouncementPayload,
 } from "@/services/announcementApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone } from "lucide-react";
@@ -30,11 +31,19 @@ type Announcement = {
   id: string;
   title: string;
   description: string;
-  role: string;
-  authorId?: string;
+  role: string | string[];
+  authorId?: string | number;
   created_at: string;
   type: "event" | "reminder" | "general";
   target?: "School Admins" | "teachers" | "students";
+  school_ids?: string[];
+  roles?: { role_name: string }[];
+  users?: { id: string | number; pivot?: { is_seen?: number } }[];
+};
+type School = { id: string | number; name: string };
+type AnnouncementForm = {
+  id: string | null; title: string; description: string; type: string;
+  role: string[]; school_ids: string[]; target?: string;
 };
 const roleOptions: Record<string, { value: string; label: string }[]> = {
   SUPER_ADMIN: [
@@ -69,7 +78,7 @@ export default function AnnouncementsPage() {
     string | null
   >(null);
 
-  const [announcementForm, setAnnouncementForm] = useState({
+  const [announcementForm, setAnnouncementForm] = useState<AnnouncementForm>({
     id: null as string | null,
     title: "",
     description: "",
@@ -81,7 +90,7 @@ export default function AnnouncementsPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const isSuperAdmin = effectiveRole === "SUPER_ADMIN";
-  const [schools, setSchools] = useState<any[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
   const [markingId, setMarkingId] = useState<number | null>(null);
 
@@ -135,7 +144,7 @@ export default function AnnouncementsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       updateAnnouncement(id, data),
     onSuccess: (data) => {
       queryClient.setQueryData(["announcements"], (old: Announcement[] = []) =>
@@ -154,7 +163,7 @@ export default function AnnouncementsPage() {
     mutationFn: deleteAnnouncement,
     onSuccess: (_, id) => {
       queryClient.setQueryData(["announcements"], (old: Announcement[] = []) =>
-        old.filter((ann) => ann.id !== id)
+        old.filter((ann) => Number(ann.id) !== Number(id))
       );
       messageApi.success("Announcement deleted successfully");
       setDeleteOpen(false);
@@ -172,10 +181,10 @@ export default function AnnouncementsPage() {
       return result;
     },
     onSuccess: (_, id) => {
-      queryClient.setQueryData(["announcements"], (old: any[] = []) =>
+      queryClient.setQueryData(["announcements"], (old: Announcement[] = []) =>
         old.map((ann) => {
           if (Number(ann.id) === Number(id)) {
-            const updatedUsers = ann.users?.map((user: any) =>
+            const updatedUsers = ann.users?.map((user) =>
               Number(user.id) === Number(currentUser?.id)
                 ? { ...user, pivot: { ...user.pivot, is_seen: 1 } }
                 : user
@@ -259,14 +268,15 @@ export default function AnnouncementsPage() {
       title: "",
       description: "",
       type: "general",
-      target: options[0]?.value || "",
+      role: options.length > 0 ? [options[0].value] : [],
+      school_ids: [],
     });
     setIsFormOpen(true);
   };
 
   const handleDeleteAnnouncement = async () => {
     if (!announcementToDelete) return;
-    deleteMutation.mutate(announcementToDelete);
+    deleteMutation.mutate(Number(announcementToDelete));
   };
 
   const confirmDelete = (id: string) => {
@@ -299,7 +309,7 @@ export default function AnnouncementsPage() {
   };
 
   const filteredAnnouncements = announcements.filter((announcement) => {
-    const rolesArray = announcement.roles?.map((r: any) => r.role_name) || [];
+    const rolesArray = announcement.roles?.map((r) => r.role_name) || [];
 
     if (rolesArray.includes("ALL")) return true;
     if (effectiveRole === "SUPER_ADMIN") return true;
@@ -431,7 +441,7 @@ export default function AnnouncementsPage() {
                 <Select
                   value={announcementForm.type}
                   onChange={(value) =>
-                    setAnnouncementForm({ ...announcementForm, type: value as any })
+                    setAnnouncementForm({ ...announcementForm, type: String(value) })
                   }
                   className="w-full"
                 >
@@ -527,9 +537,9 @@ export default function AnnouncementsPage() {
       ) : (
         <div className="space-y-4">
           {filteredAnnouncements.map((announcement, index) => {
-            const rolesArray = announcement.roles?.map((r: any) => r.role_name) || [];
+            const rolesArray = announcement.roles?.map((r) => r.role_name) || [];
             const currentUserRecord = announcement.users?.find(
-              (u: any) => Number(u.id) === Number(currentUser?.id)
+              (u) => Number(u.id) === Number(currentUser?.id)
             );
             const isSeen = (() => {
               if (currentUserRecord) return currentUserRecord.pivot?.is_seen === 1;

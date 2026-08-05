@@ -14,15 +14,19 @@ import {
   updateResource,
   deleteResource as deleteResourceApi,
 } from "@/services/libraryApi";
+import { errorMessage } from "@/lib/safeRecord";
+
+type ResourceType = { id: number; name: string };
+type ResourceForm = { name: string };
 
 export default function ResourcesType() {
-  const [form] = Form.useForm();
-  const [data, setData] = useState([]);
+  const [form] = Form.useForm<ResourceForm>();
+  const [data, setData] = useState<ResourceType[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [resourceToDelete, setResourceToDelete] = useState(null);
+  const [resourceToDelete, setResourceToDelete] = useState<number | null>(null);
   const router = useRouter();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -34,7 +38,7 @@ export default function ResourcesType() {
     try {
       setLoading(true);
       const response = await fetchResources();
-      setData(response);
+      setData(response as ResourceType[]);
     } catch (error) {
       messageApi.error("Failed to load resources");
     } finally {
@@ -52,10 +56,10 @@ export default function ResourcesType() {
     setEditingId(null);
   };
 
-  const onFinish = async (values) => {
+  const onFinish = async (values: ResourceForm) => {
     try {
       if (editingId) {
-        await updateResource(editingId, values);
+        await updateResource(String(editingId), values);
         messageApi.success("Resource updated successfully");
       } else {
         await addResource(values);
@@ -63,31 +67,30 @@ export default function ResourcesType() {
       }
       loadResources();
       handleCancel();
-    } catch (error) {
-      messageApi.error(error.response?.data?.message || "Operation failed");
+    } catch (error: unknown) {
+      messageApi.error(errorMessage(error, "Operation failed"));
     }
   };
 
-  const editResource = (record) => {
+  const editResource = (record: ResourceType) => {
     form.setFieldsValue(record);
     setEditingId(record.id);
     setIsModalOpen(true);
   };
 
-  const showDeleteConfirm = (id) => {
+  const showDeleteConfirm = (id: number) => {
     setResourceToDelete(id);
     setDeleteConfirmVisible(true);
   };
 
   const handleDelete = async () => {
+    if (resourceToDelete === null) return;
     try {
       await deleteResourceApi(resourceToDelete);
       messageApi.success("Resource deleted successfully");
       loadResources();
     } catch (error) {
-      messageApi.error(
-        error.response?.data?.message || "Failed to delete resource"
-      );
+      messageApi.error(errorMessage(error, "Failed to delete resource"));
     } finally {
       setDeleteConfirmVisible(false);
     }

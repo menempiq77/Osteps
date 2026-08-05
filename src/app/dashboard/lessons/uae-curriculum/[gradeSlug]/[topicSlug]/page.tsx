@@ -19,12 +19,12 @@ export function generateStaticParams() {
   ];
 }
 
-export default function TopicLessonPage({
+export default async function TopicLessonPage({
   params,
 }: {
-  params: { gradeSlug: string; topicSlug: string };
+  params: Promise<{ gradeSlug: string; topicSlug: string }>;
 }) {
-  const { gradeSlug, topicSlug } = params;
+  const { gradeSlug, topicSlug } = await params;
   const grade = uaeCurriculumBySlug[gradeSlug];
 
   if (!grade) notFound();

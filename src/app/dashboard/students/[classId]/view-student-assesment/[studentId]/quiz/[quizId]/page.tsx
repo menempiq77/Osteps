@@ -46,7 +46,7 @@ interface SubmittedAnswer {
   question_id: number;
   question_text: string;
   question_type: string;
-  submitted_answer: any;
+  submitted_answer: unknown;
   is_correct: number;
   correct_answer: string | null;
   marks: number;
@@ -116,7 +116,7 @@ export default function QuranQuizPage() {
 
         // Initialize custom marks with existing marks from submitted answers
         const marksMap: Record<number, number> = {};
-        response.forEach((ans) => {
+        response.forEach((ans: SubmittedAnswer) => {
           marksMap[ans.question_id] = ans.marks;
         });
         setCustomMarks(marksMap);
@@ -182,7 +182,7 @@ export default function QuranQuizPage() {
     switch (question.type) {
       case "short_answer":
       case "paragraph":
-        return submitted_answer || "Not answered";
+        return String(submitted_answer ?? "Not answered");
       case "true_false":
         return submitted_answer ? "True" : "False";
       case "multiple_choice":
@@ -234,7 +234,7 @@ export default function QuranQuizPage() {
         ? maxMarks
         : 0;
 
-      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse);
+      await quizAnswerMarks(answerId, isCorrect ? 1 : 0, marksToUse, "");
       messageApi.success("Answer marked successfully");
 
       setSubmittedAnswers((prev) =>

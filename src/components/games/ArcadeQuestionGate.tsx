@@ -81,9 +81,12 @@ export default function ArcadeQuestionGate({
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
 
   useEffect(() => {
-    setQuestionIndex(0);
-    setSelectedOptionId(null);
-    setAnswerState("idle");
+    const id = setTimeout(() => {
+      setQuestionIndex(0);
+      setSelectedOptionId(null);
+      setAnswerState("idle");
+    }, 0);
+    return () => clearTimeout(id);
   }, [completedLevel, gameId, selectedQuestions.length]);
 
   const question = selectedQuestions[questionIndex];

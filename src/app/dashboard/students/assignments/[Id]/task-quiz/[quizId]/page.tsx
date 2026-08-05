@@ -34,6 +34,7 @@ import {
   saveQuizExamIncident,
 } from "@/services/quizExamIntegrityApi";
 import Link from "next/link";
+import { asRecord } from "@/lib/safeRecord";
 
 interface Option {
   id: number;
@@ -57,10 +58,19 @@ interface Quiz {
   quiz_queston: QuizQuestion[];
 }
 
+type AnswerValue = string | number | boolean | number[] | string[] | Record<string, unknown>;
+
 interface Answer {
   question_id: number;
-  answer: string | number | boolean | number[];
+  answer: AnswerValue;
 }
+
+type TaskRecord = {
+  id?: string | number;
+  student_id?: string | number;
+  quiz_id?: string | number;
+  task?: { quiz_id?: string | number };
+};
 
 const quizTypeLabels: Record<string, string> = {
   short_answer: "Short Answer",
@@ -78,7 +88,7 @@ export default function QuranQuizPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [answers, setAnswers] = useState<Record<number, Answer["answer"]>>({});
   const [selfAssessmentMark, setSelfAssessmentMark] = useState<number | null>(null);
   const [selfAssessmentTouched, setSelfAssessmentTouched] = useState(false);
   const [fullscreenPromptOpen, setFullscreenPromptOpen] = useState(false);
@@ -109,8 +119,8 @@ export default function QuranQuizPage() {
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
-            const restored: Record<number, any> = {};
-            (parsed.answers || []).forEach((a: { question_id: number; answer: any }) => {
+            const restored: Record<number, Answer["answer"]> = {};
+            (parsed.answers || []).forEach((a: { question_id: number; answer: Answer["answer"] }) => {
               restored[a.question_id] = a.answer;
             });
             setAnswers(restored);
@@ -311,7 +321,7 @@ export default function QuranQuizPage() {
 
   const handleAnswerChange = (
     questionId: number,
-    value: any,
+    value: Answer["answer"],
     questionType: string
   ) => {
     let formattedValue = value;
@@ -319,7 +329,8 @@ export default function QuranQuizPage() {
     // Handle different question types
     if (questionType === "check_boxes") {
       // For checkboxes, we need to store the selected option IDs
-      formattedValue = value
+      formattedValue = (Array.isArray(value) ? value : [])
+        .filter((v): v is string => typeof v === "string")
         .map((v: string) => {
           const option = quizData?.quiz_queston
             .find((q) => q.id === questionId)
@@ -380,8 +391,8 @@ export default function QuranQuizPage() {
 
       const res = await submitTaskQuizByStudent(
         quizData.id,
-        currentUser.student,
-        Id,
+        Number(currentUser.student),
+        Number(Id),
         formattedAnswers,
         "task",
         undefined,
@@ -454,7 +465,7 @@ export default function QuranQuizPage() {
           if (!submissionId) {
             const tasks = await fetchStudentTasks(Number(Id)).catch(() => []);
             const match = (tasks || []).find(
-              (t: any) =>
+              (t: TaskRecord) =>
                 (t.task?.quiz_id === quizData.id ||
                   t.quiz_id === quizData.id) &&
                 String(t.student_id ?? "") === String(currentUser.student)
@@ -473,8 +484,9 @@ export default function QuranQuizPage() {
       }
 
       router.push(`${quizId}/quiz-result`);
-    } catch (error: any) {
-      if (error?.response?.status === 409) {
+    } catch (error: unknown) {
+      const response = asRecord(error instanceof Error ? undefined : asRecord(error)?.response);
+      if (response?.status === 409) {
         quizFinishedRef.current = true;
         setFullscreenPromptOpen(false);
         await exitDocumentFullscreenIfActive();
@@ -585,7 +597,7 @@ export default function QuranQuizPage() {
                     {question.type === "short_answer" && (
                       <Input
                         placeholder="Your answer"
-                        value={answers[question.id] || ""}
+                        value={String(answers[question.id] ?? "")}
                         onChange={(e) =>
                           handleAnswerChange(
                             question.id,
@@ -600,7 +612,7 @@ export default function QuranQuizPage() {
                       <Input.TextArea
                         rows={4}
                         placeholder="Your answer"
-                        value={answers[question.id] || ""}
+                        value={String(answers[question.id] ?? "")}
                         onChange={(e) =>
                           handleAnswerChange(
                             question.id,
@@ -646,7 +658,7 @@ export default function QuranQuizPage() {
                               .map((o) => o.option_text)
                           : []}
                         onChange={(values) =>
-                          handleAnswerChange(question.id, values, question.type)
+                          handleAnswerChange(question.id, values as string[], question.type)
                         }
                       >
                         <Space direction="vertical">
@@ -706,7 +718,7 @@ export default function QuranQuizPage() {
                         question={question}
                         value={answers[question.id]}
                         onChange={(val) =>
-                          handleAnswerChange(question.id, val, question.type)
+                          handleAnswerChange(question.id, val as Record<string, unknown>, question.type)
                         }
                       />
                     )}

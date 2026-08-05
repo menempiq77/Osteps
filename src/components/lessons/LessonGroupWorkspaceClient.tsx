@@ -424,7 +424,7 @@ export default function LessonGroupWorkspaceClient({
             .filter((item): item is InkStroke => item !== null)
         : [];
 
-      setWorkspace({
+      const nextWorkspace = {
         mode:
           parsed.mode === "select" ||
           parsed.mode === "text" ||
@@ -443,9 +443,12 @@ export default function LessonGroupWorkspaceClient({
           typeof parsed.pageCount === "number" && Number.isFinite(parsed.pageCount)
             ? clamp(Math.floor(parsed.pageCount), 1, MAX_PAGE_COUNT)
             : EMPTY_WORKSPACE.pageCount,
-      });
+      };
+      const id = setTimeout(() => setWorkspace(nextWorkspace), 0);
+      return () => clearTimeout(id);
     } catch {
-      setWorkspace(EMPTY_WORKSPACE);
+      const id = setTimeout(() => setWorkspace(EMPTY_WORKSPACE), 0);
+      return () => clearTimeout(id);
     }
   }, [storageKey]);
 
@@ -488,12 +491,17 @@ export default function LessonGroupWorkspaceClient({
   useEffect(() => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(workspace));
-      setLastSavedAt(
-        new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      const id = setTimeout(
+        () =>
+          setLastSavedAt(
+            new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          ),
+        0
       );
+      return () => clearTimeout(id);
     } catch {
       // ignore storage errors
     }

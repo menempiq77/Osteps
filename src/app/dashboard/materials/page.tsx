@@ -12,7 +12,8 @@ import {
   Breadcrumb,
   Spin,
 } from "antd";
-import { RcFile } from "antd/lib/upload";
+import type { RcFile } from "antd/es/upload/interface";
+import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 import Link from "next/link";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
@@ -24,6 +25,7 @@ import {
 } from "@/services/materialApi";
 import { fetchAssignYears } from "@/services/yearsApi";
 import { IMG_BASE_URL } from "@/lib/config";
+import { asRecord, errorMessage } from "@/lib/safeRecord";
 const { Option } = Select;
 
 type Material = {
@@ -32,12 +34,13 @@ type Material = {
   class_id: number;
   class_name?: string;
   file_path?: string;
+  fileName?: string;
   created_at?: string;
 };
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -50,26 +53,24 @@ export default function MaterialsPage() {
   );
   const [form] = Form.useForm();
 
-  const [currentUploadFile, setCurrentUploadFile] = useState<{
-    file?: RcFile;
-  } | null>(null);
+  const [currentUploadFile, setCurrentUploadFile] = useState<UploadFile<RcFile> | null>(null);
 
   // Fetch Materials
   const loadMaterials = async () => {
     try {
       setLoading(true);
       const data = await fetchMaterials();
-      const formatted = data?.map((m: any) => ({
+      const formatted = data?.map((m: Record<string, unknown>) => ({
         id: m?.id,
         title: m?.title,
         class_id: m?.class_id,
-        class_name: m?.class?.class_name || "",
+        class_name: asRecord(m?.class)?.class_name || "",
         file_path: `${IMG_BASE_URL || ""}/storage/${m?.file_path}`,
         created_at: m?.created_at,
       }));
       setMaterials(formatted);
-    } catch (err: any) {
-      message.error(err.message || "Failed to load materials");
+    } catch (err: unknown) {
+      message.error(errorMessage(err, "Failed to load materials"));
     } finally {
       setLoading(false);
     }
@@ -80,10 +81,10 @@ export default function MaterialsPage() {
     try {
       const res = await fetchAssignYears();
       let classesData = res
-        .map((item: any) => item.classes)
-        .filter((cls: any) => cls);
+        .map((item: Record<string, unknown>) => item.classes)
+        .filter((cls: Record<string, unknown>) => cls);
       classesData = Array.from(
-        new Map(classesData.map((cls: any) => [cls.id, cls])).values()
+        new Map(classesData.map((cls: Record<string, unknown>) => [cls.id, cls])).values()
       );
       setClasses(classesData);
     } catch {
@@ -103,8 +104,8 @@ export default function MaterialsPage() {
       const formData = new FormData();
       formData.append("title", values.title);
       formData.append("class_id", values.class_id);
-      if (currentUploadFile?.file) {
-        formData.append("file_path", currentUploadFile.file);
+      if (currentUploadFile?.originFileObj) {
+        formData.append("file_path", currentUploadFile.originFileObj);
       }
 
       await addMaterial(formData);
@@ -113,8 +114,8 @@ export default function MaterialsPage() {
       form.resetFields();
       setCurrentUploadFile(null);
       await loadMaterials();
-    } catch (err: any) {
-      messageApi.error(err.message || "Failed to add material");
+    } catch (err: unknown) {
+      messageApi.error(errorMessage(err, "Failed to add material"));
     }
   };
 
@@ -128,12 +129,10 @@ export default function MaterialsPage() {
 
     if (material.file_path) {
       setCurrentUploadFile({
-        file: {
-          uid: "-1",
-          name: material.file_path.split("/").pop() || "existing_file",
-          status: "done",
-          url: material.file_path,
-        } as any,
+        uid: "-1",
+        name: material.file_path.split("/").pop() || "existing_file",
+        status: "done",
+        url: material.file_path,
       });
     } else {
       setCurrentUploadFile(null);
@@ -149,8 +148,8 @@ export default function MaterialsPage() {
       const formData = new FormData();
       formData.append("title", values.title);
       formData.append("class_id", values.class_id);
-      if (currentUploadFile?.file) {
-        formData.append("file_path", currentUploadFile.file);
+      if (currentUploadFile?.originFileObj) {
+        formData.append("file_path", currentUploadFile.originFileObj);
       }
 
       await updateMaterial(selectedMaterial.id, formData);
@@ -159,8 +158,8 @@ export default function MaterialsPage() {
       form.resetFields();
       setCurrentUploadFile(null);
       await loadMaterials();
-    } catch (err: any) {
-      messageApi.error(err.message || "Failed to update material");
+    } catch (err: unknown) {
+      messageApi.error(errorMessage(err, "Failed to update material"));
     }
   };
 
@@ -177,14 +176,14 @@ export default function MaterialsPage() {
       messageApi.success("Material deleted successfully!");
       setIsDeleteModalOpen(false);
       await loadMaterials();
-    } catch (err: any) {
-      messageApi.error(err.message || "Failed to delete material");
+    } catch (err: unknown) {
+      messageApi.error(errorMessage(err, "Failed to delete material"));
     }
   };
 
   // ---------- Upload Handlers ----------
   const beforeUpload = (file: RcFile) => {
-    setCurrentUploadFile({ file });
+    setCurrentUploadFile(file as unknown as UploadFile<RcFile>);
     return false;
   };
 
@@ -203,7 +202,7 @@ export default function MaterialsPage() {
     }
 
     // fileName fallback
-    const downloadName = m.fileName || "material";
+    const downloadName = (m).fileName || "material";
 
     return (
       <a
@@ -350,8 +349,8 @@ export default function MaterialsPage() {
           >
             <Select placeholder="Select class">
               {classes.map((cls) => (
-                <Option key={cls.id} value={cls.id}>
-                  {cls.class_name}
+                <Option key={String(cls.id ?? "")} value={Number(cls.id ?? 0)}>
+                  {String(cls.class_name ?? "")}
                 </Option>
               ))}
             </Select>
@@ -361,7 +360,7 @@ export default function MaterialsPage() {
             <Upload
               beforeUpload={beforeUpload}
               onRemove={handleRemove}
-              fileList={currentUploadFile?.file ? [currentUploadFile.file] : []} // <-- Add this
+              fileList={currentUploadFile ? [currentUploadFile] : []} // <-- Add this
               maxCount={1}
               className="!w-full !block [&>div]:!w-full"
             >
@@ -398,8 +397,8 @@ export default function MaterialsPage() {
           >
             <Select placeholder="Select class">
               {classes.map((cls) => (
-                <Option key={cls.id} value={cls.id}>
-                  {cls.class_name}
+                <Option key={String(cls.id ?? "")} value={Number(cls.id ?? 0)}>
+                  {String(cls.class_name ?? "")}
                 </Option>
               ))}
             </Select>
@@ -409,7 +408,7 @@ export default function MaterialsPage() {
             <Upload
               beforeUpload={beforeUpload}
               onRemove={handleRemove}
-              fileList={currentUploadFile?.file ? [currentUploadFile.file] : []} // <-- same here
+              fileList={currentUploadFile ? [currentUploadFile] : []} // <-- same here
               maxCount={1}
               className="!w-full !block [&>div]:!w-full"
             >

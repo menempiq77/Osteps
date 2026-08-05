@@ -80,7 +80,7 @@ export default function LoginPage() {
                   label="Email Or Username"
                   name="login"
                   rules={[
-                    { type: "text", message: "Invalid email address or username" },
+                    { type: "string", message: "Invalid email address or username" },
                     { required: true, message: "Please input your email or username" },
                   ]}
                   className="[&_.ant-form-item-label>label]:!text-sm [&_.ant-form-item-label>label]:text-gray-700 [&_.ant-form-item-label>label]:font-['Raleway'] !mb-4"

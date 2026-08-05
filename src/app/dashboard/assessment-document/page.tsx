@@ -59,11 +59,26 @@ type TeacherStudentOption = {
   label: string;
   status?: string;
 };
+type StudentProfileRecord = {
+  student_name?: string;
+  name?: string;
+  user_name?: string;
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  user?: { name?: string };
+};
+type AssessmentTaskRecord = {
+  id?: number | string;
+  type?: string;
+  file_path?: string | null;
+  exam_mode?: boolean;
+};
 
 const isPlaceholderStudentName = (value: string) =>
   !value.trim() || /^selected student$/i.test(value.trim());
 
-const getStudentNameFromProfile = (profile: any) => {
+const getStudentNameFromProfile = (profile: StudentProfileRecord) => {
   const directName = String(
     profile?.student_name ??
       profile?.name ??
@@ -248,7 +263,7 @@ export default function AssessmentDocumentPage() {
       try {
         const tasks = await fetchTasks(Number(assessmentId), scopedSubjectId);
         const matchingTask = (tasks || []).find(
-          (task: any) => String(task?.id) === String(taskId) && String(task?.type || "task") === "task"
+          (task: AssessmentTaskRecord) => String(task?.id) === String(taskId) && String(task?.type || "task") === "task"
         );
         const nextFileUrl = fileUrlForDocument(matchingTask?.file_path ?? "");
         if (!cancelled && nextFileUrl) {
@@ -323,7 +338,7 @@ export default function AssessmentDocumentPage() {
         const nextIds = Array.from(
           new Set(
             (Array.isArray(rows) ? rows : [])
-              .map((student: any) => String(student?.id ?? student?.student_id ?? "").trim())
+              .map((student: { id?: number | string; student_id?: number | string }) => String(student?.id ?? student?.student_id ?? "").trim())
               .filter(Boolean)
           )
         );
@@ -413,7 +428,7 @@ export default function AssessmentDocumentPage() {
       try {
         const tasks = await fetchTasks(Number(assessmentId), scopedSubjectId);
         const matchingTask = tasks.find(
-          (task: any) => Number(task?.id) === Number(taskId) && task?.type === "task"
+          (task: AssessmentTaskRecord) => Number(task?.id) === Number(taskId) && task?.type === "task"
         );
 
         if (!cancelled && matchingTask) {

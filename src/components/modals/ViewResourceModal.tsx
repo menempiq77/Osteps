@@ -176,31 +176,34 @@ const ViewResourceModal: React.FC<ViewResourceModalProps> = ({
   };
 
   useEffect(() => {
-    if (open && currentItem?.url) {
-      console.log('[ViewResourceModal useEffect] Raw currentItem.url:', currentItem.url);
-      const normalized = normalizeResourceUrl(currentItem.url);
-      console.log('[ViewResourceModal useEffect] After normalization:', normalized);
-      setMediaUrl(normalized);
+    const id = setTimeout(() => {
+      if (open && currentItem?.url) {
+        console.log('[ViewResourceModal useEffect] Raw currentItem.url:', currentItem.url);
+        const normalized = normalizeResourceUrl(currentItem.url);
+        console.log('[ViewResourceModal useEffect] After normalization:', normalized);
+        setMediaUrl(normalized);
+        setIframeLoaded(false);
+        setEmbedBlocked(false);
+        setSnapshotLoaded(false);
+        setPreviewMode(isSnapshotPreferred(currentItem.url) ? "image" : "live");
+        return;
+      }
+
+      setMediaUrl("");
       setIframeLoaded(false);
       setEmbedBlocked(false);
       setSnapshotLoaded(false);
-      setPreviewMode(isSnapshotPreferred(currentItem.url) ? "image" : "live");
-      return;
-    }
-
-    setMediaUrl("");
-    setIframeLoaded(false);
-    setEmbedBlocked(false);
-    setSnapshotLoaded(false);
-    setPreviewMode("live");
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+      setPreviewMode("live");
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, currentItem?.url]);
 
   useEffect(() => {

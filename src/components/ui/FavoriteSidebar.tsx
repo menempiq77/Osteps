@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, type ElementType } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUnreadCount } from "@/services/chatApi";
+import { usePolling } from "@/hooks/usePolling";
 import {
   Award,
   BarChart3,
@@ -47,7 +48,7 @@ type FavoriteEntry = {
   id: string;
   name: string;
   href?: string;
-  icon: DashboardNavItem["icon"];
+  icon: ElementType;
   section: DashboardNavItem["section"];
   active?: boolean;
   kind: "link" | "subject";
@@ -205,7 +206,7 @@ export default function FavoriteSidebar() {
     }
 
     if (roleKey === "SCHOOL_ADMIN") {
-      [
+      ([
         {
           id: "school-students-staff",
           name: "Students & Staff",
@@ -278,11 +279,11 @@ export default function FavoriteSidebar() {
           href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
           kind: "link" as const,
         },
-      ].forEach(addEntryIfMissing);
+      ] as FavoriteEntry[]).forEach(addEntryIfMissing);
     }
 
     if (["HOD", "TEACHER"].includes(roleKey)) {
-      [
+      ([
         {
           id: "school-courses",
           name: "Courses",
@@ -315,11 +316,11 @@ export default function FavoriteSidebar() {
           href: activeSubjectId ? `/dashboard/s/${activeSubjectId}/leaderboard` : "/dashboard/leaderboard",
           kind: "link" as const,
         },
-      ].forEach(addEntryIfMissing);
+      ] as FavoriteEntry[]).forEach(addEntryIfMissing);
     }
 
     if (roleKey === "STUDENT") {
-      [
+      ([
         {
           id: "nav-Library-/dashboard/library",
           name: "Library",
@@ -356,7 +357,7 @@ export default function FavoriteSidebar() {
               },
             ]
           : []),
-      ].forEach(addEntryIfMissing);
+      ] as FavoriteEntry[]).forEach(addEntryIfMissing);
     }
 
     if (["SCHOOL_ADMIN", "HOD", "TEACHER", "STUDENT"].includes(roleKey)) {
@@ -551,11 +552,10 @@ export default function FavoriteSidebar() {
     }
   }, []);
 
-  useEffect(() => {
-    pollUnread();
-    const interval = setInterval(pollUnread, 15000);
-    return () => clearInterval(interval);
-  }, [pollUnread]);
+  usePolling({
+    baseIntervalMs: 15000,
+    run: pollUnread,
+  });
 
   useEffect(() => {
     setMobileOpen(false);

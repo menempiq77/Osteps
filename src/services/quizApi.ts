@@ -1,6 +1,7 @@
 // src/services/quizApi.ts
 import { createApiClient } from "@/lib/apiClient";
 import { withSubjectPayload, withSubjectQuery } from '@/lib/subjectScope';
+import { throwOnEmbeddedFailure } from '@/lib/apiResponse';
 
 const api = createApiClient();
 
@@ -18,7 +19,7 @@ export const addQuize = async (quizData: { name: string; description?: string; [
   return response.data;
 };
 // edit Quiz
-export const updateQuize = async (id: string, quizData: any, subjectId?: number) => {
+export const updateQuize = async (id: string, quizData: Record<string, unknown>, subjectId?: number) => {
   const response = await api.post(`/update-quiz/${id}`, withSubjectPayload(quizData, subjectId));
   return response.data;
 };
@@ -28,7 +29,7 @@ export const deleteQuize = async (id: number) => {
   return response.data;
 };
 //submit quiz by student
-export const submitQuizByStudent = async (quizId: number, studentId: number, answers: any, type: string, subjectId?: number) => {
+export const submitQuizByStudent = async (quizId: number, studentId: number, answers: unknown, type: string, subjectId?: number) => {
   const response = await api.post('/submitQuizAnswers', withSubjectPayload({
     quiz_id: quizId,
     student_id: studentId,
@@ -38,7 +39,7 @@ export const submitQuizByStudent = async (quizId: number, studentId: number, ans
   return response.data;
 };
 //submit task quiz by student
-export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: any, type: string, subjectId?: number, selfAssessmentMark?: number) => {
+export const submitTaskQuizByStudent = async (quizId: number, studentId: number, assessmentId: number, answers: unknown, type: string, subjectId?: number, selfAssessmentMark?: number) => {
   const response = await api.post('/submitQuizAnswers', withSubjectPayload({
     quiz_id: quizId,
     student_id: studentId,
@@ -73,12 +74,21 @@ export const fetchQuizQuestions = async (quizId: number, subjectId?: number) => 
   return response.data.data;
 };
 // add QuizQuestions
-export const addQuizQuestion = async (quizId: number, quizQuestionData: { name: string }, subjectId?: number) => {
+export const addQuizQuestion = async (
+  quizId: number,
+  quizQuestionData: Record<string, unknown>,
+  subjectId?: number
+) => {
   const response = await api.post('/add-quiz-question', withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };
 // add QuizQuestions
-export const updateQuizQuestion = async (questionId: number, quizId: number, quizQuestionData: { name: string }, subjectId?: number) => {
+export const updateQuizQuestion = async (
+  questionId: number,
+  quizId: number,
+  quizQuestionData: Record<string, unknown>,
+  subjectId?: number
+) => {
   const response = await api.post(`/update-quiz-question/${questionId}`, withSubjectPayload({ ...quizQuestionData, quiz_id: quizId }, subjectId));
   return response.data;
 };
@@ -133,6 +143,76 @@ export const assignTrackerQuiz = async (trackerId: number, quizId: number, subje
     quiz_id: quizId, 
   }, subjectId));
   return response.data;
+};
+
+type QuizQuestionOption = { option_text?: string | null; is_correct?: number | null };
+type QuizQuestionRow = {
+  question_text?: string | null;
+  type?: string | null;
+  marks?: number | string | null;
+  correct_answer?: unknown;
+  options?: QuizQuestionOption[] | null;
+};
+
+// Options are stored as rows with an is_correct flag but created from a plain
+// string list plus the index (or indexes) of the correct option.
+const toQuestionPayload = (question: QuizQuestionRow) => {
+  const options = (question.options ?? [])
+    .map((option) => String(option?.option_text ?? ""))
+    .filter((text) => text.length > 0);
+  const correctIndexes = (question.options ?? []).reduce<number[]>((indexes, option, index) => {
+    if (Number(option?.is_correct) === 1) indexes.push(index);
+    return indexes;
+  }, []);
+
+  let correctAnswer: unknown = question.correct_answer ?? null;
+  if (options.length > 0) {
+    correctAnswer =
+      question.type === "check_boxes"
+        ? correctIndexes
+        : correctIndexes.length > 0
+          ? correctIndexes[0]
+          : null;
+  }
+
+  return {
+    question_text: String(question.question_text ?? "").trim(),
+    type: question.type ?? "short_answer",
+    correct_answer: correctAnswer,
+    marks: Math.max(1, Number(question.marks ?? 1)),
+    ...(options.length > 0 ? { options } : {}),
+  };
+};
+
+/** Recreates a quiz (with its questions) under another subject. */
+export const copyQuizToSubject = async (
+  sourceQuizId: number,
+  quizData: { name: string; description?: string | null; school_id: string | number },
+  targetSubjectId?: number
+): Promise<number> => {
+  const created = await addQuize(
+    {
+      name: quizData.name,
+      description: quizData.description ?? "",
+      school_id: quizData.school_id,
+    },
+    targetSubjectId
+  );
+  throwOnEmbeddedFailure(created, { fallbackMessage: "Failed to create the quiz" });
+  const newQuizId = Number(created?.data?.id ?? created?.id ?? 0);
+  if (!newQuizId) throw new Error("Quiz copy returned no id");
+
+  const source = await fetchQuizQuestions(sourceQuizId);
+  const questions: QuizQuestionRow[] = source?.quiz_queston ?? source?.questions ?? [];
+  for (const question of questions) {
+    const response = await addQuizQuestion(
+      newQuizId,
+      toQuestionPayload(question),
+      targetSubjectId
+    );
+    throwOnEmbeddedFailure(response, { fallbackMessage: "Failed to copy a question" });
+  }
+  return newQuizId;
 };
 
 // Fetch quiz approval requests

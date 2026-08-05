@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { DATA_DIR } from "@/lib/server/dataDir";
 import { StoryReaction, StoryReactionType } from "@/types/classStory";
+import { asRecord } from "@/lib/safeRecord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,8 +40,7 @@ const readReactions = async (
     const raw = await fs.readFile(filePath, "utf8");
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as StoryReaction[]) : [];
-  } catch (error: any) {
-    if (error?.code !== "ENOENT") {
+  } catch (error: unknown) {     if (asRecord(error)?.code !== "ENOENT") {
       throw error;
     }
     return [];

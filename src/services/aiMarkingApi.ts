@@ -77,7 +77,7 @@ export const draftAssessmentMark = async (
 
   const responseText = await response.text().catch(() => "");
   clearTimeout(timeoutHandle);
-  let data: any = null;
+  let data: Record<string, unknown> | null = null;
   if (responseText) {
     try {
       data = JSON.parse(responseText);
@@ -87,8 +87,8 @@ export const draftAssessmentMark = async (
   }
   if (!response.ok) {
     const message =
-      data?.message ||
-      data?.error ||
+      (data?.message as string | undefined) ||
+      (data?.error as string | undefined) ||
       responseText.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240) ||
       `AI draft mark failed with HTTP ${response.status}.`;
     throw new Error(message);

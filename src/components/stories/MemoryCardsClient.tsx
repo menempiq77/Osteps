@@ -238,7 +238,7 @@ export default function MemoryCardsClient({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 text-center max-w-md">
             <div className="text-6xl mb-4">⏰</div>
-            <h3 className="text-3xl font-bold text-red-600 mb-4">Time's Up!</h3>
+            <h3 className="text-3xl font-bold text-red-600 mb-4">Time&apos;s Up!</h3>
             <p className="text-lg mb-4">
               Matches: {matchedPairs}/{pairs.length}
             </p>

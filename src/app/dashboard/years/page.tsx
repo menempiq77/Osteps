@@ -33,12 +33,20 @@ import {
   writeSubjectClassBaseEntry,
 } from "@/lib/subjectClassResolution";
 import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { areSubjectsSimilar } from "@/lib/subjectSimilarity";
+import { errorMessage } from "@/lib/safeRecord";
+
+type TermRecord = { id?: string | number; name?: string };
+type YearRecord = {
+  id?: string | number; name?: string; year_id?: string | number; class_name?: string; base_class_label?: string;
+  classes?: YearRecord; year?: YearRecord; class?: YearRecord; [key: string]: unknown;
+};
 
 interface Year {
   id: number;
   name: string;
   school_id?: number;
-  terms?: any;
+  terms?: number;
   created_at?: string;
   updated_at?: string;
   color?: string;
@@ -71,6 +79,7 @@ type ArchivedYearGroupImport = {
   key: string;
   sourceSubjectId: number;
   sourceSubjectName: string;
+  sourceSubjectArchived: boolean;
   yearId: number;
   yearName: string;
   classes: SubjectClassRow[];
@@ -305,8 +314,12 @@ export default function Page() {
             String(year.name ?? `Year ${year.id ?? ""}`).trim(),
           ])
         );
+        // Only subjects of the same family (e.g. "Islamic" ↔ "Islamiyat" ↔
+        // "التربية الإسلامية") can hand their year groups over.
         const sourceSubjects = subjects.filter(
-          (subject) => Number(subject.id) !== Number(activeSubjectId)
+          (subject) =>
+            Number(subject.id) !== Number(activeSubjectId) &&
+            areSubjectsSimilar(activeSubject?.name, subject.name)
         );
         const sourceRows = await Promise.all(
           sourceSubjects.map(async (subject) => {
@@ -323,9 +336,8 @@ export default function Page() {
         );
 
         const groups = sourceRows.flatMap(({ subject, rows }) => {
-          const isArchivedSubject =
-            rows.length > 0 && rows.every((row) => !isSubjectClassActive(row));
-          if (!isArchivedSubject) return [];
+          if (rows.length === 0) return [];
+          const isArchivedSubject = rows.every((row) => !isSubjectClassActive(row));
 
           const rowsByYear = new Map<number, SubjectClassRow[]>();
           rows.forEach((row) => {
@@ -346,6 +358,7 @@ export default function Page() {
             key: `${subject.id}:${yearId}`,
             sourceSubjectId: Number(subject.id),
             sourceSubjectName: String(subject.name ?? "").trim(),
+            sourceSubjectArchived: isArchivedSubject,
             yearId,
             yearName: yearNameById.get(yearId) || `Year ${yearId}`,
             classes,
@@ -376,6 +389,7 @@ export default function Page() {
       cancelled = true;
     };
   }, [
+    activeSubject?.name,
     activeSubjectId,
     currentYear,
     hasAccess,
@@ -408,7 +422,7 @@ export default function Page() {
           })
         );
 
-        const filtered = (Array.isArray(res) ? res : []).filter((item: any) => {
+        const filtered = (Array.isArray(res) ? res : []).filter((item: YearRecord) => {
           const cls = item?.classes;
           if (!cls) return false;
           const className = String(cls.class_name ?? "").trim().toLowerCase();
@@ -417,11 +431,11 @@ export default function Page() {
         });
 
         const years = filtered
-          .map((item: any) => item.classes?.year)
-          .filter((year: any) => year);
+          .map((item: YearRecord) => item.classes?.year)
+          .filter((year): year is YearRecord => Boolean(year));
 
         yearsData = Array.from(
-          new Map(years.map((year: any) => [year.id, year])).values()
+          new Map(years.map((year: YearRecord) => [year.id, year] as const)).values()
         );
       } else if (isSubjectWorkspaceMode && activeSubjectId) {
         const [schoolYears, subjectClasses] = await Promise.all([
@@ -455,14 +469,14 @@ export default function Page() {
         const schoolYearList = Array.isArray(schoolYears) ? schoolYears : [];
 
         // Active tab: years with at least one active class (or explicitly added, empty years).
-        yearsData = schoolYearList.filter((year: any) => {
+        yearsData = schoolYearList.filter((year: YearRecord) => {
           const id = Number(year?.id);
           if (activeYearIds.has(id)) return true;
           return !hiddenIds.has(id) && addedIds.has(id);
         });
 
         // Archived tab: years whose classes are all archived (no active class remains).
-        const archivedYearsData = schoolYearList.filter((year: any) => {
+        const archivedYearsData = schoolYearList.filter((year: YearRecord) => {
           const id = Number(year?.id);
           if (hiddenIds.has(id)) return false;
           return archivedYearIds.has(id) && !activeYearIds.has(id) && !addedIds.has(id);
@@ -474,11 +488,11 @@ export default function Page() {
         const res = await fetchAssignYears();
 
         const years = res
-          .map((item: any) => item.classes?.year)
-          .filter((year: any) => year);
+          .map((item: YearRecord) => item.classes?.year)
+          .filter((year: YearRecord) => year);
 
         yearsData = Array.from(
-          new Map(years.map((year: any) => [year.id, year])).values()
+          new Map(years.map((year: YearRecord) => [year.id, year])).values()
         );
       } else {
         const res = await fetchYearsBySchool(Number(schoolId));
@@ -543,7 +557,7 @@ export default function Page() {
                       )
                     );
 
-                    let finalRows: Array<Record<string, any>> = [];
+                    let finalRows: YearRecord[] = [];
 
                     // Count only the explicit active subject-class roster.
                     // Broad subject/base-class fallbacks over-count after a
@@ -560,7 +574,7 @@ export default function Page() {
 
                     return new Set(
                       finalRows
-                        .map((student: any) => String(student?.id ?? "").trim())
+                        .map((student: YearRecord) => String(student?.id ?? "").trim())
                         .filter(Boolean)
                     ).size;
                   } catch {
@@ -625,7 +639,7 @@ export default function Page() {
             const classes = await fetchClasses(String(currentYear.id));
             console.log("[YearEdit] classes fetched:", classes);
             await Promise.all(
-              (Array.isArray(classes) ? classes : []).map(async (cls: any) => {
+              (Array.isArray(classes) ? classes : []).map(async (cls: YearRecord) => {
                 const resolvedClassName = String(cls.class_name ?? cls.base_class_label ?? cls.name ?? "").trim();
                 console.log("[YearEdit] updating class", cls.id, "class_name:", resolvedClassName, "with number_of_terms:", number_of_terms);
                 const updateResp = await updateClass(String(cls.id), { class_name: resolvedClassName, number_of_terms, year_id: Number(cls.year_id) });
@@ -633,12 +647,12 @@ export default function Page() {
                 // Delete excess terms beyond the new limit
                 if (Number.isFinite(termLimit) && termLimit > 0) {
                   try {
-                    const terms: any[] = (await fetchTerm(Number(cls.id))) ?? [];
+                    const terms: TermRecord[] = (await fetchTerm(Number(cls.id))) ?? [];
                     console.log("[YearEdit] terms for class", cls.id, ":", terms);
                     const sorted = [...terms].sort((a, b) => Number(a.id) - Number(b.id));
                     // Delete excess terms if reducing
                     const excess = sorted.slice(termLimit);
-                    await Promise.all(excess.map(async (t: any) => {
+                    await Promise.all(excess.map(async (t: TermRecord) => {
                       try {
                         const delResp = await deleteTerm(Number(t.id));
                         console.log("[YearEdit] deleted term", t.id, "response:", delResp);
@@ -664,11 +678,8 @@ export default function Page() {
                 }
               })
             );
-          } catch (e: any) {
-            console.error("[YearEdit] class update block failed:", e?.message ?? e);
-            if (e?.response?.data) {
-              console.error("[YearEdit] backend validation errors:", JSON.stringify(e.response.data));
-            }
+          } catch (e: unknown) {
+            console.error("[YearEdit] class update block failed:", errorMessage(e));
           }
         }
         writeYearColorMap({
@@ -708,7 +719,7 @@ export default function Page() {
         const updatedYears = await fetchYearsBySchool(Number(schoolId));
         if (!currentYear && (!createdYearId || createdYearId <= 0)) {
           const candidate = (Array.isArray(updatedYears) ? updatedYears : [])
-            .filter((year: any) =>
+            .filter((year: YearRecord) =>
               String(year?.name ?? "").trim().toLowerCase() ===
               String(yearData?.name ?? "").trim().toLowerCase()
             )
@@ -736,7 +747,7 @@ export default function Page() {
         setYears(
           applySavedOrder(
             applySavedYearColors(
-              (Array.isArray(updatedYears) ? updatedYears : []).filter((year: any) =>
+              (Array.isArray(updatedYears) ? updatedYears : []).filter((year: YearRecord) =>
                 allowedIds.has(Number(year?.id)) && !hiddenIds.has(Number(year?.id))
               )
             )
@@ -765,13 +776,13 @@ export default function Page() {
 
   const handleImportArchivedYear = async (groupKey: string) => {
     if (!hasAccess || !isSubjectWorkspaceMode || !activeSubjectId) {
-      messageApi.warning("Only School Admin can import archived year groups.");
+      messageApi.warning("Only School Admin can import year groups.");
       return;
     }
 
     const sourceGroup = archivedYearGroups.find((group) => group.key === groupKey);
     if (!sourceGroup) {
-      messageApi.error("The selected archived year group is no longer available.");
+      messageApi.error("The selected year group is no longer available.");
       return;
     }
 
@@ -786,8 +797,8 @@ export default function Page() {
         include_inactive: true,
       })) as SubjectClassRow[];
       const sourceRows = Array.isArray(latestSourceRows) ? latestSourceRows : [];
-      if (sourceRows.length === 0 || sourceRows.some(isSubjectClassActive)) {
-        throw new Error("The source subject is no longer archived.");
+      if (sourceRows.length === 0) {
+        throw new Error("The source subject no longer has any classes.");
       }
       const sourceClassLabels = new Set<string>();
       const sourceClasses = sourceRows.filter((row) => {
@@ -798,7 +809,7 @@ export default function Page() {
         return true;
       });
       if (sourceClasses.length === 0) {
-        throw new Error("The selected year group no longer contains archived classes.");
+        throw new Error("The selected year group no longer contains classes.");
       }
 
       const targetRows = (await fetchSubjectClasses({
@@ -1254,6 +1265,7 @@ export default function Page() {
           archivedYearGroups={archivedYearGroups.map((group) => ({
             key: group.key,
             sourceSubjectName: group.sourceSubjectName,
+            sourceSubjectArchived: group.sourceSubjectArchived,
             yearName: group.yearName,
             classCount: group.classes.length,
           }))}

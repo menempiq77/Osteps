@@ -44,8 +44,9 @@ import { readStudentProfileOverride } from "@/lib/studentProfileOverrides";
 import { extractSubjectIdFromPath } from "@/lib/subjectRouting";
 import { studentMatchesSubjectScope } from "@/lib/subjectStudentScope";
 import ExamIncidentHistoryCard from "@/components/students/ExamIncidentHistoryCard";
+import { asRecord } from "@/lib/safeRecord";
 
-type AnyObj = Record<string, any>;
+type AnyObj = Record<string, unknown>;
 
 type AssessmentRow = {
   key: string;
@@ -87,7 +88,7 @@ function toFiniteNumber(value: unknown): number {
 }
 
 function isAttendanceRecord(row: AnyObj): boolean {
-  const t = String(row?.behaviour?.name ?? "").toLowerCase();
+  const t = String(asRecord(row?.behaviour)?.name ?? "").toLowerCase();
   const d = String(row?.description ?? "").toLowerCase();
   return (
     t.includes("attendance") ||
@@ -98,13 +99,13 @@ function isAttendanceRecord(row: AnyObj): boolean {
 }
 
 function isPresentRecord(row: AnyObj): boolean {
-  const t = String(row?.behaviour?.name ?? "").toLowerCase();
+  const t = String(asRecord(row?.behaviour)?.name ?? "").toLowerCase();
   const d = String(row?.description ?? "").toLowerCase();
   return t.includes("present") || d.includes("present");
 }
 
 function isAbsentRecord(row: AnyObj): boolean {
-  const t = String(row?.behaviour?.name ?? "").toLowerCase();
+  const t = String(asRecord(row?.behaviour)?.name ?? "").toLowerCase();
   const d = String(row?.description ?? "").toLowerCase();
   return t.includes("absent") || d.includes("absent");
 }
@@ -150,7 +151,7 @@ export default function StudentProfilePage() {
   });
 
   const schoolId = Number(
-    currentUser?.school_id || currentUser?.school?.id || (data as AnyObj)?.school?.id || 0
+    currentUser?.schoolId || asRecord(asRecord(data)?.school)?.id || 0
   );
   const { data: yearsData = [] } = useQuery({
     queryKey: ["profile-switcher-years", currentUser?.role, schoolId],
@@ -247,7 +248,7 @@ export default function StudentProfilePage() {
   const student = useMemo<AnyObj | null>(() => {
     if (!data || typeof data !== "object" || Array.isArray(data)) return null;
     const baseStudent = data as AnyObj;
-    const override = readStudentProfileOverride([studentId, baseStudent?.id]);
+    const override = readStudentProfileOverride([studentId, String(baseStudent?.id ?? "")]);
     if (!override) return baseStudent;
 
     return {
@@ -290,13 +291,13 @@ export default function StudentProfilePage() {
     [attendanceRecords]
   );
 
-  const terms = asArray<AnyObj>(student?.class?.term);
+  const terms = asArray<AnyObj>(asRecord(student?.class)?.term);
   const assessments = terms.flatMap((term) =>
     asArray<AnyObj>(term?.assign_assessments).map((a) => ({ term, assignment: a }))
   );
 
   const tasks = assessments.flatMap(({ assignment }) =>
-    asArray<AnyObj>(assignment?.assessment?.tasks)
+    asArray<AnyObj>(asRecord(assignment?.assessment)?.tasks)
   );
 
   const completedTasks = tasks.filter((task) => {
@@ -309,17 +310,17 @@ export default function StudentProfilePage() {
     totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const behaviorPoints = behaviorOnlyRecords.reduce(
-    (sum, row) => sum + Number(row?.behaviour?.points ?? 0),
+    (sum, row) => sum + Number(asRecord(row?.behaviour)?.points ?? 0),
     0
   );
 
   const trackers = useMemo(() => {
-    const classTrackers = asArray<AnyObj>(student?.class?.assign_trackers);
+    const classTrackers = asArray<AnyObj>(asRecord(student?.class)?.assign_trackers);
     const directTrackers = asArray<AnyObj>(student?.assign_trackers);
     const merged = [...classTrackers, ...directTrackers];
     const seen = new Set<string>();
     return merged.filter((row, index) => {
-      const trackerId = row?.tracker_id ?? row?.tracker?.id ?? `tracker-${index}`;
+      const trackerId = row?.tracker_id ?? asRecord(row?.tracker)?.id ?? `tracker-${index}`;
       const studentKey = row?.student_id ? `student-${row.student_id}` : "class";
       const key = `${trackerId}-${studentKey}`;
       if (seen.has(key)) return false;
@@ -329,7 +330,7 @@ export default function StudentProfilePage() {
   }, [student]);
 
   const trackerPointsFromTrackers = trackers.reduce((sum, assigned) => {
-    const topics = asArray<AnyObj>(assigned?.tracker?.topics);
+    const topics = asArray<AnyObj>(asRecord(assigned?.tracker)?.topics);
     const completedMarks = topics.reduce((topicSum, topic) => {
       const isCompleted = asArray<AnyObj>(topic?.status_progress).some((sp) => sp?.is_completed);
       if (!isCompleted) return topicSum;
@@ -352,7 +353,7 @@ export default function StudentProfilePage() {
   const combinedPoints = toFiniteNumber(student?.total_points ?? trackerPoints + mindPoints);
 
   const trackerRows = trackers.map((assigned, index) => {
-    const tracker = assigned?.tracker ?? {};
+    const tracker = asRecord(assigned?.tracker);
     const topics = asArray<AnyObj>(tracker?.topics);
     const done = topics.filter((topic) =>
       asArray<AnyObj>(topic?.status_progress).some((sp) => sp?.is_completed)
@@ -400,13 +401,13 @@ export default function StudentProfilePage() {
 
   const behaviorSummary = useMemo(() => {
     const positive = behaviorOnlyRecords.filter(
-      (row) => toFiniteNumber(row?.behaviour?.points) > 0
+      (row) => toFiniteNumber(asRecord(row?.behaviour)?.points) > 0
     ).length;
     const neutral = behaviorOnlyRecords.filter(
-      (row) => toFiniteNumber(row?.behaviour?.points) === 0
+      (row) => toFiniteNumber(asRecord(row?.behaviour)?.points) === 0
     ).length;
     const needsWork = behaviorOnlyRecords.filter(
-      (row) => toFiniteNumber(row?.behaviour?.points) < 0
+      (row) => toFiniteNumber(asRecord(row?.behaviour)?.points) < 0
     ).length;
     const total = behaviorOnlyRecords.length;
     const pct = (value: number) => (total > 0 ? Math.round((value / total) * 100) : 0);
@@ -424,8 +425,7 @@ export default function StudentProfilePage() {
   const assessmentRows = useMemo<AssessmentRow[]>(() => {
     return assessments.flatMap(({ term, assignment }, indexA) => {
       const termName = String(term?.name ?? "Term");
-      const assessmentName = String(assignment?.assessment?.name ?? "Assessment");
-      const assignmentTasks = asArray<AnyObj>(assignment?.assessment?.tasks);
+      const assessmentName = String(asRecord(assignment?.assessment)?.name ?? "Assessment");       const assignmentTasks = asArray<AnyObj>(asRecord(assignment?.assessment)?.tasks);
 
       return assignmentTasks.map((task, indexT) => {
         const submission = asArray<AnyObj>(task?.student_assessment_tasks)[0] ?? {};
@@ -482,7 +482,7 @@ export default function StudentProfilePage() {
       const flat = perClass.flat();
       const dedup = new Map<string, AnyObj>();
       flat.forEach((s) => {
-        const id = String(s?.id ?? "");
+        const id = String((s as Record<string, unknown>)?.id ?? "");
         if (!id || dedup.has(id)) return;
         dedup.set(id, s);
       });
@@ -501,8 +501,7 @@ export default function StudentProfilePage() {
       id: String(s?.id ?? ""),
       name: String(s?.student_name ?? s?.name ?? `Student ${s?.id ?? ""}`),
       status: String(s?.status ?? "active").toLowerCase(),
-      classId: String(s?.class_id ?? s?.class?.id ?? s?.__source_class_id ?? classId),
-      className: String(s?.class?.class_name ?? s?.class_name ?? ""),
+      classId: String(s?.class_id ?? asRecord(s?.class)?.id ?? s?.__source_class_id ?? classId),       className: String(asRecord(s?.class)?.class_name ?? s?.class_name ?? ""),
     }));
   }, [selectedYearId, yearStudentsData, classStudentsData, classId]);
 
@@ -676,7 +675,7 @@ export default function StudentProfilePage() {
 
   const trackerTopicRows = useMemo<TrackerTopicRow[]>(() => {
     return trackers.flatMap((assigned, idxA) => {
-      const tracker = assigned?.tracker ?? {};
+      const tracker = asRecord(assigned?.tracker);
       const trackerName = String(tracker?.name ?? "Tracker");
       const topics = asArray<AnyObj>(tracker?.topics);
 
@@ -715,9 +714,9 @@ export default function StudentProfilePage() {
     attendanceRecords.forEach((row) => {
       rows.push([
         String(row?.date || row?.created_at || ""),
-        String(row?.behaviour?.name || "Attendance"),
+        String(asRecord(row?.behaviour)?.name || "Attendance"),
         String(row?.description || ""),
-        String(row?.behaviour?.points ?? ""),
+        String(asRecord(row?.behaviour)?.points ?? ""),
       ]);
     });
     downloadCsv(`student-${studentId}-attendance.csv`, rows);
@@ -762,7 +761,7 @@ export default function StudentProfilePage() {
       body: JSON.stringify({
         studentName: student?.student_name,
         email: student?.email,
-        className: student?.class?.class_name,
+        className: asRecord(student?.class)?.class_name,
         status: student?.status,
         completedTasks,
         totalTasks,
@@ -832,11 +831,11 @@ export default function StudentProfilePage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-2xl font-semibold">
-              {student?.student_name || "Student"}
+              {String(student?.student_name || "Student")}
             </div>
-            <div className="text-gray-600">{student?.email || "No email"}</div>
+            <div className="text-gray-600">{String(student?.email || "No email")}</div>
             <div className="mt-2 flex gap-2">
-              <Tag color="blue">ID: {student?.id ?? studentId}</Tag>
+              <Tag color="blue">ID: {String(student?.id ?? studentId)}</Tag>
               <Tag color={student?.status === "active" ? "green" : "default"}>
                 {String(student?.status || "unknown").toUpperCase()}
               </Tag>
@@ -932,7 +931,7 @@ export default function StudentProfilePage() {
             />
             <Statistic
               title="Class"
-              value={student?.class?.class_name || "N/A"}
+              value={String(asRecord(student?.class)?.class_name || "N/A")}
               prefix={<UserOutlined />}
             />
           </div>
@@ -1101,7 +1100,7 @@ export default function StudentProfilePage() {
           <Card title="Attendance (Recent 10)" className="rounded-2xl">
             <div className="space-y-2">
               {attendanceRecords.slice(0, 10).map((row) => {
-                const name = String(row?.behaviour?.name ?? "Attendance");
+                const name = String(asRecord(row?.behaviour)?.name ?? "Attendance");
                 const rowId = Number(row?.id);
                 return (
                   <div
@@ -1111,7 +1110,7 @@ export default function StudentProfilePage() {
                     <div>
                       <div className="font-medium">{name}</div>
                       <div className="text-xs text-gray-500">
-                        {row?.date || row?.created_at || "No date"}
+                        {String(row?.date || row?.created_at || "No date")}
                       </div>
                     </div>
                     <Space>
@@ -1148,7 +1147,7 @@ export default function StudentProfilePage() {
           <Card title="Behaviour (Recent 10)" className="rounded-2xl">
             <div className="space-y-2">
               {behaviorOnlyRecords.slice(0, 10).map((row) => {
-                const points = Number(row?.behaviour?.points ?? 0);
+                const points = Number(asRecord(row?.behaviour)?.points ?? 0);
                 return (
                   <div
                     key={String(row?.id)}
@@ -1156,10 +1155,10 @@ export default function StudentProfilePage() {
                   >
                     <div>
                       <div className="font-medium">
-                        {row?.behaviour?.name || "Behaviour"}
+                        {String(asRecord(row?.behaviour)?.name || "Behaviour")}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {row?.description || "No description"}
+                        {String(row?.description || "No description")}
                       </div>
                     </div>
                     <Tag color={points >= 0 ? "green" : "volcano"}>
@@ -1269,29 +1268,29 @@ export default function StudentProfilePage() {
         <Row gutter={[16, 12]}>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">Username</div>
-            <div>{student?.user_name || "N/A"}</div>
+            <div>{String(student?.user_name || "N/A")}</div>
           </Col>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">Phone</div>
-            <div>{student?.phone_number || "N/A"}</div>
+            <div>{String(student?.phone_number || "N/A")}</div>
           </Col>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">Class ID</div>
-            <div>{student?.class_id || classId || "N/A"}</div>
+            <div>{String(student?.class_id || classId || "N/A")}</div>
           </Col>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">School</div>
-            <div>{student?.school?.name || "N/A"}</div>
+            <div>{String(asRecord(student?.school)?.name || "N/A")}</div>
           </Col>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">School Email</div>
-            <div>{student?.school?.email || "N/A"}</div>
+            <div>{String(asRecord(student?.school)?.email || "N/A")}</div>
           </Col>
           <Col xs={24} md={8}>
             <div className="text-xs text-gray-500">Last Updated</div>
             <div>
               <CalendarOutlined className="mr-1" />
-              {student?.updated_at || "N/A"}
+              {String(student?.updated_at || "N/A")}
             </div>
           </Col>
         </Row>

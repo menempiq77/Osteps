@@ -67,7 +67,10 @@ export function GlobalTimer() {
       /* ignore audio errors */
     }
   }, []);
-  beepRef.current = playBeep;
+
+  useEffect(() => {
+    beepRef.current = playBeep;
+  }, [playBeep]);
 
   useEffect(() => {
     if (!running) {

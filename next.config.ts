@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
@@ -23,16 +24,13 @@ const withSerwist = withSerwistInit({
   ],
   exclude: [/.*/],
 });
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: false,
+  reactStrictMode: true,
   compress: process.env.NODE_ENV === 'production',
   productionBrowserSourceMaps: false,
   images: {
@@ -88,7 +86,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist({
+export default withSerwist(withAnalyzer({
   ...nextConfig,
   async headers() {
     const existingHeaders = await nextConfig.headers?.();
@@ -115,4 +113,4 @@ export default withSerwist({
       },
     ];
   },
-});
+}));

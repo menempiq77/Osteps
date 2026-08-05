@@ -15,6 +15,7 @@ const SUBJECT_SCOPED_PREFIXES = [
   "/dashboard/student_behavior",
   "/dashboard/all_assesments",
   "/dashboard/all_trackers",
+  "/dashboard/built_in_trackers",
   "/dashboard/viewtrackers",
   "/dashboard/student_assesments",
   "/dashboard/shared_materials",
@@ -69,12 +70,14 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "student_behavior",
   "all_assesments",
   "all_trackers",
+  "built_in_trackers",
   "viewtrackers",
   "student_assesments",
   "shared_materials",
   "students",
   "behavior",
   "adhkar",
+  "prayers",
   "mind-upgrade",
   "subjects",
   "subject-cards",
@@ -95,6 +98,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "timetable-generator",
   "assessment-document",
   "ai",
+  "class_notebook",
 ]);
 
 const startsWithPrefix = (path: string, prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);

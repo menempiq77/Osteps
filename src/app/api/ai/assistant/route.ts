@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import path from "path";
 import { promisify } from "util";
+import { errorMessage } from "@/lib/safeRecord";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY ?? "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? "";
@@ -508,7 +509,7 @@ export async function POST(req: NextRequest) {
       clearTimeout(timeoutHandle);
       try {
         return await tryGeminiSearchAssistant("General assistant mode prefers Gemini with Google Search grounding.");
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Gemini Google Search assistant failed, falling back to other providers:", error);
       }
     }
@@ -625,11 +626,11 @@ export async function POST(req: NextRequest) {
 
     console.info("[ai/assistant] provider", JSON.stringify({ provider: `Groq primary (${GROQ_TEXT_MODEL})` }));
     return buildProxyStreamResponse(response, `groq:${GROQ_TEXT_MODEL}`);
-  } catch (error) {
+  } catch (error: unknown) {
     if (GEMINI_API_KEY && !isMarkingHeavyRequest) {
       try {
         clearTimeout(timeoutHandle);
-        return await tryGeminiSearchAssistant(error instanceof Error ? error.message : "Primary assistant request failed.");
+        return await tryGeminiSearchAssistant(error instanceof Error ? errorMessage(error) : "Primary assistant request failed.");
       } catch {
         // fall through to other providers
       }
@@ -638,11 +639,11 @@ export async function POST(req: NextRequest) {
     if (OPENAI_API_KEY) {
       try {
         clearTimeout(timeoutHandle);
-        return await tryOpenAiAssistant(error instanceof Error ? error.message : "Primary assistant request failed.");
-      } catch (openAiError) {
+        return await tryOpenAiAssistant(error instanceof Error ? errorMessage(error) : "Primary assistant request failed.");
+      } catch (openAiError: unknown) {
         if (!GEMINI_API_KEY) {
           return NextResponse.json(
-            { error: openAiError instanceof Error ? openAiError.message : "Assistant request failed." },
+            { error: openAiError instanceof Error ? errorMessage(openAiError) : "Assistant request failed." },
             { status: 502 }
           );
         }
@@ -652,16 +653,16 @@ export async function POST(req: NextRequest) {
     if (GEMINI_API_KEY) {
       try {
         clearTimeout(timeoutHandle);
-        return await tryGeminiFallback(error instanceof Error ? error.message : "Groq assistant request failed.");
-      } catch (geminiError) {
+        return await tryGeminiFallback(error instanceof Error ? errorMessage(error) : "Groq assistant request failed.");
+      } catch (geminiError: unknown) {
         return NextResponse.json(
-          { error: geminiError instanceof Error ? geminiError.message : "Assistant request failed." },
+          { error: geminiError instanceof Error ? errorMessage(geminiError) : "Assistant request failed." },
           { status: 502 }
         );
       }
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Assistant request failed." },
+      { error: error instanceof Error ? errorMessage(error) : "Assistant request failed." },
       { status: 500 }
     );
   } finally {

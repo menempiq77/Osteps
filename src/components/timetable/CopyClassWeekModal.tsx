@@ -43,11 +43,13 @@ export default function CopyClassWeekModal({
   const [copyTeachers, setCopyTeachers] = useState(false);
 
   useEffect(() => {
-    if (!open) {
+    if (open) return;
+    const id = setTimeout(() => {
       setTargetClassIds([]);
       setClearExisting(true);
       setCopyTeachers(false);
-    }
+    }, 0);
+    return () => clearTimeout(id);
   }, [open]);
 
   const options = useMemo(

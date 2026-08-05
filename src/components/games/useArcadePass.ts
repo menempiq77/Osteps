@@ -6,8 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { STUDENT_COINS_UPDATED_EVENT } from "@/components/dashboard/StudentCoinWallet";
 import {
+  fetchStudentGamePassStatus,
   fetchStudentWalletBalance,
-  spendStudentCoins,
+  purchaseStudentGamePass,
 } from "@/services/studentWalletApi";
 import { RootState } from "@/store/store";
 
@@ -54,7 +55,7 @@ export default function useArcadePass({
 }: ArcadePassConfig) {
   const { currentUser } = useSelector((state: RootState) => state.auth);
   const queryClient = useQueryClient();
-  const role = String(currentUser?.role ?? "").toUpperCase();
+  const role = String(currentUser?.role ?? "").trim().toUpperCase();
   const isStudent = role === "STUDENT";
   const studentId = String(currentUser?.student ?? "");
   const storageKey = useMemo(
@@ -80,41 +81,119 @@ export default function useArcadePass({
   });
 
   useEffect(() => {
+    let cancelled = false;
+    setIsRestored(false);
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) {
       setPass(null);
       setIsRestored(true);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    try {
-      const saved = JSON.parse(raw) as Partial<SavedArcadePass>;
-      if (
-        saved.version !== 1 ||
-        typeof saved.runId !== "string" ||
-        !Number.isFinite(saved.expiresAt)
-      ) {
-        window.localStorage.removeItem(storageKey);
-        setPass(null);
-      } else if ((saved.expiresAt ?? 0) <= Date.now()) {
-        window.localStorage.removeItem(storageKey);
-        setPass(null);
-      } else {
-        setPass({
-          version: 1,
-          runId: saved.runId,
-          purchasePending: Boolean(saved.purchasePending),
-          active: Boolean(saved.active),
-          expiresAt: saved.expiresAt ?? Date.now() + durationMs,
-        });
+    const restorePass = async () => {
+      try {
+        const saved = JSON.parse(raw) as Partial<SavedArcadePass>;
+        if (
+          saved.version !== 1 ||
+          typeof saved.runId !== "string" ||
+          !Number.isFinite(saved.expiresAt)
+        ) {
+          window.localStorage.removeItem(storageKey);
+          setPass(null);
+        } else if ((saved.expiresAt ?? 0) <= Date.now()) {
+          window.localStorage.removeItem(storageKey);
+          setPass(null);
+        } else if (isStudent) {
+          if (!studentId) {
+            window.localStorage.removeItem(storageKey);
+            setPass(null);
+            return;
+          }
+
+          const verified = await fetchStudentGamePassStatus({
+            game_id: gameId,
+            run_id: saved.runId,
+          });
+          if (
+            !verified.active ||
+            verified.expires_at === null ||
+            verified.expires_at <= Date.now()
+          ) {
+            window.localStorage.removeItem(storageKey);
+            setPass(null);
+            return;
+          }
+
+          const restoredPass: SavedArcadePass = {
+            version: 1,
+            runId: verified.run_id,
+            purchasePending: false,
+            active: true,
+            expiresAt: verified.expires_at,
+          };
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify(restoredPass),
+          );
+          setPass(restoredPass);
+        } else {
+          setPass({
+            version: 1,
+            runId: saved.runId,
+            purchasePending: Boolean(saved.purchasePending),
+            active: Boolean(saved.active),
+            expiresAt: saved.expiresAt ?? Date.now() + durationMs,
+          });
+        }
+      } catch (error) {
+        if (isStudent) {
+          try {
+            const saved = JSON.parse(raw) as Partial<SavedArcadePass>;
+            if (
+              saved.version === 1 &&
+              typeof saved.runId === "string" &&
+              Number.isFinite(saved.expiresAt) &&
+              (saved.expiresAt ?? 0) > Date.now()
+            ) {
+              setPass({
+                version: 1,
+                runId: saved.runId,
+                purchasePending: true,
+                active: false,
+                expiresAt: saved.expiresAt ?? Date.now() + durationMs,
+              });
+            } else {
+              window.localStorage.removeItem(storageKey);
+              setPass(null);
+            }
+          } catch {
+            window.localStorage.removeItem(storageKey);
+            setPass(null);
+          }
+          setCheckoutError(checkoutErrorMessage(error, gameTitle));
+        } else {
+          window.localStorage.removeItem(storageKey);
+          setPass(null);
+        }
+      } finally {
+        if (!cancelled) setIsRestored(true);
       }
-    } catch {
-      window.localStorage.removeItem(storageKey);
-      setPass(null);
-    } finally {
-      setIsRestored(true);
-    }
-  }, [durationMs, storageKey]);
+    };
+
+    void restorePass();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    durationMs,
+    gameId,
+    gameTitle,
+    isStudent,
+    storageKey,
+    studentId,
+  ]);
 
   const savePass = (nextPass: SavedArcadePass) => {
     window.localStorage.setItem(storageKey, JSON.stringify(nextPass));
@@ -130,7 +209,10 @@ export default function useArcadePass({
       return true;
     }
 
-    const runId = pass?.runId ?? crypto.randomUUID();
+    const pendingRunId =
+      pass?.purchasePending && !pass.active ? pass.runId : null;
+    const isPendingRetry = Boolean(pendingRunId);
+    const runId = pendingRunId ?? crypto.randomUUID();
     const expiresAt = Date.now() + durationMs;
 
     if (isStudent) {
@@ -140,20 +222,22 @@ export default function useArcadePass({
         return false;
       }
 
-      const walletResult = await refetchWallet();
-      if (walletResult.error) {
-        setCheckoutError(checkoutErrorMessage(walletResult.error, gameTitle));
-        setIsStarting(false);
-        return false;
-      }
+      if (!isPendingRetry) {
+        const walletResult = await refetchWallet();
+        if (walletResult.error) {
+          setCheckoutError(checkoutErrorMessage(walletResult.error, gameTitle));
+          setIsStarting(false);
+          return false;
+        }
 
-      const balance = Number(walletResult.data?.coin_balance ?? 0);
-      if (balance < entryCost) {
-        setCheckoutError(
-          `You need ${entryCost} coins to play. Complete more tracker topics to fill your pocket.`,
-        );
-        setIsStarting(false);
-        return false;
+        const balance = Number(walletResult.data?.coin_balance ?? 0);
+        if (balance < entryCost) {
+          setCheckoutError(
+            `You need ${entryCost} coins to play. Complete more tracker topics to fill your pocket.`,
+          );
+          setIsStarting(false);
+          return false;
+        }
       }
 
       savePass({
@@ -165,34 +249,53 @@ export default function useArcadePass({
       });
 
       try {
-        const nextWallet = await spendStudentCoins({
-          amount: entryCost,
-          purchase_key: `game:${gameId}:pass:${runId}`,
-          description: `${gameTitle} arcade pass`,
+        const gamePass = await purchaseStudentGamePass({
+          game_id: gameId,
+          run_id: runId,
         });
         queryClient.setQueryData(
           ["student-coin-wallet", studentId],
-          nextWallet,
+          {
+            student_id: gamePass.student_id,
+            coin_balance: gamePass.coin_balance,
+          },
         );
-        window.dispatchEvent(
-          new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
-            detail: { amount: -entryCost },
-          }),
-        );
+        if (gamePass.charged) {
+          window.dispatchEvent(
+            new CustomEvent(STUDENT_COINS_UPDATED_EVENT, {
+              detail: { amount: -gamePass.entry_cost },
+            }),
+          );
+        }
+        if (
+          !gamePass.active ||
+          gamePass.expires_at === null ||
+          gamePass.expires_at <= Date.now()
+        ) {
+          throw new Error("The paid game pass was not activated.");
+        }
+
+        savePass({
+          version: 1,
+          runId: gamePass.run_id,
+          purchasePending: false,
+          active: true,
+          expiresAt: gamePass.expires_at,
+        });
       } catch (error) {
         setCheckoutError(checkoutErrorMessage(error, gameTitle));
         setIsStarting(false);
         return false;
       }
+    } else {
+      savePass({
+        version: 1,
+        runId,
+        purchasePending: false,
+        active: true,
+        expiresAt,
+      });
     }
-
-    savePass({
-      version: 1,
-      runId,
-      purchasePending: false,
-      active: true,
-      expiresAt,
-    });
     setIsStarting(false);
     return true;
   };

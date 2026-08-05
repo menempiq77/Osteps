@@ -19,6 +19,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "student_behavior",
   "all_assesments",
   "all_trackers",
+  "built_in_trackers",
   "trackers",
   "viewtrackers",
   "student_assesments",
@@ -26,6 +27,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "students",
   "behavior",
   "adhkar",
+  "prayers",
   "mind-upgrade",
   "subjects",
   "subject-cards",
@@ -39,6 +41,7 @@ const SUBJECT_ROUTE_ROOTS = new Set([
   "school-admin",
   "admins",
   "assessment-document",
+  "class_notebook",
 ]);
 
 const appendSearchParams = (path: string, searchParams: SearchParams): string => {

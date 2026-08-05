@@ -38,7 +38,7 @@ function isSolvable(arr: number[], size: number) {
 
 function shuffledBoard(base: number[], size: number) {
   if (size <= 1) return base;
-  let next = [...base];
+  const next = [...base];
   let attempts = 0;
   do {
     for (let i = next.length - 1; i > 0; i--) {
@@ -97,10 +97,13 @@ export default function TileSliderClient({ tiles, difficulty = "easy", onComplet
   };
 
   useEffect(() => {
-    setBoard(shuffledBoard(tiles, BOARD_SIZE));
-    setMoves(0);
-    setEnded(false);
-    setTimeLeft(GAME_DURATION);
+    const id = setTimeout(() => {
+      setBoard(shuffledBoard(tiles, BOARD_SIZE));
+      setMoves(0);
+      setEnded(false);
+      setTimeLeft(GAME_DURATION);
+    }, 0);
+    return () => clearTimeout(id);
   }, [tiles, BOARD_SIZE]);
 
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;

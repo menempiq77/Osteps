@@ -46,7 +46,8 @@ import type {
 import { addStudentTaskMarks, uploadTaskByStudent } from "@/services/api";
 import { fetchStudentProfileData } from "@/services/studentsApi";
 import { resolveExamWindow } from "@/lib/taskTypeMetadata";
-import { useReadOnlyWorkspace } from "@/lib/readOnlyWorkspace";
+import { asRecord } from "@/lib/safeRecord";
+import type { jsPDF } from "jspdf";
 
 type Tool = "cursor" | "pen" | "highlighter" | "text" | "eraser";
 type DocumentKind = "pdf" | "docx" | "image";
@@ -429,15 +430,15 @@ const sanitizeReturnToPath = (value: string | null | undefined) => {
   return normalizedValue;
 };
 
-const extractStudentClassName = (profileData: Record<string, any> | null | undefined) =>
+const extractStudentClassName = (profileData: Record<string, unknown> | null | undefined) =>
   String(
     profileData?.subject_class_name ??
-      profileData?.subject_context?.subject_class_name ??
-      profileData?.subject_context?.base_class_label ??
-      profileData?.subject_class?.name ??
-      profileData?.subject_class?.base_class_label ??
-      profileData?.class?.class_name ??
-      profileData?.class?.name ??
+      asRecord(profileData?.subject_context)?.subject_class_name ??
+      asRecord(profileData?.subject_context)?.base_class_label ??
+      asRecord(profileData?.subject_class)?.name ??
+      asRecord(profileData?.subject_class)?.base_class_label ??
+      asRecord(profileData?.class)?.class_name ??
+      asRecord(profileData?.class)?.name ??
       profileData?.class_name ??
       "Unknown class"
   ).trim() || "Unknown class";
@@ -505,7 +506,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
 
   const raw = value as Partial<AiDraftMarkResponse>;
   const suggestedMark =
-    raw.suggestedMark == null || raw.suggestedMark === ""
+    raw.suggestedMark == null || String(raw.suggestedMark).trim() === ""
       ? null
       : Number(raw.suggestedMark);
   const confidence =
@@ -527,7 +528,7 @@ const normalizeAiDraftPreview = (value: unknown): AiDraftMarkResponse | null => 
             correctAnswer: String(entry.correctAnswer ?? "").trim() || undefined,
             marksAwarded: Number(entry.marksAwarded ?? 0),
             maxMarksForQuestion:
-              entry.maxMarksForQuestion == null || entry.maxMarksForQuestion === ""
+              entry.maxMarksForQuestion == null || String(entry.maxMarksForQuestion).trim() === ""
                 ? null
                 : Number(entry.maxMarksForQuestion),
             reason: String(entry.reason ?? "").trim(),
@@ -1282,13 +1283,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   autoDownloadTeacherPaper = false,
 }) => {
   const [messageApi, contextHolder] = message.useMessage();
-  // Archived read-only workspace: everything is view-only. No annotating, no
-  // marking, no lock toggling — only viewing and switching between students.
-  const isReadOnly = useReadOnlyWorkspace();
   const [state, setState] = useState<AssessmentDocumentState | null>(null);
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [annotationLoadError, setAnnotationLoadError] = useState<string | null>(null);
+  const [workspaceReloadToken, setWorkspaceReloadToken] = useState(0);
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [documentKind, setDocumentKind] = useState<DocumentKind>("pdf");
   const [docxHtml, setDocxHtml] = useState("");
@@ -1481,18 +1481,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     [assessmentId, fileUrl, role, studentId, taskId]
   );
 
-  const pdfRenderUrl = useMemo(() => {
-    const metadataFileUrl = normalizeDocumentUrl(
-      typeof state?.metadata?.documentFileUrl === "string"
-        ? state.metadata.documentFileUrl
-        : null
-    );
-    const currentFileUrl = normalizeDocumentUrl(fileUrl);
-    const effectiveFileUrl = metadataFileUrl || currentFileUrl;
-    if (!effectiveFileUrl) return "";
-    return `/api/assessment-document/pdf?url=${encodeURIComponent(effectiveFileUrl)}`;
-  }, [fileUrl, state?.metadata?.documentFileUrl]);
-
   const currentDocumentUrl = useMemo(() => normalizeDocumentUrl(fileUrl), [fileUrl]);
   const savedDocumentUrl = useMemo(
     () =>
@@ -1503,10 +1491,31 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       ),
     [state?.metadata?.documentFileUrl]
   );
+  const hasAnyAnnotations =
+    (state?.studentAnnotations?.length || 0) > 0 ||
+    (state?.teacherAnnotations?.length || 0) > 0;
   const documentFileMismatch = Boolean(
-    savedDocumentUrl && currentDocumentUrl && savedDocumentUrl !== currentDocumentUrl
+    savedDocumentUrl && currentDocumentUrl && savedDocumentUrl !== currentDocumentUrl && hasAnyAnnotations
   );
-  const activeDocumentIdentityUrl = savedDocumentUrl || currentDocumentUrl;
+  const activeDocumentIdentityUrl = useMemo(() => {
+    if (savedDocumentUrl && hasAnyAnnotations) return savedDocumentUrl;
+    return currentDocumentUrl;
+  }, [savedDocumentUrl, currentDocumentUrl, hasAnyAnnotations]);
+
+  const pdfRenderUrl = useMemo(() => {
+    const metadataFileUrl = savedDocumentUrl;
+    const currentFileUrl = currentDocumentUrl;
+    const savedDiffersFromCurrent =
+      metadataFileUrl && currentFileUrl && metadataFileUrl !== currentFileUrl;
+    if (savedDiffersFromCurrent && !hasAnyAnnotations) {
+      return currentFileUrl
+        ? `/api/assessment-document/pdf?url=${encodeURIComponent(currentFileUrl)}`
+        : "";
+    }
+    const effectiveFileUrl = metadataFileUrl || currentFileUrl;
+    if (!effectiveFileUrl) return "";
+    return `/api/assessment-document/pdf?url=${encodeURIComponent(effectiveFileUrl)}`;
+  }, [savedDocumentUrl, currentDocumentUrl, hasAnyAnnotations]);
 
   const fileExtension = useMemo(() => {
     try {
@@ -1560,7 +1569,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     role !== "student" && !savedDocumentUrl && currentDocumentUrl && studentAnnotations.length > 0
   );
   const editable =
-    !isReadOnly &&
+    Boolean(state) &&
     (role === "teacher" || (!studentLocked && !examEditingLocked && !documentIdentityUnverified));
   // We handle pinch-zoom ourselves for every tool, so the browser must not claim
   // two-finger gestures (which would zoom the whole page and fight our handler).
@@ -1571,16 +1580,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   const oppositeLayer = role === "teacher" ? "student" : "teacher";
   const documentLoaded = Boolean(state);
   const documentReadyForCurrentStudent = documentLoaded && loadedDocumentKey === documentLoadKey;
+  const retryWorkspaceLoad = useCallback(() => {
+    setAnnotationLoadError(null);
+    setRenderError(null);
+    setLoading(true);
+    setRendering(true);
+    setPages([]);
+    setDocxHtml("");
+    setState(null);
+    setLoadedDocumentKey("");
+    setWorkspaceReloadToken((token) => token + 1);
+  }, []);
   const safeReturnTo = sanitizeReturnToPath(returnTo);
   const safeBackHref = sanitizeReturnToPath(backHref);
   const handleBackToClassOverview = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (safeReturnTo) {
-      window.location.assign(safeReturnTo);
-    } else if (safeBackHref) {
+    if (safeBackHref) {
       window.location.assign(safeBackHref);
     } else if (assessmentId) {
       window.location.assign(`/dashboard/student_assesments/${assessmentId}`);
+    } else if (safeReturnTo) {
+      window.location.assign(safeReturnTo);
     } else if (window.history.length > 1) {
       window.history.back();
     } else {
@@ -3564,6 +3584,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     const load = async () => {
       try {
         setLoading(true);
+        setAnnotationLoadError(null);
         setLoadedDocumentKey("");
         setState(null);
         setAiDraftPreview(null);
@@ -3687,7 +3708,12 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         }
       } catch (error) {
         console.error(error);
-        if (!cancelled) messageApi.error("Could not load saved document work.");
+        if (!cancelled) {
+          setAnnotationLoadError(
+            "Couldn't load the marking data. The original paper will still be shown below."
+          );
+          messageApi.error("Could not load saved document work.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -3696,12 +3722,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialSelfAssessmentMark, initialTeacherMarks, initialTeacherFeedback]);
+  }, [assessmentId, taskId, studentId, messageApi, getAnnotationsSignature, oppositeLayer, role, localDraftKey, documentLoadKey, initialSelfAssessmentMark, initialTeacherMarks, initialTeacherFeedback, workspaceReloadToken]);
 
   useEffect(() => {
     let cancelled = false;
     const renderPdf = async () => {
-      if (!pdfRenderUrl) return;
+      if (!pdfRenderUrl) {
+        setRenderError("Couldn't load the paper because no original file was provided.");
+        setRendering(false);
+        return;
+      }
       try {
         setRendering(true);
         setRenderError(null);
@@ -3710,7 +3740,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         if (fileExtension === "docx") {
           setDocumentKind("docx");
           const response = await fetch(pdfRenderUrl, { cache: "no-store" });
-          if (!response.ok) throw new Error("Could not load Word document");
+          if (!response.ok) throw new Error("Could not load the paper file");
           const arrayBuffer = await response.arrayBuffer();
           const mammoth = await import("mammoth");
           const result = await mammoth.convertToHtml({ arrayBuffer });
@@ -3778,7 +3808,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfRenderUrl, fileExtension]);
+  }, [fileExtension, pdfRenderUrl, workspaceReloadToken]);
 
   useEffect(() => {
     for (const page of pages) {
@@ -3865,7 +3895,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   }, [activeDocumentIdentityUrl, assessmentId, getCurrentLayerSnapshot, maxMarks, persistLocalDraft, role, selfAssessmentMark, studentId, taskId, title]);
 
   useEffect(() => {
-    if (isReadOnly || role !== "student" || !documentLoaded) return;
+    if (role !== "student" || !documentLoaded) return;
 
     const normalizedSelfAssessmentMark = normalizeSelfAssessmentValue(selfAssessmentMark);
     if (normalizedSelfAssessmentMark === lastSavedSelfAssessmentRef.current) return;
@@ -3891,10 +3921,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         selfAssessmentSaveTimerRef.current = null;
       }
     };
-  }, [documentLoaded, getCurrentLayerSnapshot, isReadOnly, messageApi, role, saveAnnotations, selfAssessmentMark]);
+  }, [documentLoaded, getCurrentLayerSnapshot, messageApi, role, saveAnnotations, selfAssessmentMark]);
 
   useEffect(() => {
-    if (isReadOnly || role !== "teacher" || !documentLoaded) return;
+    if (role !== "teacher" || !documentLoaded) return;
 
     const teacherDraftSignature = JSON.stringify({
       teacherMarks: teacherMarks.trim(),
@@ -3939,7 +3969,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     aiDraftPreview,
     documentLoaded,
     getCurrentLayerSnapshot,
-    isReadOnly,
     messageApi,
     persistLocalDraft,
     role,
@@ -3950,7 +3979,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
   ]);
 
   useEffect(() => {
-    if (isReadOnly || !assessmentId || !taskId || !studentId || !state) return;
+    if (!assessmentId || !taskId || !studentId || !state) return;
 
     const interval = window.setInterval(() => {
       if (role === "student" && studentLocked) return;
@@ -3984,7 +4013,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     assessmentId,
     taskId,
     studentId,
-    isReadOnly,
     role,
     studentLocked,
     getCurrentLayerSnapshot,
@@ -4323,7 +4351,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
-      event.pointerType === "touch" &&
       pendingTouchPageAction?.pointerId === event.pointerId
     ) {
       if (pendingTouchPageAction.mode === "cursor") return;
@@ -4423,7 +4450,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
     const pendingTouchPageAction = pendingTouchPageActionRef.current;
     if (
-      event.pointerType === "touch" &&
       pendingTouchPageAction?.pointerId === event.pointerId
     ) {
       event.preventDefault();
@@ -4432,8 +4458,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       return;
     }
     if (
-      event.pointerType === "touch" &&
-      (touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2)
+      touchGestureRef.current || touchScrollRef.current || touchPointersRef.current.size >= 2
     ) {
       pendingTouchPageActionRef.current = null;
       return;
@@ -4546,7 +4571,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     setTextFontSize(annotation.fontSize);
     setTextFontWeight(annotation.fontWeight === "bold" ? "bold" : "normal");
     setTextUnderline(Boolean(annotation.underline));
-    setTextAlignment(annotation.textAlign ?? "left");
+    setTextAlignment((annotation.textAlign as TextAlignment) ?? "left");
     setEditingText({
       id: annotation.id,
       page: annotation.page,
@@ -4557,7 +4582,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       width: annotation.width ?? TEXT_ANNOTATION_DEFAULT_WIDTH,
       fontWeight: annotation.fontWeight === "bold" ? "bold" : "normal",
       underline: Boolean(annotation.underline),
-      textAlign: annotation.textAlign ?? "left",
+      textAlign: (annotation.textAlign as TextAlignment) ?? "left",
       autoWidth: false,
     });
   };
@@ -4767,7 +4792,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       }
 
       setEditingText((current) =>
-        current?.id === currentResize.id ? { ...current, width, x } : current
+        current?.id === currentResize.id ? ({ ...current, width, x } as EditingText) : current
       );
       setLayerAnnotationsLocally(
         activeAnnotationsRef.current.map((annotation) =>
@@ -4959,8 +4984,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
     }
   };
 
+  const buildSubmittedPaperPdf = async () => {
+    const { jsPDF } = await import("jspdf");
+    let pdf: InstanceType<typeof jsPDF> | null = null;
+
+    for (const page of pages) {
+      const canvas = document.createElement("canvas");
+      await drawPageIntoCanvas(page, canvas);
+      const orientation = page.width >= page.height ? "landscape" : "portrait";
+      if (!pdf) {
+        pdf = new jsPDF({ orientation, unit: "pt", format: [page.width, page.height] });
+      } else {
+        pdf.addPage([page.width, page.height], orientation);
+      }
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, page.width, page.height);
+    }
+
+    return pdf;
+  };
+
   const submitAssessmentRecord = useCallback(
-    async (additionalNotes: string, includeSelfAssessment: boolean) => {
+    async (additionalNotes: string, includeSelfAssessment: boolean, submittedPdf?: InstanceType<typeof jsPDF> | null) => {
       const formData = new FormData();
       formData.append("task_id", taskId);
       formData.append("additional_notes", additionalNotes);
@@ -4969,14 +5013,27 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         formData.append("self_assessment_mark", String(selfAssessmentMark));
       }
 
+      if (submittedPdf) {
+        const pdfBlob = submittedPdf.output("blob");
+        formData.append("file_path", pdfBlob, "student-answered-paper.pdf");
+        formData.append("file_paths[]", pdfBlob, "student-answered-paper.pdf");
+      }
+
       try {
         await uploadTaskByStudent(formData, Number(assessmentId));
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorRecord = asRecord(error);
+        const responseRecord = asRecord(errorRecord?.response);
+        const dataRecord = asRecord(responseRecord?.data);
+        const statusCode = Number(
+          dataRecord?.status_code ?? responseRecord?.status ?? 0
+        );
+        const responseMessage = String(
+          dataRecord?.msg || dataRecord?.message || errorRecord?.message || ""
+        );
         const duplicateSubmission =
-          Number(error?.response?.data?.status_code ?? error?.response?.status ?? 0) === 409 ||
-          /already submitted|teacher marked/i.test(
-            String(error?.response?.data?.msg || error?.response?.data?.message || error?.message || "")
-          );
+          statusCode === 409 ||
+          /already submitted|teacher marked/i.test(responseMessage);
         if (!duplicateSubmission) throw error;
       }
     },
@@ -5001,11 +5058,18 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setAutosaveQueued(false);
       await saveAnnotations(snapshot, "submitted", { studentLocked: false });
       if (!wasAlreadyMarked) {
+        let submittedPdf: InstanceType<typeof jsPDF> | null = null;
+        try {
+          submittedPdf = await buildSubmittedPaperPdf();
+        } catch (pdfError) {
+          console.error("Could not generate answered PDF for submission:", pdfError);
+        }
         await submitAssessmentRecord(
           examWindow.examMode
             ? "Completed online exam workspace"
             : "Completed online PDF workspace",
-          !examWindow.examMode
+          !examWindow.examMode,
+          submittedPdf
         );
       }
 
@@ -5166,9 +5230,16 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         activeStrokeRef.current = null;
         setActiveStroke(null);
         await saveAnnotations(snapshot, "submitted", { studentLocked: false });
+        let submittedPdf: InstanceType<typeof jsPDF> | null = null;
+        try {
+          submittedPdf = await buildSubmittedPaperPdf();
+        } catch (pdfError) {
+          console.error("Could not generate answered PDF for auto-submission:", pdfError);
+        }
         await submitAssessmentRecord(
           "Exam time ended. Auto-submitted from the online exam workspace.",
-          false
+          false,
+          submittedPdf
         );
         messageApi.info("Exam time ended. Your work has been autosaved and submitted.");
       } catch (error) {
@@ -5314,12 +5385,14 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           aiDraftPreview: normalizedDraft,
         });
         messageApi.warning(
-          normalizedDraft.providerTrace?.selected
+          normalizedDraft?.providerTrace?.selected
             ? `AI could not draft a safe mark with ${normalizedDraft.providerTrace.selected}. Your current mark and feedback were not changed.`
             : "AI could not draft a safe mark. Your current mark and feedback were not changed."
         );
         return;
       }
+
+      if (!normalizedDraft) return;
 
       const nextTeacherMarks = String(normalizedDraft.suggestedMark);
       const nextTeacherFeedback = normalizedDraft.feedback.trim();
@@ -5594,7 +5667,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
           resolve();
         };
         image.onerror = () => reject(new Error("Could not export rendered page"));
-        image.src = page.previewUrl;
+        image.src = page.previewUrl!;
       });
     } else if (documentKind === "docx") {
       context.fillStyle = "#111827";
@@ -5670,23 +5743,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
 
     setExportingPaper(true);
     try {
-      const { jsPDF } = await import("jspdf");
       const fileName = `${sanitizeFileName(displayStudentName)} - ${sanitizeFileName(title || "assessment")}.pdf`;
-      let pdf: InstanceType<typeof jsPDF> | null = null;
-
-      for (const page of pages) {
-        const canvas = document.createElement("canvas");
-        await drawPageIntoCanvas(page, canvas);
-        const orientation = page.width >= page.height ? "landscape" : "portrait";
-        if (!pdf) {
-          pdf = new jsPDF({ orientation, unit: "pt", format: [page.width, page.height] });
-        } else {
-          pdf.addPage([page.width, page.height], orientation);
-        }
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, page.width, page.height);
-      }
-
-      pdf?.save(fileName);
+      const pdf = await buildSubmittedPaperPdf();
+      if (!pdf) throw new Error("Could not generate paper PDF");
+      pdf.save(fileName);
       messageApi.success("Student paper downloaded. No student answers were changed.");
     } catch (error) {
       console.error(error);
@@ -5843,15 +5903,6 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
       setChangingStudentLock(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        {contextHolder}
-        <Spin size="large" />
-      </div>
-    );
-  }
 
   const aiDeductionRows = getAiDeductionRows(aiDraftPreview);
   const toolbarViewportScale = visualViewportScale > 0 ? visualViewportScale : 1;
@@ -6163,17 +6214,15 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             </div>
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
             <>
-                {!isReadOnly && (
-                  <Button
-                    size="small"
-                    onClick={toggleStudentEditingLock}
-                    loading={changingStudentLock}
-                    type={studentLocked ? "default" : "primary"}
-                    danger={!studentLocked}
-                  >
-                    {studentLocked ? "Open for student edits" : "Lock student editing"}
-                  </Button>
-                )}
+                <Button
+                  size="small"
+                  onClick={toggleStudentEditingLock}
+                  loading={changingStudentLock}
+                  type={studentLocked ? "default" : "primary"}
+                  danger={!studentLocked}
+                >
+                  {studentLocked ? "Open for student edits" : "Lock student editing"}
+                </Button>
                 <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700">
                   <span className="font-medium">{examWindow.examMode ? "Predicted" : "Self"}</span>
                   <span className="font-semibold">
@@ -6181,14 +6230,10 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     {maxMarks != null ? `/${maxMarks}` : ""}
                   </span>
                 </div>
-                {!isReadOnly && (
-                  <Input size="small" className="w-20" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
-                )}
-                {!isReadOnly && (
-                  <Button size="small" onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
-                    Ask AI to Mark
-                  </Button>
-                )}
+                <Input size="small" className="w-20" placeholder="Marks" value={teacherMarks} onChange={(event) => setTeacherMarks(event.target.value)} />
+                <Button size="small" onClick={requestAiDraftMark} loading={aiDrafting} disabled={!documentReadyForCurrentStudent || rendering}>
+                  Ask AI to Mark
+                </Button>
                 <Button
                   size="small"
                   onClick={() => void downloadSubmittedPaper()}
@@ -6199,9 +6244,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                 >
                   Download paper
                 </Button>
-                {!isReadOnly && (
-                  <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
-                )}
+                <Button size="small" type="primary" onClick={finalizeTeacherMark} loading={finishing}>Save markbook mark</Button>
             </>
           </div>
           </div>
@@ -6350,7 +6393,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
             description="Student writing is protected and temporarily read-only. An admin must verify which PDF belongs to this answer before students continue, so answers are not mixed with another year or class paper."
           />
         ) : null}
-        {role === "teacher" && !isReadOnly ? (
+        {role === "teacher" ? (
           <Alert
             className="mb-4"
             type="info"
@@ -6390,9 +6433,9 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                     Recheck: {aiDraftPreview.providerTrace.recheck}
                   </p>
                 ) : null}
-                {aiDraftPreview.providerTrace?.attempts?.length > 1 ? (
+                {(aiDraftPreview.providerTrace?.attempts?.length ?? 0) > 1 ? (
                   <p className="text-xs text-gray-500">
-                    Tried: {aiDraftPreview.providerTrace.attempts.join(" -> ")}
+                    Tried: {(aiDraftPreview.providerTrace?.attempts ?? []).join(" -> ")}
                   </p>
                 ) : null}
                 <p className="whitespace-pre-wrap">{aiDraftPreview.feedback}</p>
@@ -6500,24 +6543,57 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
         {role === "student" && !studentLocked && state?.status !== "draft" && state?.status !== "submitted" && (
           <Alert className="mb-4" type="info" showIcon message="Your teacher reopened this document. You can edit it again and submit again when you are done." />
         )}
-        {role === "teacher" && !isReadOnly && !studentLocked && (
+        {role === "teacher" && !studentLocked && (
           <Alert className="mb-4" type="warning" showIcon message={state?.status === "draft" ? "The student can currently write and edit this document. You can still view their autosaved draft while they work." : state?.status === "submitted" ? "The student has submitted work, but it remains open for edits until you mark it." : "The student can currently write and edit this document. Lock it again when you want to stop further changes."} />
         )}
-        {role === "teacher" && !isReadOnly && studentLocked && state?.status === "draft" && (
+        {role === "teacher" && studentLocked && state?.status === "draft" && (
           <Alert className="mb-4" type="warning" showIcon message="The student has not pressed Finish yet, but editing is currently locked by the teacher." />
         )}
+        {loading && (
+          <Alert
+            className="mb-4"
+            type="info"
+            showIcon
+            message="Loading marking data..."
+            description="The original paper preview can appear while the saved annotations are loading."
+          />
+        )}
+
+        {annotationLoadError && (
+          <Alert
+            className="mb-4"
+            type="warning"
+            showIcon
+            message="Couldn't load the marking data"
+            description={
+              <div className="flex flex-wrap items-center gap-3">
+                <span>{annotationLoadError}</span>
+                <Button size="small" onClick={retryWorkspaceLoad}>
+                  Retry
+                </Button>
+              </div>
+            }
+          />
+        )}
+
         {renderError && (
           <Alert
             className="mb-4"
             type="warning"
             showIcon
-            message={renderErrorMessage}
+            message="Couldn't load the paper preview"
             description={
-              canOpenOriginalFile ? (
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-                  Open original PDF
-                </a>
-              ) : undefined
+              <div className="flex flex-wrap items-center gap-3">
+                <span>{renderErrorMessage}</span>
+                {canOpenOriginalFile ? (
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    Open original PDF
+                  </a>
+                ) : null}
+                <Button size="small" onClick={retryWorkspaceLoad}>
+                  Retry
+                </Button>
+              </div>
             }
           />
         )}
@@ -7004,7 +7080,7 @@ const PdfAssessmentAnnotator: React.FC<PdfAssessmentAnnotatorProps> = ({
                               color: annotation.color,
                               fontSize: annotation.fontSize,
                               fontWeight: annotation.fontWeight === "bold" ? 700 : 400,
-                              textAlign: annotation.textAlign ?? "left",
+                              textAlign: (annotation.textAlign as TextAlignment) ?? "left",
                               textDecorationLine: annotation.underline ? "underline" : "none",
                               cursor: !isEditableText
                                 ? "default"
